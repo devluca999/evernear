@@ -79,6 +79,16 @@ describe("escrow", () => {
   it("whitelists exactly the supplier and Astro", () => {
     expect(escrowPolicy({ walletId: "w", supplier: haoyun, owner: astro, lockedCents: cents(38000) }).rules.addresses.list).toEqual([haoyun, astro]);
   });
+  it("registers the new PO wallet on the USDC contract before locking funds into it", async () => {
+    const { fetch, sent } = mockFetch({
+      "POST /wallet/v1/storage-deposit": () => ({ request_id: "s", status: "success", tx_hash: "S" }),
+      "POST /wallet/v1/call": () => ({ request_id: "r", status: "success", tx_hash: "T" }),
+    });
+    await new EscrowAdapter({ fetch, parentApiKey: KEY, sink: () => {} }).lock({ po: "1042", escrowAccount: "ee".repeat(32), cents: cents(38000) });
+    expect(sent.map((s) => new URL(s.url).pathname)).toEqual(["/wallet/v1/storage-deposit", "/wallet/v1/call"]);
+    expect(JSON.parse(sent[0].body)).toEqual({ token: "usdc.fakes.testnet", account_id: "ee".repeat(32) });
+    expect(sent.every((s) => s.headers.Authorization === `Bearer ${KEY}`)).toBe(true);
+  });
   it("refuses a wrong address before any network call", async () => {
     const { fetch, sent } = mockFetch({});
     const { proofs, sink } = sinkRecorder();

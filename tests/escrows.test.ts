@@ -18,6 +18,7 @@ function routes() {
   let n = 0;
   return mockFetch({
     "PUT /wallet/v1/api-key": () => ({ wallet_id: "w-po", near_account_id: ESCROW_ACCOUNT }),
+    "POST /wallet/v1/storage-deposit": () => ({ request_id: "storage", status: "success" }),
     "POST /wallet/v1/call": () => ({ request_id: `r${++n}`, status: "success", tx_hash: `TX${n}` }),
   });
 }
@@ -45,11 +46,11 @@ describe("deadline refund", () => {
     vi.stubGlobal("fetch", m.fetch);
     const t = convexTest(schema, modules);
     const escrowId = await lockPo(t);
-    expect(m.sent).toHaveLength(2); // sub wallet, lock
+    expect(m.sent).toHaveLength(3); // sub wallet, storage, lock
 
     await t.finishAllScheduledFunctions(vi.runAllTimers);
 
-    const refund = m.sent[2];
+    const refund = m.sent[3];
     expect(JSON.parse(refund.body).args).toEqual({ receiver_id: astro, amount: "38000000000", memo: "PO 1042 deadline refund" });
     expect(refund.headers.Authorization).toBe(`Bearer ${await subWalletKey("po-1042", KEY)}`);
     expect(refund.url.startsWith("https://testnet-api.outlayer.ai/")).toBe(true);
@@ -66,7 +67,7 @@ describe("deadline refund", () => {
     const escrowId = await lockPo(t);
     vi.advanceTimersByTime(DAY - 1000);
     expect(await t.action(internal.escrows.refundAtDeadline, { escrowId })).toEqual({ ok: false, reason: "not_due" });
-    expect(m.sent).toHaveLength(2);
+    expect(m.sent).toHaveLength(3);
   });
 
   it("refunds the unreclaimed held part to Astro at the deadline after a partial release", async () => {
@@ -82,7 +83,7 @@ describe("deadline refund", () => {
     await t.finishAllScheduledFunctions(vi.runAllTimers);
 
     expect(m.sent.map((s) => JSON.parse(s.body).args?.memo).filter(Boolean)).toEqual(["PO 1042 escrow", "PO 1042 release", "PO 1042 deadline refund"]);
-    expect(JSON.parse(m.sent[3].body).args).toEqual({ receiver_id: astro, amount: "3800000000", memo: "PO 1042 deadline refund" });
+    expect(JSON.parse(m.sent[4].body).args).toEqual({ receiver_id: astro, amount: "3800000000", memo: "PO 1042 deadline refund" });
     const e = await t.run((ctx) => ctx.db.get(escrowId));
     expect(e).toMatchObject({ releasedCents: cents(34200), reclaimedCents: cents(3800), closed: true, outcome: "refunded" });
   });
@@ -104,7 +105,7 @@ describe("deadline refund", () => {
     // Even if the job had already started, the action refuses to refund.
     vi.advanceTimersByTime(2 * DAY);
     expect(await t.action(internal.escrows.refundAtDeadline, { escrowId })).toEqual({ ok: false, reason: "closed" });
-    expect(m.sent).toHaveLength(3);
+    expect(m.sent).toHaveLength(4);
   });
 
   it("never stores the escrow key", async () => {

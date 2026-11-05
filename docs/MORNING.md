@@ -12,7 +12,7 @@ Status, Nov 5 2026: everything is on `main` at https://github.com/devluca999/eve
 
 1. **OutLayer testnet wallet**: `node scripts/rehearse-testnet.mjs`. It writes `OUTLAYER_API_KEY`, `OUTLAYER_WALLET_ID`, `OUTLAYER_NEAR_ACCOUNT` and `OUTLAYER_PAYMENT_KEY` to `.env.local` and never prints a key. Then set the owner policy at app.outlayer.ai/wallet (testnet toggle). The trial's 7 days start at registration.
 2. **Vercel**: done. Commits in this repo are authored as `devluca999` (GitHub no-reply), so Hobby accepts them. If the demo should not be public yet, turn on protection for production in the project settings.
-3. **NEAR testnet accounts** for you and Jordy, with keys in a wallet that signs NEP-413 on a phone. Put yours in `OUTLAYER_OWNER_ACCOUNT`.
+3. **NEAR testnet accounts** for you and Jordy, with keys in a wallet that signs NEP-413 on a phone. Put yours in `OUTLAYER_OWNER_ACCOUNT`. The faucet funds a new one with test NEAR: `near account create-account sponsor-by-faucet-service <name>.testnet autogenerate-new-keypair save-to-keychain network-config testnet create` (needs `npm i -g near-cli-rs`). Then send 1 test NEAR to Astro's wallet for gas (NOTES 13).
 4. **Supplier stand-ins**: two testnet accounts for Ultra Motion and Haoyun, plus a demo mailbox (`REHEARSE_*` in `.env.example`).
 5. **usdc.fakes.testnet tokens**: how to get them is not documented. Ask OutLayer.
 6. **NEAR AI Cloud key** from cloud.near.ai: `NEARAI_API_KEY` in `.env.local` and the Convex env.

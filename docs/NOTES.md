@@ -389,3 +389,12 @@ Source: `.agents/skills/near-ai-cloud` (near/agent-skills 1.1.0), references `ch
 - A model runs on several TEE nodes; the lookup can return "Chat id not found or expired" until it reaches the right one. We retry up to 5 times.
 - Verify by recovering the signer (Ethereum personal_sign over `text`) and comparing it to the model attestation's `signing_address`. We now recover it in `convex/near/ecdsa.ts`, and a missing attested address no longer passes.
 - Models are "Private" (TEE) or "Anonymised" (routed to third parties). Only Private models may see the BOM. `isConfidential` uses `owned_by === "nearai"`; the skill does not confirm that field, so check it against the live `/v1/models` on the first call with a real key.
+
+## 13. OutLayer, checked against the agent-custody skill (Nov 5 2026)
+
+Source: `.claude/skills/agent-custody` (out-layer/skills d499145).
+- **Gas.** `/wallet/v1/call` (our `ft_transfer`), `/transfer` and `/storage-deposit` are on-chain: the wallet's implicit account must hold NEAR (about 0.001 NEAR a call). A fresh wallet has none. Only `/intents/*` and `/payment-check/*` are gasless, and those are mainnet only.
+- **Storage.** `/wallet/v1/call` does not register the receiver on the token contract. A new receiver needs `POST /wallet/v1/storage-deposit {"token","account_id"}` first. `EscrowAdapter.lock` now registers each new PO wallet before funds move in (`convex/near/escrow.ts`, test "registers the new PO wallet"). Haoyun's and Astro's receiving accounts need the same once, at onboarding.
+- **Funding.** Fund link: `https://app.outlayer.ai/wallet/fund?to={near_account_id}&amount={n}&token={token}` (switch to testnet in the page). It registers storage itself. Test NEAR comes from the testnet faucet: `near account create-account sponsor-by-faucet-service <name>.testnet ...` (near-cli-rs skill), then send some to the wallet. How to get `usdc.fakes.testnet` is still not documented anywhere.
+- **Policy and calls.** For accounts *bound* to a user, every recipient inside a call is decoded and checked, the call's outer target is judged too, and `native` must be in `allowed_tokens`. We do not bind accounts, and the skill does not say whether the same holds for a plain wallet. So the first live test stays: does a whitelist of payees alone (our `ownerPolicy`) refuse an `ft_transfer` aimed at `usdc.fakes.testnet`, and does it refuse an off-list recipient inside one.
+- `/wallet/v1/transfer` takes `to`, not `receiver_id`. We only use `/call`, where `receiver_id` is the contract.

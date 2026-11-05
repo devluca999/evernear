@@ -26,6 +26,7 @@ export class EscrowAdapter {
   /** Lock: move the PO total from Astro's wallet into the PO wallet. */
   async lock(i: { po: string; escrowAccount: string; cents: number }) {
     const parent = new Custody({ fetch: this.o.fetch, apiKey: this.o.parentApiKey, sink: this.o.sink });
+    await parent.registerStorage(i.escrowAccount);
     return parent.payUsdc({ to: i.escrowAccount, cents: i.cents, memo: `PO ${i.po} escrow`, label: `Locked for PO ${i.po}`, kind: "escrow" });
   }
 

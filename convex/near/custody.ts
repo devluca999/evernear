@@ -61,6 +61,17 @@ export class Custody {
     return r.json.balance;
   }
 
+  /** Registers `account` on the token contract so it can receive. `/wallet/v1/call` does not do this,
+   *  so a new receiver (a fresh PO wallet) must be registered before its first ft_transfer.
+   *  Source: .claude/skills/agent-custody/references/wallet-ops.md "Automatic Storage Registration". */
+  async registerStorage(account: string, token = USDC_TESTNET) {
+    const r = await httpJson<{ request_id?: string; status?: string; tx_hash?: string }>({
+      fetch: this.o.fetch, base: this.base, method: "POST", path: "/wallet/v1/storage-deposit", headers: this.auth(),
+      body: { token, account_id: account },
+    });
+    return r.json;
+  }
+
   /** USDC transfer: ft_transfer on the token contract, 1 yocto deposit. */
   async payUsdc(i: { to: string; cents: number; memo: string; label: string; kind?: string }) {
     const body = {

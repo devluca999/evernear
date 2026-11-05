@@ -25,7 +25,7 @@ export function Sidebar({ open, onToggle, pinned, onPick, onClear }: {
           return (
             <li key={id}>
               <button type="button" className={s.navItem} aria-pressed={on} onClick={() => onPick(id)}
-                title={on ? `${PANEL_NAMES[id]} is on the workspace. Click to hand it back to the scene` : `Open ${PANEL_NAMES[id]} on the workspace`}>
+                title={on ? `${PANEL_NAMES[id]} is on your workspace. Click to close it` : `Open ${PANEL_NAMES[id]} on the workspace`}>
                 <Icon size={16} strokeWidth={2} aria-hidden="true" />
                 <span className={s.navLabel}>{PANEL_NAMES[id]}</span>
               </button>
@@ -33,7 +33,7 @@ export function Sidebar({ open, onToggle, pinned, onPick, onClear }: {
           );
         })}
       </ul>
-      {open && pinned.length > 0 && <button type="button" className={s.pinClear} onClick={onClear}>Clear pins</button>}
+      {open && pinned.length > 0 && <button type="button" className={s.pinClear} onClick={onClear}>Clear workspace</button>}
     </nav>
   );
 }

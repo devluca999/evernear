@@ -91,27 +91,31 @@ describe("workspace", () => {
     at(0);
     expect(screen.getByLabelText("everNEAR").textContent).toBe("everNEAR");
   });
-  it("keeps a pinned panel on screen across scenes, and gives control back when unpinned", () => {
+  it("a card you open from the sidebar stays across scenes until you close it; unlocking never removes it", () => {
     at(sceneStartMs(6) + 2000);
     const panels = () => [...document.querySelectorAll("[data-panel]")].map((e) => e.getAttribute("data-panel"));
     expect(panels()).not.toContain("demand");
     fireEvent.click(within(screen.getByRole("navigation", { name: "Workspace components" })).getByRole("button", { name: "Orders" }));
-    expect(panels()[0]).toBe("demand");
-    fireEvent.click(screen.getByRole("button", { name: "Pin Suppliers" }));
+    expect(panels()).toContain("demand");
+    fireEvent.click(screen.getByRole("button", { name: "Lock Orders" }));
     fireEvent.keyDown(window, { key: "ArrowRight" });
-    expect(panels()).toEqual(["demand", "map", "bom"]); // scene 7 wants BOM and Suppliers
-    expect(screen.getByRole("button", { name: "Unpin Suppliers" }).getAttribute("aria-pressed")).toBe("true");
-    fireEvent.click(screen.getByRole("button", { name: "Clear pins" }));
-    expect(panels()).toEqual(["bom", "map"]);
+    expect(panels()).toContain("demand");
+    fireEvent.click(screen.getByRole("button", { name: "Unlock Orders" }));
+    expect(panels()).toContain("demand");
+    fireEvent.click(screen.getByRole("button", { name: "Close Orders" }));
+    expect(panels()).not.toContain("demand");
   });
-  it("reorders panels from the grip, and keeps the new order across scenes", () => {
+  it("moves a card to another spot on the grid from its grip, and a locked card stays put", () => {
     at(sceneStartMs(7) + 2000);
-    const panels = () => [...document.querySelectorAll("[data-panel]")].map((e) => e.getAttribute("data-panel"));
-    expect(panels()).toEqual(["bom", "map"]);
-    fireEvent.keyDown(screen.getByRole("button", { name: "Move Suppliers" }), { key: "ArrowLeft", altKey: true });
-    expect(panels()).toEqual(["map", "bom"]);
+    const spotOf = (id: string) => (document.querySelector(`[data-panel="${id}"]`)!.parentElement as HTMLElement).style.gridColumn;
+    fireEvent.keyDown(screen.getByRole("button", { name: "Move Suppliers" }), { key: "ArrowRight", altKey: true });
+    expect(spotOf("map")).toBe("3");
+    fireEvent.keyDown(screen.getByRole("button", { name: "Move Suppliers" }), { key: "ArrowDown", altKey: true });
+    expect((document.querySelector('[data-panel="map"]')!.parentElement as HTMLElement).style.gridRow).toBe("2");
+    fireEvent.click(screen.getByRole("button", { name: "Lock Suppliers" }));
+    expect((screen.getByRole("button", { name: "Move Suppliers" }) as HTMLButtonElement).disabled).toBe(true);
     fireEvent.keyDown(window, { key: "ArrowRight" });
-    expect(panels().slice(0, 2)).toEqual(["map", "bom"]);
+    expect((document.querySelector('[data-panel="map"]')!.parentElement as HTMLElement).style.gridRow).toBe("2");
   });
   it("lets you change the thresholds, says where a stricter rule stops PO 1042, and resets", () => {
     at(sceneStartMs(6) + 2000);

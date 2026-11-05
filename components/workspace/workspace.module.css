@@ -421,7 +421,6 @@
 .pinBtn:hover { color: var(--text-primary); background: var(--bg-sunken); }
 .pinBtn[aria-pressed="true"] { color: var(--text-primary); }
 .pinBtn:focus-visible, .pinChip:focus-visible, .pinClear:focus-visible { outline: 2px solid var(--line-focus); outline-offset: 2px; }
-.panel[data-pinned="true"] { border-color: var(--line-strong); }
 .pinTray { display: grid; gap: 8px; }
 .pinRow { display: flex; flex-wrap: wrap; gap: 6px; }
 .pinChip { all: unset; cursor: pointer; font-size: 12px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line-hairline); color: var(--text-secondary); }
@@ -502,7 +501,6 @@
 .gripBtn:hover { color: var(--text-secondary); background: var(--bg-sunken); }
 .gripBtn:active { cursor: grabbing; }
 .gripBtn:focus-visible { outline: 2px solid var(--line-focus); outline-offset: 2px; }
-.panel[data-drop="true"] { border-color: var(--line-strong); box-shadow: var(--elev-2); }
 .mapWrap { position: relative; }
 .map { cursor: grab; touch-action: none; user-select: none; }
 .map[data-dragging="true"] { cursor: grabbing; }
@@ -520,3 +518,15 @@
 .ruleInput { display: inline-flex; align-items: center; gap: 4px; height: 32px; padding: 0 8px; border: 1px solid var(--line-hairline); border-radius: var(--radius-sm, 6px); background: var(--bg-raised); }
 .ruleInput:focus-within { border-color: var(--line-strong); }
 .ruleInput input { all: unset; width: 100%; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 14px; color: var(--text-primary); }
+
+/* The board: 3 columns by 2 rows of spots once you place a card (scenario/board.ts). */
+.panels[data-grid="true"] { grid-template-columns: repeat(3, minmax(0, 1fr)); align-content: stretch; align-items: stretch; position: relative; }
+.cardSlot { display: contents; }
+.panels[data-grid="true"] .cardSlot { display: block; min-height: 0; min-width: 0; position: relative; z-index: 1; }
+.panels[data-grid="true"] .cardSlot > .panel { height: 100%; max-height: none; box-sizing: border-box; }
+.cardSlot[data-moving="true"] { z-index: 6; opacity: 0.92; pointer-events: none; }
+.cardSlot[data-moving="true"] > .panel { box-shadow: var(--elev-3); }
+.spot { border: 1px dashed var(--line-strong); border-radius: var(--radius-lg, 12px); z-index: 0; }
+.spot[data-over="true"] { background: var(--row-selected); border-style: solid; }
+.panel[data-locked="true"] { border-color: var(--line-strong); }
+.gripBtn:disabled { cursor: default; opacity: 0.4; }

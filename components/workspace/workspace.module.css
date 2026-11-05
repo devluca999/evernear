@@ -179,17 +179,58 @@
 .figSvg { width: 100%; max-height: 220px; }
 .figPair { display: grid; grid-template-columns: 3fr 2fr; gap: 8px; width: 100%; align-items: end; }
 /* Anatomy figures read Evernear tokens: neutral ink for structure, state blue for the part being sourced. */
+/* Paper is the figure's own ground (--bg-sunken), so fills hide what is behind without patches.
+   Faces step away from it in four shades by how they face the light, tops lightest; lines are
+   ink mixed into the ground. Dark mixes toward the ink, light toward the raised white. */
 .isoFig {
-  --anatomy-paper: var(--bg-sunken); --anatomy-face: var(--bg-raised); --anatomy-top: var(--bg-raised);
-  --anatomy-shade-0: var(--bg-sunken); --anatomy-shade-1: var(--bg-sunken); --anatomy-shade-2: var(--bg-page); --anatomy-shade-3: var(--bg-page);
-  --anatomy-lit-top: var(--bg-raised); --anatomy-lit-shade: var(--bg-page);
-  --anatomy-hi: var(--text-secondary); --anatomy-mid: var(--text-faint); --anatomy-lo: var(--line-strong); --anatomy-faint: var(--line-hairline);
-  --anatomy-lit: var(--text-primary); --anatomy-dot: var(--text-muted); --anatomy-halo: var(--bg-page);
+  --fig-ink: var(--text-primary); --fig-ground: var(--bg-sunken);
+  --anatomy-paper: var(--fig-ground);
+  --anatomy-shade-0: color-mix(in oklab, black 34%, var(--fig-ground));
+  --anatomy-shade-1: color-mix(in oklab, var(--fig-ink) 2%, var(--fig-ground));
+  --anatomy-shade-2: color-mix(in oklab, var(--fig-ink) 4%, var(--fig-ground));
+  --anatomy-shade-3: color-mix(in oklab, var(--fig-ink) 6.5%, var(--fig-ground));
+  --anatomy-face: color-mix(in oklab, var(--fig-ink) 8%, var(--fig-ground));
+  --anatomy-top: color-mix(in oklab, var(--fig-ink) 9%, var(--fig-ground));
+  --anatomy-lit-top: color-mix(in oklab, var(--fig-ink) 13%, var(--fig-ground));
+  --anatomy-lit-shade: color-mix(in oklab, var(--fig-ink) 7%, var(--fig-ground));
+  --anatomy-hi: color-mix(in oklab, var(--fig-ink) 82%, var(--fig-ground));
+  --anatomy-mid: color-mix(in oklab, var(--fig-ink) 52%, var(--fig-ground));
+  --anatomy-lo: color-mix(in oklab, var(--fig-ink) 28%, var(--fig-ground));
+  --anatomy-faint: color-mix(in oklab, var(--fig-ink) 14%, var(--fig-ground));
+  --anatomy-lit: var(--fig-ink); --anatomy-dot: var(--text-muted);
+  --anatomy-halo: black; --anatomy-halo-opacity: .7;
   width: 100%;
 }
+:global([data-mode="light"]) .isoFig {
+  --fig-white: var(--bg-raised);
+  --anatomy-shade-0: color-mix(in oklab, var(--fig-ink) 15%, var(--fig-white));
+  --anatomy-shade-1: color-mix(in oklab, var(--fig-ink) 10.5%, var(--fig-white));
+  --anatomy-shade-2: color-mix(in oklab, var(--fig-ink) 7%, var(--fig-white));
+  --anatomy-shade-3: color-mix(in oklab, var(--fig-ink) 3.5%, var(--fig-white));
+  --anatomy-face: var(--fig-white); --anatomy-top: var(--fig-white); --anatomy-lit-top: var(--fig-white);
+  --anatomy-lit-shade: color-mix(in oklab, var(--fig-ink) 6%, var(--fig-white));
+  --anatomy-hi: color-mix(in oklab, var(--fig-ink) 88%, var(--fig-ground));
+  --anatomy-mid: color-mix(in oklab, var(--fig-ink) 50%, var(--fig-ground));
+  --anatomy-lo: color-mix(in oklab, var(--fig-ink) 30%, var(--fig-ground));
+  --anatomy-faint: color-mix(in oklab, var(--fig-ink) 16%, var(--fig-ground));
+  --anatomy-halo: color-mix(in oklab, var(--fig-ink) 50%, var(--fig-ground)); --anatomy-halo-opacity: .3;
+}
 .isoFig :global(.iso-svg) { max-height: 240px; }
-.isoFig[data-highlight="motor"] :global([data-part="motor"]) { --anatomy-hi: var(--state-active); --anatomy-lit: var(--state-active); --anatomy-mid: var(--state-active); }
-.isoMotor :global(.iso-svg) { max-height: 200px; }
+/* The part being sourced is the one lit subject: state blue edges and a light wash on its faces. */
+.isoFig[data-highlight="motor"] :global([data-part="motor"]) {
+  --anatomy-hi: var(--state-active); --anatomy-lit: var(--state-active); --anatomy-mid: var(--state-active);
+  --anatomy-lo: color-mix(in oklab, var(--state-active) 60%, var(--fig-ground));
+  --anatomy-faint: color-mix(in oklab, var(--state-active) 38%, var(--fig-ground));
+  --anatomy-face: color-mix(in oklab, var(--state-active) 14%, var(--fig-ground));
+  --anatomy-lit-top: color-mix(in oklab, var(--state-active) 22%, var(--fig-ground));
+  --anatomy-lit-shade: color-mix(in oklab, var(--state-active) 12%, var(--fig-ground));
+}
+:global([data-mode="light"]) .isoFig[data-highlight="motor"] :global([data-part="motor"]) {
+  --anatomy-face: color-mix(in oklab, var(--state-active) 6%, var(--fig-white));
+  --anatomy-lit-top: color-mix(in oklab, var(--state-active) 5%, var(--fig-white));
+  --anatomy-lit-shade: color-mix(in oklab, var(--state-active) 13%, var(--fig-white));
+}
+.isoMotor :global(.iso-svg) { max-height: 210px; }
 .figPart { fill: var(--bg-raised); stroke: var(--line-strong); }
 .figHot { fill: var(--state-active-wash); stroke: var(--state-active); }
 .supCard { padding: var(--space-3, 8px) var(--space-4, 12px); border: 1px solid var(--line-hairline); border-radius: var(--radius-md, 8px); }

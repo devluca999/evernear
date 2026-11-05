@@ -13,3 +13,11 @@ export function formatUsd(c: number): string {
 /** Mainnet finale runs at 1:10,000 of the story amounts. */
 export const FINALE_SCALE = 10_000;
 export const scaleFinale = (c: number): number => Math.round(c / FINALE_SCALE);
+
+/** Whole dollars when there are no cents: $38,000 rather than $38,000.00. */
+export function formatUsdShort(c: number): string {
+  const full = formatUsd(c);
+  return full.endsWith(".00") ? full.slice(0, -3) : full;
+}
+
+export const formatInt = (n: number): string => n.toLocaleString("en-US");

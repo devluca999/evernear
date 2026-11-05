@@ -1,0 +1,27 @@
+import type { Proof } from "@/scenario/types";
+import s from "./workspace.module.css";
+
+export function Drawer({ proof, open, onToggle, lastProof }: { proof: Proof | null; open: boolean; onToggle: () => void; lastProof: Proof | null }) {
+  const p = proof ?? lastProof;
+  const shown = open && p;
+  return (
+    <section className={`${s.drawer} ${shown ? s.drawerOpen : ""}`} aria-label="Developer drawer">
+      <button className={s.drawerTab} onClick={onToggle} aria-expanded={!!shown}>Developer</button>
+      {p && (
+        <div className={s.drawerBody}>
+          <div className={s.drawerRow}>
+            <span className={s.micro}>CALL</span><code className={s.mono}>{p.call}</code>
+            {p.synthetic ? <span className={s.tagSynthetic}>synthetic</span> : p.replay ? <span className={s.tag}>replay</span> : null}
+            <span className={s.tag}>{p.network}</span>
+          </div>
+          <div className={s.drawerRow}><span className={s.micro}>CODE PATH</span><code className={s.mono}>{p.codePath}</code></div>
+          <div className={s.drawerRow}><span className={s.micro}>HASH</span><code className={s.mono}>{p.hash}</code>
+            {p.explorerUrl ? <a className={s.link} href={p.explorerUrl} target="_blank" rel="noreferrer">Explorer</a> : <span className={s.faint}>No explorer link: synthetic placeholder</span>}
+          </div>
+          <pre className={s.json}>{JSON.stringify(p.response, null, 2)}</pre>
+          <p className={s.drawerLabel}>{p.label}</p>
+        </div>
+      )}
+    </section>
+  );
+}

@@ -1,7 +1,5 @@
+import { Workspace } from "@/components/workspace/Workspace";
+
 export default function Home() {
-  return (
-    <main>
-      <h1>Evernear</h1>
-    </main>
-  );
+  return <Workspace />;
 }

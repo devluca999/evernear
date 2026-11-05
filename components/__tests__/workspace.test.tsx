@@ -9,9 +9,19 @@ afterEach(() => { cleanup(); localStorage.clear(); });
 const at = (ms: number) => render(<Workspace initialMs={ms} autoplay={false} />);
 
 describe("workspace", () => {
-  it("always reserves the presenter camera corner", () => {
+  it("has no camera placeholder: the presenter camera is overlaid top right when recording", () => {
     at(0);
-    expect(screen.getByLabelText("Presenter camera")).toBeTruthy();
+    expect(screen.queryByLabelText("Presenter camera")).toBeNull();
+  });
+  it("docks the phone and the developer drawer at the bottom, and the chevron collapses and expands the drawer", () => {
+    at(sceneStartMs(6) + 700); // the escrow proof has just opened the drawer
+    const drawer = screen.getByLabelText("Developer drawer");
+    expect(drawer.parentElement).toBe(screen.getByLabelText("Phone").parentElement);
+    expect(drawer.className).toMatch(/drawerOpen/);
+    fireEvent.click(screen.getByRole("button", { name: "Collapse developer drawer" }));
+    expect(drawer.className).not.toMatch(/drawerOpen/);
+    fireEvent.click(screen.getByRole("button", { name: "Expand developer drawer" }));
+    expect(drawer.className).toMatch(/drawerOpen/);
   });
   it("shows the rail with eight steps", () => {
     at(0);

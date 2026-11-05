@@ -7,7 +7,10 @@ export function Drawer({ proof, open, onToggle, lastProof }: { proof: Proof | nu
   const shown = open && p;
   return (
     <section className={`${s.drawer} ${shown ? s.drawerOpen : ""}`} aria-label="Developer drawer">
-      <button className={s.drawerTab} onClick={onToggle} aria-expanded={!!shown}>Developer</button>
+      <button className={s.drawerTab} onClick={onToggle} aria-expanded={!!shown} aria-label={shown ? "Collapse developer drawer" : "Expand developer drawer"}>
+        <span>Developer{p ? <span className={s.faint}> · {p.label}</span> : null}</span>
+        <svg className={s.chevron} data-open={!!shown} viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3.5 10l4.5-4.5 4.5 4.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+      </button>
       {p && (
         <div className={s.drawerBody}>
           <div className={s.drawerRow}>

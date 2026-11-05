@@ -56,7 +56,7 @@ A composable workspace: pinnable panels on one dashboard. A scenario runner snap
 | Developer drawer | Stripe-style pull-up: the call that just ran, its code path, response, hash and explorer link |
 | Phone | Stockbot chat in a generic phone frame (no Apple device art), pull-up only, mirrors the real phone |
 
-Layout rules: at most 3 panels at once; the presenter camera has a fixed bottom-right corner no layout covers; the drawer opens about 3 s per proof moment; a panel pulses when a Stockbot message refers to it; a journey rail across the top (Low, Sourcing, Approval, Confirmed, Funds locked, Shipped, Dock, Paid) shows progress as segmented steps.
+Layout rules: at most 3 panels at once; the presenter camera is overlaid top right when recording (no placeholder on screen); the phone docks bottom left and the developer drawer runs from it to the right edge, with a chevron to expand or collapse; the drawer opens about 3 s per proof moment; a panel pulses when a Stockbot message refers to it; a journey rail across the top (Low, Sourcing, Approval, Confirmed, Funds locked, Shipped, Dock, Paid) shows progress as segmented steps.
 
 ## 4. Scenes
 

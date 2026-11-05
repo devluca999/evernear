@@ -264,8 +264,11 @@
 .miniRail li[data-state="active"] { background: var(--state-active); }
 
 /* Developer drawer, pull up from the bottom of the stage area. */
+/* The bottom dock: the phone on the left, the developer drawer from the phone to the right edge. */
+.dock { position: absolute; left: var(--space-5, 16px); right: var(--space-5, 16px); bottom: 0; height: 0; z-index: 4; pointer-events: none; }
+.dock > * { pointer-events: auto; }
 .drawer {
-  position: absolute; left: 0; right: 380px; bottom: 0; z-index: 2;
+  position: absolute; left: 336px; right: 0; bottom: 0; z-index: 2;
   background: var(--bg-raised); border: 1px solid var(--line-hairline); border-bottom: none;
   border-radius: var(--radius-lg, 12px) var(--radius-lg, 12px) 0 0; box-shadow: var(--elev-2);
   transform: translateY(calc(100% - 36px)); transition: transform var(--dur-slow, 400ms) var(--ease-standard, ease);
@@ -276,6 +279,10 @@
   all: unset; cursor: pointer; display: block; height: 36px; line-height: 36px; padding: 0 var(--space-5, 16px);
   font-size: 12px; color: var(--text-secondary);
 }
+.drawerTab { display: flex; align-items: center; justify-content: space-between; gap: 12px; box-sizing: border-box; width: 100%; }
+.drawerTab > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chevron { flex: none; transition: transform var(--dur-slow, 400ms) var(--ease-standard, ease); }
+.chevron[data-open="true"] { transform: rotate(180deg); }
 .drawerTab:focus-visible, .phoneTab:focus-visible, .btn:focus-visible, .btnQuiet:focus-visible, .sceneBtn:focus-visible { outline: 2px solid var(--line-focus); outline-offset: 2px; }
 .drawerBody { padding: 0 var(--space-5, 16px) var(--space-5, 16px); display: flex; flex-direction: column; gap: 8px; overflow: auto; max-height: calc(60vh - 60px); }
 .drawerRow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
@@ -286,7 +293,7 @@
 
 /* Phone: generic frame, pull up only. */
 .phone {
-  position: absolute; right: 16px; bottom: 0; width: 320px; height: 540px; z-index: 3;
+  position: absolute; left: 0; bottom: 0; width: 320px; height: 540px; z-index: 3;
   background: var(--bg-sunken); border: 1px solid var(--line-strong); border-bottom: none;
   border-radius: 36px 36px 0 0; box-shadow: var(--elev-3);
   transform: translateY(calc(100% - 36px)); transition: transform var(--dur-slow, 400ms) var(--ease-standard, ease);
@@ -305,7 +312,7 @@
 .photoBox { font-family: var(--font-mono); border: 2px solid var(--state-attention); padding: 2px 6px; align-self: flex-start; }
 
 /* Side column: scene card, controls, and the presenter camera corner nothing may cover. */
-.side { grid-area: side; display: flex; flex-direction: column; gap: var(--space-4, 12px); min-height: 0; }
+.side { grid-area: side; padding-bottom: 44px; display: flex; flex-direction: column; gap: var(--space-4, 12px); min-height: 0; }
 .sceneCard { padding: var(--space-4, 12px) var(--space-5, 16px); }
 .sceneTitle { margin: 4px 0 0; font-family: var(--font-display); font-size: 22px; font-weight: 600; letter-spacing: var(--tracking-display, -0.022em); }
 .controls { display: flex; gap: 8px; }
@@ -324,11 +331,6 @@
 .product { font-size: 12px; padding: 3px 10px; border-radius: var(--radius-pill, 999px); border: 1px solid var(--line-hairline); color: var(--text-faint); }
 .product[data-current="true"] { color: var(--text-primary); border-color: var(--line-strong); }
 .syntheticNote { font-size: 12px; color: var(--text-muted); margin: 0; display: flex; gap: 10px; align-items: center; }
-.camera {
-  margin-top: auto; width: 360px; height: 270px; box-sizing: border-box; flex: none;
-  border: 1px dashed var(--line-strong); border-radius: var(--radius-lg, 12px);
-  display: grid; place-items: center; font-size: 10.5px; letter-spacing: var(--tracking-micro, 0.08em); color: var(--text-faint);
-}
 
 /* End card */
 .endCard {
@@ -338,7 +340,7 @@
 .endLine { font-family: var(--font-display); font-size: 44px; font-weight: 600; margin: 0; letter-spacing: var(--tracking-display, -0.022em); }
 
 @media (prefers-reduced-motion: reduce) {
-  .drawer, .phone, .railBar, .meterFill { transition: none; }
+  .drawer, .phone, .railBar, .meterFill, .chevron { transition: none; }
   .pulse, .led_active { animation: none; }
 }
 
@@ -347,8 +349,8 @@
   .nav[data-open="true"] { width: auto; }
   .panel { max-height: none; }
   .panels[data-count="2"], .panels[data-count="3"], .panels[data-count="4"], .panels[data-count="5"] { grid-template-columns: minmax(0, 1fr); }
-  .camera { width: 100%; max-width: 360px; }
-  .drawer { right: 0; }
+  .dock { position: fixed; }
+  .drawer { left: 0; }
   .endCard { inset: 0; }
   .rail .railLabel { font-size: 10px; }
 }
@@ -435,7 +437,7 @@
 .chipAction { cursor: pointer; border: 0; font: inherit; }
 
 /* Sidebar: opens components onto the workspace. Collapses to icons. */
-.nav { grid-area: nav; display: flex; flex-direction: column; gap: 8px; width: 176px; min-height: 0; padding: 8px; box-sizing: border-box; border: 1px solid var(--line-hairline); border-radius: var(--radius-md, 8px); background: var(--bg-raised); }
+.nav { grid-area: nav; display: flex; flex-direction: column; gap: 8px; width: 176px; min-height: 0; margin-bottom: 44px; padding: 8px; box-sizing: border-box; border: 1px solid var(--line-hairline); border-radius: var(--radius-md, 8px); background: var(--bg-raised); }
 .nav[data-open="false"] { width: 48px; align-items: center; }
 .navToggle { all: unset; cursor: pointer; display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: var(--radius-sm, 6px); color: var(--text-muted); align-self: flex-end; }
 .nav[data-open="false"] .navToggle { align-self: center; }

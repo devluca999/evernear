@@ -39,7 +39,8 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
   // Waits at each human moment for a click; ?autoplay=1 plays straight through (recording).
   const [waitForMe, setWaitForMe] = useState(true);
   const [mode, setMode] = useState<"dark" | "light">("dark");
-  const [drawerPinned, setDrawerPinned] = useState(false);
+  // null: the drawer follows the proofs (opens for a moment at each); true or false: the chevron decided.
+  const [drawerOverride, setDrawerOverride] = useState<boolean | null>(null);
   const [phonePinned, setPhonePinned] = useState<boolean | null>(null);
   const last = useRef<number | null>(null);
   const [viewer, setViewer] = useState<{ checkpointId: string; index: number } | null>(null);
@@ -111,11 +112,12 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
   const lastProof = st.proofs.at(-1) ?? null;
   const pinned = pinnedProof ? st.proofs.find((p) => p.id === pinnedProof) ?? null : null;
   const layout = composeLayout(pinnedPanels, st.layout);
+  const drawerOpen = drawerOverride ?? (!!pinned || !!st.drawer);
   const waiting = waitingAt(t, waitForMe)?.gate ?? null;
   const answer = () => { const g = waitingAt(t, waitForMe); if (g) { setT(g.atMs); setPlaying(true); } };
   const scene = scenes.find((x) => x.id === st.scene)!;
   const stalled = st.stage === "low" && st.scene >= 1;
-  const jump = (id: number) => { setT(sceneStartMs(id)); setPhonePinned(null); setPinnedProof(null); setViewer(null); };
+  const jump = (id: number) => { setT(sceneStartMs(id)); setPhonePinned(null); setDrawerOverride(null); setPinnedProof(null); setViewer(null); };
 
   return (
     <ActionsContext.Provider value={actions}>
@@ -141,14 +143,11 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
             return <P key={id} st={st} pulse={st.pulse === id} />;
           })}
         </div>
-        <Drawer proof={pinned ?? st.drawer} lastProof={lastProof} open={!!pinned || !!st.drawer || drawerPinned}
-          onToggle={() => { if (pinned) setPinnedProof(null); else setDrawerPinned((x) => !x); }} />
         {viewer && (
           <PhotoViewer checkpointId={viewer.checkpointId} index={viewer.index}
             onIndex={(index) => setViewer({ ...viewer, index })} onClose={() => setViewer(null)}
             onProof={(id) => { setPinnedProof(id); setViewer(null); }} />
         )}
-        <Phone messages={st.messages} open={phonePinned ?? (st.phoneOpen || !!waiting)} waiting={waiting} onAnswer={answer} onToggle={() => setPhonePinned(!(phonePinned ?? (st.phoneOpen || !!waiting)))} />
       </main>
 
       <aside className={s.side}>
@@ -177,8 +176,13 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
           {products.map((p) => p.playable ? <Pill key={p.id} tone="idle">{p.name}</Pill> : <span key={p.id} title="Not played in this demo"><Chip>{p.name}</Chip></span>)}
         </div>
         {st.proofs.some((p) => p.synthetic) && <p className={s.syntheticNote}><Pill tone="idle">synthetic</Pill><span>Proofs are placeholders until real testnet recordings replace them.</span></p>}
-        <div className={s.camera} aria-label="Presenter camera">CAMERA</div>
       </aside>
+
+      <div className={s.dock}>
+        <Phone messages={st.messages} open={phonePinned ?? (st.phoneOpen || !!waiting)} waiting={waiting} onAnswer={answer} onToggle={() => setPhonePinned(!(phonePinned ?? (st.phoneOpen || !!waiting)))} />
+        <Drawer proof={pinned ?? st.drawer} lastProof={lastProof} open={drawerOpen}
+          onToggle={() => { if (pinned) setPinnedProof(null); setDrawerOverride(!drawerOpen); }} />
+      </div>
 
       {st.endCard && (
         <div className={s.endCard} role="dialog" aria-label="End card">

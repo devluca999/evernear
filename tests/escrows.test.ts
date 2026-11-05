@@ -69,23 +69,41 @@ describe("deadline refund", () => {
     expect(m.sent).toHaveLength(2);
   });
 
-  it("is a no-op when the supplier was paid before the deadline", async () => {
+  it("refunds the unreclaimed held part to Astro at the deadline after a partial release", async () => {
     const m = routes();
     vi.stubGlobal("fetch", m.fetch);
     const t = convexTest(schema, modules);
     const escrowId = await lockPo(t);
     vi.advanceTimersByTime(DAY / 2);
     expect(await t.action(internal.escrows.release, { escrowId, to: haoyun, cents: cents(34200) })).toEqual({ ok: true });
+    const mid = await t.run((ctx) => ctx.db.get(escrowId));
+    expect((await t.run((ctx) => ctx.db.system.get(mid!.refundJobId!)))?.state.kind).toBe("pending");
+
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+
+    expect(m.sent.map((s) => JSON.parse(s.body).args?.memo).filter(Boolean)).toEqual(["PO 1042 escrow", "PO 1042 release", "PO 1042 deadline refund"]);
+    expect(JSON.parse(m.sent[3].body).args).toEqual({ receiver_id: astro, amount: "3800000000", memo: "PO 1042 deadline refund" });
+    const e = await t.run((ctx) => ctx.db.get(escrowId));
+    expect(e).toMatchObject({ releasedCents: cents(34200), reclaimedCents: cents(3800), closed: true, outcome: "refunded" });
+  });
+
+  it("cancels the refund once the whole amount was released", async () => {
+    const m = routes();
+    vi.stubGlobal("fetch", m.fetch);
+    const t = convexTest(schema, modules);
+    const escrowId = await lockPo(t);
+    vi.advanceTimersByTime(DAY / 2);
+    expect(await t.action(internal.escrows.release, { escrowId, to: haoyun, cents: cents(38000) })).toEqual({ ok: true });
 
     await t.finishAllScheduledFunctions(vi.runAllTimers);
 
     expect(m.sent.map((s) => JSON.parse(s.body).args?.memo).filter(Boolean)).toEqual(["PO 1042 escrow", "PO 1042 release"]);
     const e = await t.run((ctx) => ctx.db.get(escrowId));
-    expect(e).toMatchObject({ releasedCents: cents(34200), reclaimedCents: 0, outcome: "released" });
+    expect(e).toMatchObject({ releasedCents: cents(38000), reclaimedCents: 0, closed: true, outcome: "released" });
     expect((await t.run((ctx) => ctx.db.system.get(e!.refundJobId!)))?.state.kind).toBe("canceled");
     // Even if the job had already started, the action refuses to refund.
     vi.advanceTimersByTime(2 * DAY);
-    expect(await t.action(internal.escrows.refundAtDeadline, { escrowId })).toEqual({ ok: false, reason: "released" });
+    expect(await t.action(internal.escrows.refundAtDeadline, { escrowId })).toEqual({ ok: false, reason: "closed" });
     expect(m.sent).toHaveLength(3);
   });
 

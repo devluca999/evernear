@@ -46,7 +46,7 @@ Astro Robotics, a robot maker in Chicago, cannot get the actuator motor for its 
 | Off-list email is refused | [adapters.test.ts](tests/near/adapters.test.ts) "gmail connector" |
 | 1,800 of 2,000 releases exactly $34,200 and holds $3,800 | [engine.test.ts](engine/__tests__/engine.test.ts) "short shipment", [dockcheck.test.ts](tests/dockcheck.test.ts) |
 | A release to any address but Haoyun's or Astro's is refused | [engine.test.ts](engine/__tests__/engine.test.ts) "three exits", [adapters.test.ts](tests/near/adapters.test.ts) "escrow" |
-| No release by the deadline refunds Astro, triggered by Evernear's Convex scheduler at the deadline, not by the chain ([escrows.ts](convex/escrows.ts)); a release before the deadline cancels it | [engine.test.ts](engine/__tests__/engine.test.ts), [adapters.test.ts](tests/near/adapters.test.ts), [escrows.test.ts](tests/escrows.test.ts) "deadline refund" |
+| No release by the deadline refunds Astro, triggered by Evernear's Convex scheduler at the deadline, not by the chain ([escrows.ts](convex/escrows.ts)); after a partial release the held part Astro never reclaimed is refunded at the deadline; a release of the whole amount cancels it | [engine.test.ts](engine/__tests__/engine.test.ts), [adapters.test.ts](tests/near/adapters.test.ts), [escrows.test.ts](tests/escrows.test.ts) "deadline refund" |
 | A release not from the approved dock-check build is refused | [dockcheck.test.ts](tests/dockcheck.test.ts) |
 | A Telegram message shows on the virtual phone within 1 s | [channels.test.ts](tests/channels.test.ts) "Telegram Stockbot" |
 | A recorded proof in `fixtures/recorded/` replaces its synthetic placeholder and shows as "replay" with its real hash; the synthetic label stays on every proof with no recording ([proofs.ts](scenario/proofs.ts)) | [record.test.ts](tests/record.test.ts) "proofFor prefers a real recording" |
@@ -66,6 +66,8 @@ Everstock's production engine is private. Evernear ships a deliberately plain re
 ## The honest limit
 
 The owner can always change the policy or withdraw. The per-PO escrow is a visible, rule-bound commitment to the supplier, not a lock the supplier can enforce ([escrow.ts](convex/near/escrow.ts)).
+
+Each PO wallet's key is derived from Astro's capped agent key, and Evernear's Convex deployment holds that agent key to run releases and the deadline refund ([escrows.ts](convex/escrows.ts)). It is never written to the database ([test](tests/escrows.test.ts) "never stores the escrow key"), but whoever controls the deployment can move what the agent key's policy allows.
 
 ## Credits
 

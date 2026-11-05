@@ -1,8 +1,9 @@
 // Per-PO escrow lifecycle and the deadline refund (docs/NOTES.md 10.7).
 // When funds lock, a refund is scheduled at the deadline with ctx.scheduler.runAt. At the deadline it
 // loads the escrow, calls EscrowAdapter.refundIfDue (engine/escrow.ts refundOnDeadline decides), records
-// the proof and closes the escrow. A release before the deadline cancels the job, and the job is a
-// no-op anyway once anything was released: the held part then goes back through reclaim, not refund.
+// the proof and closes the escrow. After a partial release the job stays pending, so a held part that
+// Astro never reclaimed goes back to Astro at the deadline. Only a release of the whole balance closes
+// the escrow and cancels the job.
 // The refund is triggered by Evernear's scheduler, not by the chain.
 //
 // Keys: the escrow wallet key is never written to the database. It is derived at run time from
@@ -66,11 +67,12 @@ export const released = internalMutation({
   handler: async (ctx, { escrowId, releasedCents }) => {
     const e = await ctx.db.get(escrowId);
     if (!e) return;
-    if (e.refundJobId) {
+    const closed = e.lockedCents - releasedCents - e.reclaimedCents <= 0;
+    if (closed && e.refundJobId) {
       const job = await ctx.db.system.get(e.refundJobId);
       if (job?.state.kind === "pending") await ctx.scheduler.cancel(e.refundJobId);
     }
-    await ctx.db.patch(escrowId, { releasedCents, outcome: "released" });
+    await ctx.db.patch(escrowId, { releasedCents, closed, outcome: "released" });
   },
 });
 
@@ -111,14 +113,13 @@ export const release = internalAction({
   },
 });
 
-/** Scheduled at the deadline by `locked`. A no-op when the escrow is closed or anything was released. */
+/** Scheduled at the deadline by `locked`. Refunds whatever is still held; a no-op once the escrow is closed. */
 export const refundAtDeadline = internalAction({
   args: { escrowId: v.id("escrows") },
   handler: async (ctx, { escrowId }): Promise<{ ok: boolean; reason?: string }> => {
     const e = await ctx.runQuery(internal.escrows.get, { escrowId });
     if (!e) return { ok: false, reason: "no_escrow" };
     if (e.closed) return { ok: false, reason: "closed" };
-    if (e.releasedCents > 0) return { ok: false, reason: "released" };
     const escrowApiKey = await subWalletKey(escrowSeed(e.po), parentKey());
     const r = await withProofs(ctx, LOCK_SCENE, e.restockId, (sink) =>
       new EscrowAdapter({ fetch: fetcher, parentApiKey: parentKey(), sink }).refundIfDue({ escrow: toEscrow(e), escrowApiKey, po: e.po, nowMs: Date.now() }));

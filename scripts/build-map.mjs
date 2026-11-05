@@ -16,7 +16,10 @@ const borders = mesh(world, world.objects.countries, (a, b) => a !== b);
 // [lon, lat]
 const PLACES = {
   Stuttgart: [9.18, 48.78], Osaka: [135.5, 34.69], Shenzhen: [114.27, 22.57], Dongguan: [113.75, 23.02], Chicago: [-87.63, 41.88],
+  Rockford: [-89.09, 42.27],
 };
+// Each supplier's headquarters. The lane to Chicago is a great circle (air), or a road for Ultra Motion.
+const SUPPLIER_PLACE = { ultra: "Rockford", haoyun: "Shenzhen", kansai: "Osaka", rheinwerk: "Stuttgart", huaxin: "Dongguan" };
 // Air freight: Haoyun's dock to Shenzhen Bao'an (SZX) by truck, SZX to O'Hare (ORD) by air, ORD to Astro's dock by truck.
 const SZX = [113.81, 22.64], ORD = [-87.9, 41.98];
 
@@ -38,6 +41,20 @@ const path = geoPath(projection).digits(0);
 const geo = [...truckOut, ...flight, ...truckIn];
 const route = geo.map((p) => projection(p).map((v) => Math.round(v * 10) / 10));
 const pins = Object.fromEntries(Object.entries(PLACES).map(([k, v]) => [k, projection(v).map((n) => Math.round(n * 10) / 10)]));
+/** A lane as projected segments, split where it crosses the map's edge. */
+function lane(a, b, n) {
+  const segs = [[]];
+  let prev = null;
+  for (const p of sample(a, b, n).map((q) => projection(q).map((v) => Math.round(v * 10) / 10))) {
+    if (prev && Math.abs(p[0] - prev[0]) > W / 2) segs.push([]);
+    segs.at(-1).push(p);
+    prev = p;
+  }
+  return segs.filter((x) => x.length > 1);
+}
+const lanes = Object.fromEntries(Object.entries(SUPPLIER_PLACE).map(([id, place]) => [id, {
+  place, segments: lane(PLACES[place], PLACES.Chicago, 80), km: Math.round(km(sample(PLACES[place], PLACES.Chicago, 80))),
+}]));
 const out = {
   width: W, height: H,
   land: path(land),
@@ -45,6 +62,8 @@ const out = {
   graticule: path(geoGraticule10()),
   pins,
   route,
+  /** Each supplier's lane to Chicago: projected segments and great-circle km. */
+  lanes,
   /** Route indices of each stop: Haoyun dock, SZX, ORD, Astro dock. */
   stops: { origin: 0, szx: truckOut.length - 1, ord: truckOut.length - 1 + flight.length, dock: route.length - 1 },
   airKm: Math.round(km([SZX, ...flight])),

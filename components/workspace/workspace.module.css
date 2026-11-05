@@ -503,3 +503,10 @@
 .gripBtn:active { cursor: grabbing; }
 .gripBtn:focus-visible { outline: 2px solid var(--line-focus); outline-offset: 2px; }
 .panel[data-drop="true"] { border-color: var(--line-strong); box-shadow: var(--elev-2); }
+.mapWrap { position: relative; }
+.map { cursor: grab; touch-action: none; user-select: none; }
+.map[data-dragging="true"] { cursor: grabbing; }
+.mapControls { position: absolute; top: 8px; right: 8px; display: flex; flex-direction: column; gap: 4px; }
+.mapBtn { all: unset; cursor: pointer; display: grid; place-items: center; width: 26px; height: 26px; border-radius: var(--radius-sm, 6px); background: var(--bg-raised); border: 1px solid var(--line-hairline); box-shadow: var(--elev-1); color: var(--text-secondary); }
+.mapBtn:hover { border-color: var(--line-strong); color: var(--text-primary); }
+.mapBtn:focus-visible { outline: 2px solid var(--line-focus); outline-offset: 2px; }

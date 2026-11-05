@@ -25,3 +25,19 @@ describe("map: supplier headquarters and the order planner", () => {
     expect(within(plan).getByText(/Arrives Chicago/).textContent).toContain("19");
   });
 });
+
+describe("map: our own headquarters and zoom", () => {
+  it("labels Astro Robotics' headquarters in Chicago", () => {
+    render(<MapPanel st={stateAt(0)} pulse={false} />);
+    expect(screen.getByText("Astro Robotics HQ, Chicago")).toBeTruthy();
+  });
+  it("zooms in and back out with the buttons", () => {
+    const { container } = render(<MapPanel st={stateAt(0)} pulse={false} />);
+    const svg = () => container.querySelector("svg[viewBox]")!.getAttribute("viewBox");
+    expect(svg()).toBe("0 0 720 300");
+    fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
+    expect(svg()).toBe("120 50 480 200");
+    fireEvent.click(screen.getByRole("button", { name: "Show the whole map" }));
+    expect(svg()).toBe("0 0 720 300");
+  });
+});

@@ -1,5 +1,7 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { LocateFixed, ZoomIn, ZoomOut } from "lucide-react";
+import { clampView, fullView, panBy, zoomAt, zoomOf, type View } from "../map/view";
 import type { WorkspaceState } from "@/scenario/types";
 import { suppliers, offers, MOTOR_PART } from "@/seed/astro";
 import { eta, isoDay, LANES } from "@/scenario/eta";
@@ -38,13 +40,17 @@ function Plane({ t }: { t: number }) {
   return <path transform={`translate(${x} ${y}) rotate(${deg})`} d="M8 0 L2 1.2 L-2 6 L-4 6 L-1 1.2 L-5 1.2 L-7 3.2 L-8 3.2 L-6.5 0 L-8 -3.2 L-7 -3.2 L-5 -1.2 L-1 -1.2 L-4 -6 L-2 -6 L2 -1.2 Z" className={s.ship} />;
 }
 
-function Pin({ name, cls }: { name: keyof typeof MAP.pins; cls: string }) {
+const DISPLAY: Partial<Record<keyof typeof MAP.pins, string>> = { Chicago: "Astro Robotics HQ, Chicago" };
+/** Keeps a marker the same size on screen at any zoom. */
+const steady = (x: number, y: number, k: number) => `translate(${x} ${y}) scale(${1 / k}) translate(${-x} ${-y})`;
+
+function Pin({ name, cls, k = 1 }: { name: keyof typeof MAP.pins; cls: string; k?: number }) {
   const [x, y] = MAP.pins[name];
   const l = LABEL[name] ?? { dx: 6, dy: -6 };
   return (
-    <g>
+    <g transform={steady(x, y, k)}>
       <circle cx={x} cy={y} r="3.2" className={cls} />
-      <text x={x + l.dx} y={y + l.dy} textAnchor={l.anchor ?? "start"} className={s.pinLabel}>{name}</text>
+      <text x={x + l.dx} y={y + l.dy} textAnchor={l.anchor ?? "start"} className={s.pinLabel}>{DISPLAY[name] ?? name}</text>
     </g>
   );
 }
@@ -56,12 +62,12 @@ function Doc({ at, state }: { at: Pt; state: "done" | "working" | "problem" }) {
 }
 
 /** A supplier's headquarters: a dot and its icon (a two-letter mark), coloured by fitment state. */
-function Hq({ id, cls, selected, onPick }: { id: string; cls: string; selected: boolean; onPick: (id: string) => void }) {
+function Hq({ id, cls, selected, onPick, k }: { id: string; cls: string; selected: boolean; onPick: (id: string) => void; k: number }) {
   const [x, y] = MAP.pins[SUPPLIER_CITY[id]];
   const [dx, dy] = MARK_AT[id];
   const sup = suppliers.find((v) => v.id === id)!;
   return (
-    <g className={s.hq} data-selected={selected} role="button" tabIndex={0} aria-label={`${sup.name}, ${sup.city}`} aria-pressed={selected}
+    <g transform={steady(x, y, k)} className={s.hq} data-selected={selected} role="button" tabIndex={0} aria-label={`${sup.name}, ${sup.city}`} aria-pressed={selected}
       onClick={() => onPick(id)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onPick(id); } }}>
       {(dx < 0 || dy < -10) && <line x1={x} y1={y} x2={x + dx + 10} y2={y + dy + 12} className={s.hqLeader} />}
       <circle cx={x} cy={y} r="3.2" className={cls} />
@@ -79,7 +85,27 @@ export function MapPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }) 
   const [shipDay, setShipDay] = useState<string | undefined>(undefined);
   const plan = pick ? eta(pick, today, shipDay) : null;
   const offer = pick ? offers.find((o) => o.supplierId === pick && o.part === MOTOR_PART) : undefined;
-  const choose = (id: string) => { setPick((cur) => (cur === id ? null : id)); setShipDay(undefined); };
+  const choose = (id: string) => { if (moved.current) return; setPick((cur) => (cur === id ? null : id)); setShipDay(undefined); };
+  // Drag to pan; Ctrl or pinch and the wheel to zoom; buttons to zoom and reset.
+  const W = MAP.width, H = MAP.height;
+  const [view, setView] = useState<View>(() => fullView(W, H));
+  const svgRef = useRef<SVGSVGElement>(null);
+  const drag = useRef<{ x: number; y: number } | null>(null);
+  const moved = useRef(false);
+  const [dragging, setDragging] = useState(false);
+  const k = zoomOf(view, W);
+  useEffect(() => {
+    const el = svgRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return; // plain scrolling still scrolls the page
+      e.preventDefault();
+      const r = el.getBoundingClientRect();
+      setView((v) => zoomAt(v, e.deltaY < 0 ? 1.2 : 1 / 1.2, (e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height, W, H));
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [W, H]);
   const t = st.shipment.progress;
   const shipping = st.escrow !== null;
   const failed = new Set(st.fitment.filter((f) => !f.pass).map((f) => SUPPLIER_CITY[f.supplierId]));
@@ -88,7 +114,20 @@ export function MapPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }) 
 
   return (
     <Panel id="map" title="Suppliers" pulse={pulse}>
-      <svg className={s.map} viewBox={`0 0 ${MAP.width} ${MAP.height}`} role="img"
+      <div className={s.mapWrap}>
+      <svg ref={svgRef} className={s.map} data-dragging={dragging} viewBox={`${view.x} ${view.y} ${view.w} ${view.h}`} role="img"
+        onPointerDown={(e) => { drag.current = { x: e.clientX, y: e.clientY }; moved.current = false; }}
+        onPointerMove={(e) => {
+          const d = drag.current;
+          if (!d || !svgRef.current) return;
+          const dx = e.clientX - d.x, dy = e.clientY - d.y;
+          if (!moved.current && Math.hypot(dx, dy) < 4) return;
+          if (!moved.current) { moved.current = true; setDragging(true); svgRef.current.setPointerCapture(e.pointerId); }
+          drag.current = { x: e.clientX, y: e.clientY };
+          setView((v) => panBy(v, dx, dy, svgRef.current!.getBoundingClientRect().width, W, H));
+        }}
+        onPointerUp={() => { drag.current = null; setDragging(false); setTimeout(() => { moved.current = false; }, 0); }}
+        onPointerCancel={() => { drag.current = null; moved.current = false; setDragging(false); }}
         aria-label={shipping ? `Air freight from Shenzhen to Chicago O'Hare, ${Math.round(t * 100)} percent of the way` : "Supplier locations and Astro in Chicago"}>
         <rect width={MAP.width} height={MAP.height} className={s.ocean} />
         <path d={MAP.graticule} className={s.grat} />
@@ -103,10 +142,16 @@ export function MapPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }) 
           </>
         )}
         {pick && <path d={lanePath(pick)} className={s.lane} fill="none" />}
-        {suppliers.map((v) => <Hq key={v.id} id={v.id} cls={pinCls(SUPPLIER_CITY[v.id])} selected={pick === v.id} onPick={choose} />)}
-        <Pin name="Chicago" cls={s.pinHome} />
+        {suppliers.map((v) => <Hq key={v.id} id={v.id} cls={pinCls(SUPPLIER_CITY[v.id])} selected={pick === v.id} onPick={choose} k={k} />)}
+        <Pin name="Chicago" cls={s.pinHome} k={k} />
         {shipping && t > 0 && t < 1 && <Plane t={t} />}
       </svg>
+        <div className={s.mapControls} role="group" aria-label="Map zoom">
+          <button type="button" className={s.mapBtn} aria-label="Zoom in" onClick={() => setView((v) => zoomAt(v, 1.5, 0.5, 0.5, W, H))}><ZoomIn size={14} strokeWidth={2} aria-hidden="true" /></button>
+          <button type="button" className={s.mapBtn} aria-label="Zoom out" onClick={() => setView((v) => zoomAt(v, 1 / 1.5, 0.5, 0.5, W, H))}><ZoomOut size={14} strokeWidth={2} aria-hidden="true" /></button>
+          <button type="button" className={s.mapBtn} aria-label="Show the whole map" onClick={() => setView(clampView(fullView(W, H), W, H))}><LocateFixed size={14} strokeWidth={2} aria-hidden="true" /></button>
+        </div>
+      </div>
       <div className={s.plan} role="group" aria-label="Plan an order">
         <span className={s.micro}>PLAN AN ORDER · {MOTOR_PART.toUpperCase()}</span>
         <div className={s.planChips}>

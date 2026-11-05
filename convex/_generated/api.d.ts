@@ -11,10 +11,12 @@
 import type * as channels_email from "../channels/email.js";
 import type * as channels_telegram from "../channels/telegram.js";
 import type * as channels_verify from "../channels/verify.js";
+import type * as escrows from "../escrows.js";
 import type * as http from "../http.js";
 import type * as messages from "../messages.js";
 import type * as near_approval from "../near/approval.js";
 import type * as near_custody from "../near/custody.js";
+import type * as near_dockcheck from "../near/dockcheck.js";
 import type * as near_escrow from "../near/escrow.js";
 import type * as near_gmail from "../near/gmail.js";
 import type * as near_http from "../near/http.js";
@@ -32,10 +34,12 @@ declare const fullApi: ApiFromModules<{
   "channels/email": typeof channels_email;
   "channels/telegram": typeof channels_telegram;
   "channels/verify": typeof channels_verify;
+  escrows: typeof escrows;
   http: typeof http;
   messages: typeof messages;
   "near/approval": typeof near_approval;
   "near/custody": typeof near_custody;
+  "near/dockcheck": typeof near_dockcheck;
   "near/escrow": typeof near_escrow;
   "near/gmail": typeof near_gmail;
   "near/http": typeof near_http;

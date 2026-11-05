@@ -16,7 +16,12 @@ export function Panel({ id, title, pulse, children, meta }: { id: PanelId; title
   const mine = !!board?.isMine(id);
   return (
     <section className={`${s.panel} ${pulse ? s.pulse : ""}`} data-panel={id} data-locked={locked} data-dragging={board?.dragging === id} aria-label={title}>
-      <header className={s.panelHead}>
+      <header className={s.panelHead} data-draggable={!!board && !locked}
+        onPointerDown={(e) => {
+          // The whole header drags the card, except its buttons.
+          if (!board || locked || e.button !== 0 || (e.target as HTMLElement).closest("button")) return;
+          board.startDrag(id, e);
+        }}>
         {board && (
           <button type="button" className={s.gripBtn} aria-label={`Move ${title}`} disabled={locked}
             title={locked ? "Locked in place" : "Drag to a spot on the workspace. Alt and the arrow keys move it too"}

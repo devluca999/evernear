@@ -19,7 +19,10 @@ import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import { v } from "convex/values";
 import { EscrowAdapter } from "./escrow";
-import { agentApiBase, ownerFromPkcs8 } from "./agentapi";
+import {
+  agentApiBase,
+  ownerFromPkcs8,
+} from "./agentapi";
 import type { Fetch, ProofInput } from "./http";
 import type { Escrow } from "../../engine/escrow";
 

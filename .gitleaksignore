@@ -1,0 +1,2 @@
+# Verified false positive: an import line naming two functions (agentApiBase, ownerFromPkcs8), no secret.
+d35fc0fb5352e1586822ac2509d2ce6d0e079415:convex/near/deadline.ts:generic-api-key:22

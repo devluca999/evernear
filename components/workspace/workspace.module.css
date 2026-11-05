@@ -423,3 +423,11 @@
 .pinChip:hover { border-color: var(--text-muted); color: var(--text-primary); }
 .pinChip[aria-pressed="true"] { background: var(--text-primary); color: var(--bg-raised, var(--bg-base)); border-color: var(--text-primary); }
 .pinClear { all: unset; cursor: pointer; justify-self: start; font-size: 12px; color: var(--text-muted); text-decoration: underline; }
+
+/* Waiting for the viewer at a human moment (scenario/gates.ts). */
+.waiting { display: grid; gap: 8px; margin-top: 12px; padding: 12px; border-radius: var(--radius-md, 8px); border: 1px solid var(--state-attention); }
+.waitingPrompt { margin: 0; font-size: 13px; color: var(--text-primary); }
+.replyBar { display: grid; gap: 6px; padding: 10px 12px; border-top: 1px solid var(--line-hairline); }
+.replyBtn { all: unset; cursor: pointer; text-align: center; padding: 8px 12px; border-radius: 999px; background: var(--text-primary); color: var(--bg-raised); font-weight: 600; font-size: 13px; }
+.replyBtn:focus-visible, .chipAction:focus-visible { outline: 2px solid var(--line-focus); outline-offset: 2px; }
+.chipAction { cursor: pointer; border: 0; font: inherit; }

@@ -1,10 +1,10 @@
 // The demo script: scenes from docs/BUILD.md section 4 as timed beats.
 // Amounts are not written here: the runner computes them through the engine.
-import type { Beat, Event, Message, PanelId } from "./types";
+import type { Beat, Event, Gate, Message, PanelId } from "./types";
 import type { Stage } from "./stages";
 import { suppliers } from "../seed/astro";
 
-interface Scene { id: number; title: string; durationMs: number; layout: PanelId[]; beats: [number, Event][] }
+interface Scene { id: number; title: string; durationMs: number; layout: PanelId[]; beats: ([number, Event] | [number, Event, Gate])[] }
 
 let n = 0;
 const msg = (m: Omit<Message, "id">): Event => ({ type: "message", message: { id: `m${++n}`, ...m } });
@@ -28,7 +28,7 @@ export const scenes: Scene[] = [
     [3000, { type: "demand", ordered: 14, shippedOut: 3, motorsOnHand: 24 }],
     [4500, msg({ channel: "email", direction: "in", from: "orders@ultra-motion.example", subject: "Re: Actuator motor availability", text: "Our actuator motor line is down for retooling. Earliest restart is 6 weeks out.", reading: "Usual supplier unavailable for 6 weeks." })],
     [6000, bot("Ultra Motion is out for 6 weeks. 14 robots ordered, motors for 6. Start sourcing?", "demand")],
-    [7500, buyer("Yes")],
+    [7500, buyer("Yes"), { id: "start_sourcing", who: "Luca", prompt: "Start sourcing a new motor supplier?", action: "Yes" }],
   ] },
   { id: 2, title: "Routine reorder", durationMs: 8000, layout: ["demand", "rules"], beats: [
     [400, routine("sourcing")],
@@ -54,10 +54,10 @@ export const scenes: Scene[] = [
     [300, stage("approval")],
     [800, { type: "phone", open: true }],
     [1200, bot("PO 1042: 2,000 motors from Haoyun, a new supplier, over the $10K cap. 2 approvals needed.", "rules", "approval")],
-    [3000, { type: "approval", by: "Luca" }],
+    [3000, { type: "approval", by: "Luca" }, { id: "approve_luca", who: "Luca", prompt: "Approve PO 1042: $38,000 to Haoyun Precision?", action: "YES, approve as Luca" }],
     [3100, proof("approval_luca")],
     [6000, bot("Jordy, please sign PO 1042.", "rules")],
-    [7500, { type: "approval", by: "Jordy" }],
+    [7500, { type: "approval", by: "Jordy" }, { id: "approve_jordy", who: "Jordy", prompt: "Second approval for PO 1042", action: "YES, approve as Jordy" }],
     [7600, proof("approval_jordy")],
   ] },
   { id: 5, title: "Negotiation", durationMs: 15000, layout: ["inbox", "rules"], beats: [
@@ -65,7 +65,7 @@ export const scenes: Scene[] = [
     [600, msg({ channel: "email", direction: "in", from: haoyunMail, subject: "PO 1042 confirmation", text: "We confirm PO 1042 for 2,000 units. Due to copper costs the unit price is now USD 20.02.", reading: "Price change: +8%, over the 3% limit." })],
     [700, { type: "price_quote", unitCents: 2002, from: "Haoyun Precision" }],
     [2000, bot("Haoyun quoted 8% over the PO. Accept?", "inbox")],
-    [3800, buyer("Up to 3%")],
+    [3800, buyer("Up to 3%"), { id: "price_limit", who: "Luca", prompt: "Haoyun asks +8%. Your limit is 3%.", action: "Up to 3%" }],
     [5200, { type: "refused", kind: "offlist_email", detail: "deals@unknown-broker.example is not on the recipient allowlist" }],
     [5300, proof("refused_email")],
     [8500, msg({ channel: "email", direction: "out", from: "Evernear for Astro", to: haoyunMail, subject: "Re: PO 1042 confirmation", text: "We can accept a change of up to 2.5%, USD 19.00 per unit, for 2,000 units." })],
@@ -93,7 +93,7 @@ export const scenes: Scene[] = [
     [500, stage("dock")],
     [600, { type: "shipment", progress: 1, docs: [{ name: "Confirmation", state: "done" }, { name: "Commercial invoice", state: "done" }, { name: "Packing list", state: "done" }] }],
     [900, { type: "phone", open: true }],
-    [1500, buyer("Packing slip", "packing_slip")],
+    [1500, buyer("Packing slip", "packing_slip"), { id: "packing_slip", who: "Luca", prompt: "The shipment is at the dock. Photograph the packing slip.", action: "Send packing slip photo" }],
     [1600, { type: "checkpoint", id: "dock" }],
     [4000, { type: "dock", receivedQty: 1800 }],
     [4100, proof("dock_attestation")],
@@ -121,9 +121,9 @@ export const timeline: Beat[] = (() => {
   let start = 0;
   for (const sc of scenes) {
     out.push({ atMs: start, scene: sc.id, ev: { type: "scene", id: sc.id, layout: sc.layout } });
-    for (const [at, ev] of sc.beats) {
+    for (const [at, ev, gate] of sc.beats) {
       if (at >= sc.durationMs) throw new Error(`beat past end of scene ${sc.id}`);
-      out.push({ atMs: start + at, scene: sc.id, ev });
+      out.push({ atMs: start + at, scene: sc.id, ev, ...(gate ? { gate } : {}) });
     }
     start += sc.durationMs;
   }

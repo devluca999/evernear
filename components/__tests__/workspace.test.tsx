@@ -3,7 +3,7 @@ import { describe, expect, it, afterEach } from "vitest";
 import { render, screen, cleanup, within, fireEvent } from "@testing-library/react";
 import { Workspace } from "../workspace/Workspace";
 import { sceneStartMs, stateAt } from "@/scenario/runner";
-import { totalDurationMs } from "@/scenario/scenes";
+import { totalDurationMs, timeline } from "@/scenario/scenes";
 
 afterEach(() => { cleanup(); localStorage.clear(); });
 const at = (ms: number) => render(<Workspace initialMs={ms} autoplay={false} />);
@@ -16,6 +16,22 @@ describe("workspace", () => {
   it("shows the rail with eight steps", () => {
     at(0);
     expect(within(screen.getByLabelText("Restock progress")).getAllByRole("listitem")).toHaveLength(8);
+  });
+  it("waits for the approval click, then approves as Luca and asks Jordy", () => {
+    const g = timeline.find((b) => b.gate?.id === "approve_luca")!;
+    at(g.atMs - 1);
+    const ask = screen.getByRole("group", { name: "Waiting for you" });
+    expect(within(ask).getByText("Approve PO 1042: $38,000 to Haoyun Precision?")).toBeTruthy();
+    expect(screen.getByLabelText("Phone").className).toMatch(/phoneOpen/);
+    fireEvent.click(within(screen.getByRole("group", { name: "Approval card" })).getByRole("button", { name: "YES, approve as Luca" }));
+    expect(screen.queryByRole("group", { name: "Waiting for you" })).toBeNull();
+    expect(screen.getByText("Approval 1 of 2")).toBeTruthy();
+  });
+  it("plays through without asking when waiting is off", () => {
+    const g = timeline.find((b) => b.gate?.id === "start_sourcing")!;
+    at(g.atMs - 1);
+    fireEvent.click(screen.getByRole("button", { name: "Waits for me" }));
+    expect(screen.queryByRole("group", { name: "Waiting for you" })).toBeNull();
   });
   it("shows the everNEAR wordmark", () => {
     at(0);

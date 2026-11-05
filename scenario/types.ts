@@ -58,10 +58,14 @@ export type Event =
   | { type: "phone"; open: boolean }
   | { type: "end_card" };
 
+/** A beat that waits for the viewer: the clock stops just before it until they click. */
+export interface Gate { id: string; who: "Luca" | "Jordy"; prompt: string; action: string }
+
 export interface Beat {
   atMs: number;
   scene: number;
   ev: Event;
+  gate?: Gate;
 }
 
 export interface WorkspaceState {

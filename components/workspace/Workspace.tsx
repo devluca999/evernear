@@ -18,6 +18,7 @@ import { PhotoViewer } from "./PhotoViewer";
 import { Chip, Pill } from "./ui";
 import { CHECKPOINTS } from "@/scenario/shipment";
 import { composeLayout, togglePin, PANEL_ORDER, PANEL_NAMES } from "@/scenario/layout";
+import { stepClock, waitingAt } from "@/scenario/gates";
 import { PinContext } from "./Panel";
 import s from "./workspace.module.css";
 
@@ -32,6 +33,8 @@ const TIME_CARD: Record<number, string> = { 7: "Day 9 · Chicago dock" };
 export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: number; autoplay?: boolean }) {
   const [t, setT] = useState(initialMs);
   const [playing, setPlaying] = useState(autoplay);
+  // Waits at each human moment for a click; ?autoplay=1 plays straight through (recording).
+  const [waitForMe, setWaitForMe] = useState(true);
   const [mode, setMode] = useState<"dark" | "light">("dark");
   const [drawerPinned, setDrawerPinned] = useState(false);
   const [phonePinned, setPhonePinned] = useState<boolean | null>(null);
@@ -60,6 +63,7 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
     queueMicrotask(() => {
       if (id !== null) setT(sceneStartMs(Number(id)) + off);
       if (q.get("paused") === "1") setPlaying(false);
+      if (q.get("autoplay") === "1") setWaitForMe(false);
       if (q.get("mode") === "light") setMode("light");
       const photo = q.get("photo");
       if (photo && photo.split(":")[0] in CHECKPOINTS) setViewer({ checkpointId: photo.split(":")[0], index: Number(photo.split(":")[1] ?? 0) });
@@ -77,7 +81,7 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
       const dt = last.current === null ? 0 : now - last.current;
       last.current = now;
       setT((x) => {
-        const next = Math.min(totalDurationMs, x + dt);
+        const next = stepClock(x, Math.min(totalDurationMs, x + dt), waitForMe);
         if (next >= totalDurationMs) setPlaying(false);
         return next;
       });
@@ -85,7 +89,7 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [playing]);
+  }, [playing, waitForMe]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -103,6 +107,8 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
   const lastProof = st.proofs.at(-1) ?? null;
   const pinned = pinnedProof ? st.proofs.find((p) => p.id === pinnedProof) ?? null : null;
   const layout = composeLayout(pinnedPanels, st.layout);
+  const waiting = waitingAt(t, waitForMe)?.gate ?? null;
+  const answer = () => { const g = waitingAt(t, waitForMe); if (g) { setT(g.atMs); setPlaying(true); } };
   const scene = scenes.find((x) => x.id === st.scene)!;
   const stalled = st.stage === "low" && st.scene >= 1;
   const jump = (id: number) => { setT(sceneStartMs(id)); setPhonePinned(null); setPinnedProof(null); setViewer(null); };
@@ -135,16 +141,24 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
             onIndex={(index) => setViewer({ ...viewer, index })} onClose={() => setViewer(null)}
             onProof={(id) => { setPinnedProof(id); setViewer(null); }} />
         )}
-        <Phone messages={st.messages} open={phonePinned ?? st.phoneOpen} onToggle={() => setPhonePinned(!(phonePinned ?? st.phoneOpen))} />
+        <Phone messages={st.messages} open={phonePinned ?? (st.phoneOpen || !!waiting)} waiting={waiting} onAnswer={answer} onToggle={() => setPhonePinned(!(phonePinned ?? (st.phoneOpen || !!waiting)))} />
       </main>
 
       <aside className={s.side}>
         <div className={s.sceneCard}>
           <span className={s.micro}>SCENE {st.scene}</span>
           <p className={s.sceneTitle}>{TIME_CARD[st.scene] ?? scene.title}</p>
+          {waiting && (
+            <div className={s.waiting} role="group" aria-label="Waiting for you">
+              <span className={s.micro}>WAITING FOR {waiting.who.toUpperCase()}</span>
+              <p className={s.waitingPrompt}>{waiting.prompt}</p>
+              <button type="button" className={s.btn} onClick={answer}>{waiting.action}</button>
+            </div>
+          )}
         </div>
         <div className={s.controls}>
           <button className={s.btn} onClick={() => { if (t >= totalDurationMs) setT(0); setPlaying((p) => !p); }}>{playing ? "Pause" : "Play"}</button>
+          <button className={s.btnQuiet} aria-pressed={waitForMe} onClick={() => setWaitForMe((w) => !w)} title="When on, the demo stops at each human moment until you click">{waitForMe ? "Waits for me" : "Plays through"}</button>
           <button className={s.btnQuiet} onClick={() => setMode((m) => (m === "dark" ? "light" : "dark"))}>{mode === "dark" ? "Light" : "Dark"}</button>
         </div>
         <div className={s.pinTray} role="group" aria-label="Pin panels">

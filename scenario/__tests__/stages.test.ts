@@ -4,7 +4,7 @@ import { STAGES, RAIL, advance } from "../stages";
 describe("stage machine", () => {
   it("has the nine stages in order and an eight step rail", () => {
     expect(STAGES).toEqual(["low", "sourcing", "approval", "confirmed", "funds_locked", "shipped", "dock", "paid", "closed"]);
-    expect(RAIL.map((r) => r.label)).toEqual(["Low", "Sourcing", "Approval", "Confirmed", "Funds locked", "Shipped", "Dock", "Paid"]);
+    expect(RAIL.map((r) => r.label)).toEqual(["Low", "Sourcing", "Approval", "Confirmed", "Committed", "Shipped", "Dock", "Paid"]);
   });
   it("moves forward one step at a time only", () => {
     expect(advance("low", "sourcing", {}).ok).toBe(true);

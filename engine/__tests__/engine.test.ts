@@ -4,7 +4,7 @@ import {
   requiredApprovals, canLockFunds, checkPriceChange, priceChangeBps,
 } from "../policy";
 import { createEscrow, release, reclaimHeld, refundOnDeadline } from "../escrow";
-import { cents, formatUsd, scaleFinale } from "../money";
+import { cents, formatUsd, scaleTestnet } from "../money";
 import { astro, bom10MA, suppliers, offers, policy, PO } from "../../seed/astro";
 
 const motorLine = bom10MA.find((l) => l.part === "Actuator motor")!;
@@ -102,10 +102,10 @@ describe("short shipment", () => {
     expect(m.releaseCents).toBe(cents(38000));
     expect(m.holdCents).toBe(0);
   });
-  it("finale is scaled 1:10,000", () => {
-    expect(scaleFinale(cents(38000))).toBe(380);
-    expect(scaleFinale(cents(34200))).toBe(342);
-    expect(scaleFinale(cents(3800))).toBe(38);
+  it("testnet runs at 1:1,000: $38.00 committed, $34.20 paid, $3.80 back", () => {
+    expect(scaleTestnet(cents(38000))).toBe(3800);
+    expect(scaleTestnet(cents(34200))).toBe(3420);
+    expect(scaleTestnet(cents(3800))).toBe(380);
   });
 });
 

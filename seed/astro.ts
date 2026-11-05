@@ -43,7 +43,7 @@ export const bom10MA: BomLine[] = [
 
 export const suppliers: Supplier[] = [
   { id: "ultra", name: "Ultra Motion", city: "Illinois", country: "USA", approved: true, isNew: false, receiveChain: "near", receiveAddress: "ultra-motion.testnet" },
-  { id: "haoyun", name: "Haoyun Precision", city: "Shenzhen", country: "China", approved: true, isNew: true, receiveChain: "near", receiveAddress: "haoyun-precision.testnet" },
+  { id: "haoyun", name: "Haoyun Precision", city: "Shenzhen", country: "China", approved: true, isNew: true, receiveChain: "base", receiveAddress: "0x2003975a521c6fa45238dbc402c9e4adcb8863e0" },
   { id: "kansai", name: "Kansai Servo Works", city: "Osaka", country: "Japan", approved: true, isNew: true, receiveChain: "near", receiveAddress: "kansai-servo.testnet" },
   { id: "rheinwerk", name: "Rheinwerk Antriebstechnik", city: "Stuttgart", country: "Germany", approved: false, isNew: true, receiveChain: "near", receiveAddress: "rheinwerk.testnet" },
   { id: "huaxin", name: "Huaxin Robotics Components", city: "Dongguan", country: "China", approved: true, isNew: true, receiveChain: "near", receiveAddress: "huaxin-robotics.testnet" },

@@ -1,6 +1,6 @@
 import type { WorkspaceState } from "@/scenario/types";
 import { policy, PO, astro, suppliers } from "@/seed/astro";
-import { formatUsdShort, formatInt } from "@/engine/money";
+import { formatUsd, formatUsdShort, formatInt, scaleTestnet, TESTNET_SCALE } from "@/engine/money";
 import { RAIL, railState } from "@/scenario/stages";
 import { Panel } from "../Panel";
 import { Led, type Tone } from "../Led";
@@ -79,14 +79,14 @@ export function RulesPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }
         </>
       )}
       {st.escrow && (
-        <PoLabel po={PO.number} tone={poTone(st)} title={`PO ${PO.number} escrow`} code={`PO${PO.number} ${haoyun.receiveAddress.toUpperCase()}`}
-          stamp={paid ? <Stamp word="Paid" time="Day 9" /> : <Stamp word="Locked" time="Day 0" />}
+        <PoLabel po={PO.number} tone={poTone(st)} title={`PO ${PO.number} escrow`} code={`PO${PO.number} ${haoyun.receiveAddress.slice(0, 10).toUpperCase()}`}
+          stamp={paid ? <Stamp word="Paid" time="Day 9" /> : <Stamp word="Committed" time="Day 0" />}
           fields={[
             { label: "From", value: `${haoyun.name}, ${haoyun.city}` },
             { label: "PO", value: PO.number },
             { label: "Fits", value: "10MA actuator motor" },
             { label: "Qty", value: st.dock ? `${formatInt(st.dock.receivedQty)} of ${formatInt(PO.quantity)}` : formatInt(PO.quantity) },
-            { label: paid ? "Paid" : "Locked", value: formatUsdShort(paid ? st.escrow.releasedCents : st.escrow.lockedCents) },
+            { label: paid ? "Paid" : "Committed", value: formatUsdShort(paid ? st.escrow.releasedCents : st.escrow.lockedCents) },
             { label: "Approved by", value: st.approvals.map((a) => a.by).join(", ") },
           ]} />
       )}
@@ -94,7 +94,13 @@ export function RulesPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }
         <p className={s.sub}>
           {paid
             ? <><span className={s.fig}>{formatUsdShort(st.escrow.releasedCents)}</span> paid to Haoyun. <span className={s.fig}>{formatUsdShort(st.escrow.lockedCents - st.escrow.releasedCents)}</span> {st.escrow.reclaimedCents ? "returned to Astro" : "held"}.</>
-            : <><span className={s.fig}>{formatUsdShort(st.escrow.lockedCents)}</span> locked. Visible to Haoyun. Pays Haoyun or Astro only.</>}
+            : <><span className={s.fig}>{formatUsdShort(st.escrow.lockedCents)}</span> committed. Visible to Haoyun. Pays Haoyun or Astro only.</>}
+        </p>
+      )}
+      {st.escrow && (
+        <p className={s.sub}>
+          Testnet at 1:{formatInt(TESTNET_SCALE)}: <span className={s.fig}>{formatUsd(scaleTestnet(st.escrow.lockedCents))}</span> moves for real.
+          A commitment, not a lock: Tidepool enforces the rules, and Astro can change them.
         </p>
       )}
       {st.refused.filter((r) => r.kind === "wrong_address_release").map((r) => (

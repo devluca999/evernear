@@ -47,7 +47,6 @@ export function missingEnv(env: Env): string[] {
 
 /** Refuses a mainnet configuration before anything runs. */
 export function assertTestnet(env: Env) {
-  if (env.FINALE_ENABLED === "1") throw new RehearsalRefused("FINALE_ENABLED=1 is set. The rehearsal is testnet only; unset it first.");
   for (const [k, v] of Object.entries(env)) {
     if (!v || !/^https?:\/\//.test(v)) continue;
     let host: string;

@@ -7,7 +7,6 @@ import { Inference, isConfidential } from "@/convex/near/inference";
 import { secp256k1 } from "@noble/curves/secp256k1";
 import { ethAddressOf, signed } from "./ecdsaFixtures";
 import type { Fetch, ProofSink } from "@/convex/near/http";
-import { Payout, finaleAmounts } from "@/convex/near/payout";
 import { MainnetRefused, outlayerBase, sha256Hex } from "@/convex/near/http";
 import { cents } from "@/engine/money";
 import { bom10MA, suppliers } from "@/seed/astro";
@@ -16,7 +15,7 @@ const KEY = "wk_" + "a".repeat(64);
 const onlyTestnet = (sent: { url: string }[]) => sent.every((s) => s.url.startsWith("https://testnet-api.outlayer.ai/") || s.url.startsWith("https://cloud-api.near.ai/"));
 
 describe("network guard", () => {
-  it("uses the testnet host by default and refuses mainnet without the finale gate", () => {
+  it("uses the testnet host and refuses mainnet", () => {
     expect(outlayerBase()).toBe("https://testnet-api.outlayer.ai");
     expect(() => outlayerBase({ mainnet: true })).toThrow(MainnetRefused);
   });
@@ -162,19 +161,6 @@ describe("private inference", () => {
     const { fetch, sent } = routes({ notFoundTimes: 2 });
     expect((await read(fetch)).record.bound).toBe(true);
     expect(sent.filter((s) => s.url.includes("/signature/"))).toHaveLength(3);
-  });
-});
-
-describe("finale payout", () => {
-  it("is scaled 1:10,000", () => {
-    expect(finaleAmounts(cents(38000), cents(34200))).toEqual({ lockedCents: 380, paidCents: 342, reclaimCents: 38 });
-  });
-  it("refuses without FINALE_ENABLED and Luca's yes, with no network call", async () => {
-    const { fetch, sent } = mockFetch({});
-    for (const gate of [{ finaleEnabled: false, lucaSaidYes: true }, { finaleEnabled: true, lucaSaidYes: false }]) {
-      await expect(new Payout({ fetch, apiKey: "k", sink: () => {}, gate }).createCheck({ cents: 380, memo: "PO 1042", idem: "i" })).rejects.toThrow(MainnetRefused);
-    }
-    expect(sent).toHaveLength(0);
   });
 });
 

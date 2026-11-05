@@ -31,7 +31,7 @@ export function Phone({ messages, open, onToggle }: { messages: Message[]; open:
                     <span><span className={s.micro}>QTY</span><span className={s.fig}>2,000</span></span>
                     <span><span className={s.micro}>TOTAL</span><span className={s.fig}>$38,000</span></span>
                   </span>
-                  <span className={s.chatYes}>YES approves PO 1042: 2,000 actuator motors from Haoyun Precision for $38,000, paid into escrow.</span>
+                  <span className={s.chatYes}>YES approves PO 1042: 2,000 actuator motors from Haoyun Precision for $38,000, committed to its own PO account.</span>
                   <span className={s.chips}><span className={s.chipYes}>YES</span><span className={s.chipNo}>NO</span></span>
                 </span>
               )}

@@ -15,9 +15,6 @@ export function formatUsd(c: number): string {
 export const TESTNET_SCALE = 1_000;
 export const scaleTestnet = (c: number): number => Math.round(c / TESTNET_SCALE);
 
-/** Mainnet finale runs at 1:10,000 of the story amounts. */
-export const FINALE_SCALE = 10_000;
-export const scaleFinale = (c: number): number => Math.round(c / FINALE_SCALE);
 
 /** Whole dollars when there are no cents: $38,000 rather than $38,000.00. */
 export function formatUsdShort(c: number): string {

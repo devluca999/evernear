@@ -160,7 +160,7 @@ describe("rehearsal", () => {
   });
   it("refuses any mainnet host", async () => {
     expect(() => assertTestnet({ OUTLAYER_API_URL: "https://api.outlayer.ai" })).toThrow(RehearsalRefused);
-    expect(() => assertTestnet({ FINALE_ENABLED: "1" })).toThrow(RehearsalRefused);
+    expect(() => assertTestnet({ AGENT_API_BASE_URL: "https://api.agentsonintents.com" })).toThrow(RehearsalRefused);
     expect(() => assertTestnet({ OUTLAYER_API_URL: "https://testnet-api.outlayer.ai" })).not.toThrow();
     const { fetch, sent } = mockFetch({});
     await expect(guardFetch(fetch)("https://api.outlayer.ai/register")).rejects.toThrow(RehearsalRefused);

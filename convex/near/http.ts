@@ -19,20 +19,17 @@ export interface ProofInput {
 export type ProofSink = (p: ProofInput) => Promise<void> | void;
 
 export const OUTLAYER_TESTNET = "https://testnet-api.outlayer.ai";
-export const OUTLAYER_MAINNET = "https://api.outlayer.ai";
 export const NEARAI_BASE = "https://cloud-api.near.ai/v1";
 export const TESTNET_EXPLORER = "https://testnet.nearblocks.io/txns/";
-export const MAINNET_EXPLORER = "https://nearblocks.io/txns/";
 
 export class MainnetRefused extends Error {
-  constructor(what: string) { super(`mainnet refused: ${what} needs FINALE_ENABLED=1 and Luca's explicit yes`); }
+  constructor(what: string) { super(`mainnet refused: ${what} needs Luca's explicit yes in this session`); }
 }
 
-/** Testnet only, unless the finale is explicitly enabled. */
-export function outlayerBase(opts: { mainnet?: boolean; finaleEnabled?: boolean } = {}): string {
-  if (!opts.mainnet) return OUTLAYER_TESTNET;
-  if (!opts.finaleEnabled) throw new MainnetRefused("OutLayer mainnet host");
-  return OUTLAYER_MAINNET;
+/** OutLayer is testnet only here. Mainnet is refused outright. */
+export function outlayerBase(opts: { mainnet?: boolean } = {}): string {
+  if (opts.mainnet) throw new MainnetRefused("OutLayer mainnet host");
+  return OUTLAYER_TESTNET;
 }
 
 export async function sha256Hex(data: string): Promise<string> {

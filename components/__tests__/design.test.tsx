@@ -34,9 +34,10 @@ describe("V2 design rules", () => {
       expect(["active", "attention", "success", "alert", "idle", "proposed"]).toContain(d.getAttribute("data-tone"));
     }
   });
-  it("stamps the PO label Locked, then Paid", () => {
+  it("stamps the PO label Committed, then Paid, and says it is a commitment at 1:1,000", () => {
     at(sceneStartMs(6) + 2000);
-    expect(within(screen.getByLabelText("PO 1042")).getByRole("status").textContent).toBe("LockedDay 0");
+    expect(within(screen.getByLabelText("PO 1042")).getByRole("status").textContent).toBe("CommittedDay 0");
+    expect(screen.getByText(/Testnet at 1:1,000:/).textContent).toBe("Testnet at 1:1,000: $38.00 moves for real. A commitment, not a lock: Tidepool enforces the rules, and Astro can change them.");
     cleanup();
     at(sceneStartMs(8) + 9000);
     expect(within(screen.getByLabelText("PO 1042")).getByRole("status").textContent).toBe("PaidDay 9");

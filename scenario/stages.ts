@@ -6,7 +6,7 @@ export const RAIL: { stage: Stage; label: string }[] = [
   { stage: "sourcing", label: "Sourcing" },
   { stage: "approval", label: "Approval" },
   { stage: "confirmed", label: "Confirmed" },
-  { stage: "funds_locked", label: "Funds locked" },
+  { stage: "funds_locked", label: "Committed" },
   { stage: "shipped", label: "Shipped" },
   { stage: "dock", label: "Dock" },
   { stage: "paid", label: "Paid" },

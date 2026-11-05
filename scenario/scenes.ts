@@ -101,7 +101,7 @@ export const scenes: Scene[] = [
     [10500, { type: "phone", open: false }],
   ] },
   { id: 8, title: "Paid", durationMs: 12000, layout: ["rules", "map"], beats: [
-    [500, { type: "release", to: "mallory.testnet" }],
+    [500, { type: "release", to: "0x000000000000000000000000000000000000dead" }],
     [600, proof("refused_release")],
     [4000, { type: "release", to: suppliers.find((s) => s.id === "haoyun")!.receiveAddress }],
     [4100, stage("paid")],

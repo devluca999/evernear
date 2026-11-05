@@ -2,7 +2,7 @@
 import { describe, expect, it, afterEach } from "vitest";
 import { render, screen, cleanup, within } from "@testing-library/react";
 import { Workspace } from "../workspace/Workspace";
-import { sceneStartMs } from "@/scenario/runner";
+import { sceneStartMs, stateAt } from "@/scenario/runner";
 import { totalDurationMs } from "@/scenario/scenes";
 
 afterEach(cleanup);
@@ -37,9 +37,11 @@ describe("workspace", () => {
     expect(screen.getByText("$34,200")).toBeTruthy();
     expect(screen.getByText("$3,800")).toBeTruthy();
   });
-  it("labels synthetic proofs on screen", () => {
-    at(sceneStartMs(1));
-    expect(screen.getAllByText("synthetic").length).toBeGreaterThan(0);
+  it("labels every synthetic proof on screen, and only those", () => {
+    const { container } = at(sceneStartMs(1));
+    const synthetic = stateAt(sceneStartMs(1)).proofs.some((p) => p.synthetic);
+    expect(screen.queryAllByText("synthetic").length > 0).toBe(synthetic);
+    expect(container.textContent?.includes("Proofs are placeholders")).toBe(synthetic);
   });
   it("ends on the end card", () => {
     at(totalDurationMs);

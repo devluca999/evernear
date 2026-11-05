@@ -1,45 +1,73 @@
 import type { WorkspaceState } from "@/scenario/types";
+import { MAP } from "../map/generated";
+import { cumulative, pointAt, polyline, type Pt } from "../map/route";
 import { Panel } from "../Panel";
 import s from "../workspace.module.css";
 
-// Equirectangular projection, cut from 0 E eastward so Europe sits left, Asia centre and the Pacific runs to Chicago.
-// x = degrees east of 0 E (0..360), y = degrees south of 75 N. View box 0..300 x 0..70.
-const P = (lon: number, lat: number) => [((lon + 360) % 360) - 0, 75 - lat] as const;
-const LABEL_DY: Record<string, number> = { Dongguan: 9, Shenzhen: -4 };
-const LABEL_DX: Record<string, number> = { Dongguan: -30, Shenzhen: 4 };
+const ROUTE = MAP.route as readonly Pt[];
+const CUM = cumulative(ROUTE);
+const ROUTE_D = polyline(ROUTE);
 
-const PLACES = {
-  Chicago: P(-87.6, 41.9), Shenzhen: P(114.1, 22.5), Osaka: P(135.5, 34.7),
-  Stuttgart: P(9.2, 48.8), Dongguan: P(113.8, 23.0),
+const SUPPLIER_CITY: Record<string, keyof typeof MAP.pins> = { kansai: "Osaka", rheinwerk: "Stuttgart", huaxin: "Dongguan", haoyun: "Shenzhen" };
+// Where each document sits on the trip, as a share of the route.
+const DOC_AT = [0.06, 0.24, 0.42];
+const DOC_TONE = { done: s.docDone, working: s.docWorking, problem: s.docProblem };
+const LABEL: Partial<Record<keyof typeof MAP.pins, { dx: number; dy: number; anchor?: "end" }>> = {
+  Dongguan: { dx: -6, dy: -6, anchor: "end" }, Shenzhen: { dx: 6, dy: 12 }, Chicago: { dx: -6, dy: -7, anchor: "end" },
+  "Long Beach": { dx: -6, dy: 13, anchor: "end" },
 };
 
-const DOC_TONE = { done: s.docDone, working: s.docWorking, problem: s.docProblem };
+function Pin({ name, cls }: { name: keyof typeof MAP.pins; cls: string }) {
+  const [x, y] = MAP.pins[name];
+  const l = LABEL[name] ?? { dx: 6, dy: -6 };
+  return (
+    <g>
+      <circle cx={x} cy={y} r="3.2" className={cls} />
+      <text x={x + l.dx} y={y + l.dy} textAnchor={l.anchor ?? "start"} className={s.pinLabel}>{name}</text>
+    </g>
+  );
+}
+
+/** A small document glyph with a folded corner, coloured by its state. */
+function Doc({ at, state }: { at: Pt; state: "done" | "working" | "problem" }) {
+  const [x, y] = at;
+  return <path transform={`translate(${x - 4.5} ${y - 16})`} d="M0 0h6l3 3v9H0z" className={`${s.docGlyph} ${DOC_TONE[state]}`} />;
+}
 
 export function MapPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }) {
-  const [sx, sy] = PLACES.Shenzhen, [cx, cy] = PLACES.Chicago;
-  const mx = (sx + cx) / 2, my = Math.min(sy, cy) - 14;
   const t = st.shipment.progress;
-  const bx = (1 - t) ** 2 * sx + 2 * (1 - t) * t * mx + t ** 2 * cx;
-  const by = (1 - t) ** 2 * sy + 2 * (1 - t) * t * my + t ** 2 * cy;
-  const pins = st.fitment.length > 0 || st.stage === "sourcing" ? ["Osaka", "Stuttgart", "Dongguan", "Shenzhen"] : ["Shenzhen"];
-  const failed = new Set(st.fitment.filter((f) => !f.pass).map((f) => ({ kansai: "Osaka", rheinwerk: "Stuttgart", huaxin: "Dongguan" } as Record<string, string>)[f.supplierId]));
+  const shipping = st.escrow !== null;
+  const failed = new Set(st.fitment.filter((f) => !f.pass).map((f) => SUPPLIER_CITY[f.supplierId]));
+  const passed = new Set(st.fitment.filter((f) => f.pass).map((f) => SUPPLIER_CITY[f.supplierId]));
+  const scanned = st.fitment.length > 0 || st.stage === "sourcing";
+  const candidates = (scanned ? ["Stuttgart", "Osaka", "Dongguan", "Shenzhen"] : ["Shenzhen"]) as (keyof typeof MAP.pins)[];
+  const ship = pointAt(ROUTE, t, CUM);
+  const pinCls = (c: keyof typeof MAP.pins) => (failed.has(c) ? s.pinFail : passed.has(c) || shipping ? s.pinOk : s.pin);
+
   return (
     <Panel id="map" title="Shipment" pulse={pulse}>
-      <svg className={s.map} viewBox="-10 0 300 70" role="img" aria-label="Route from Shenzhen to Chicago">
-        {[15, 30, 45, 60].map((y) => <line key={y} x1="-10" x2="290" y1={y} y2={y} className={s.grat} />)}
-        {[30, 60, 90, 120, 150, 180, 210, 240, 270].map((x) => <line key={x} y1="0" y2="70" x1={x} x2={x} className={s.grat} />)}
-        <path d={`M${sx},${sy} Q${mx},${my} ${cx},${cy}`} className={s.route} fill="none" />
-        {t > 0 && <path d={`M${sx},${sy} Q${mx},${my} ${cx},${cy}`} className={s.routeDone} fill="none" pathLength={1} strokeDasharray={`${t} 1`} />}
-        {pins.map((p) => {
-          const [x, y] = PLACES[p as keyof typeof PLACES];
-          return <g key={p}><circle cx={x} cy={y} r="1.6" className={failed.has(p) ? s.pinFail : p === "Shenzhen" ? s.pinOk : s.pin} /><text x={x + (LABEL_DX[p] ?? 4)} y={y + (LABEL_DY[p] ?? -4)} className={s.pinLabel}>{p}</text></g>;
-        })}
-        <circle cx={cx} cy={cy} r="1.6" className={s.pinHome} /><text x={cx - 18} y={cy - 4} className={s.pinLabel}>Chicago</text>
-        {t > 0 && <rect x={bx - 2} y={by - 2} width="4" height="4" rx="1" className={s.ship} />}
+      <svg className={s.map} viewBox={`0 0 ${MAP.width} ${MAP.height}`} role="img"
+        aria-label={shipping ? `Route Shenzhen to Long Beach by sea, then rail to Chicago, ${Math.round(t * 100)} percent of the way` : "Supplier locations and Astro in Chicago"}>
+        <rect width={MAP.width} height={MAP.height} className={s.ocean} />
+        <path d={MAP.graticule} className={s.grat} />
+        <path d={MAP.land} className={s.land} />
+        <path d={MAP.borders} className={s.border} />
+        {shipping && (
+          <>
+            <path d={ROUTE_D} className={s.route} fill="none" />
+            {t > 0 && <path d={ROUTE_D} className={s.routeDone} fill="none" pathLength={1} strokeDasharray={`${t} 1`} />}
+            <Pin name="Long Beach" cls={s.pinWay} />
+            {st.shipment.docs.map((d, i) => <Doc key={d.name} at={pointAt(ROUTE, DOC_AT[i] ?? 0.5, CUM)} state={d.state} />)}
+          </>
+        )}
+        {candidates.map((c) => <Pin key={c} name={c} cls={pinCls(c)} />)}
+        <Pin name="Chicago" cls={s.pinHome} />
+        {shipping && t > 0 && <rect x={ship[0] - 3.5} y={ship[1] - 3.5} width="7" height="7" rx="1.5" className={s.ship} />}
       </svg>
       {st.shipment.docs.length > 0 && (
         <ul className={s.docs}>
           {st.shipment.docs.map((d) => <li key={d.name}><span className={`${s.docIcon} ${DOC_TONE[d.state]}`} aria-hidden />{d.name}</li>)}
+          <li className={s.faint}><span className={s.fig}>{MAP.seaKm.toLocaleString("en-US")}</span> km by sea, <span className={s.fig}>{MAP.railKm.toLocaleString("en-US")}</span> km by rail</li>
         </ul>
       )}
     </Panel>

@@ -5,6 +5,7 @@ import { PANEL_ORDER, PANEL_NAMES } from "@/scenario/layout";
 import s from "./workspace.module.css";
 
 const ICONS: Record<PanelId, string> = {
+  products: "M8 1.5l6 3v7l-6 3-6-3v-7zM2 4.5l6 3 6-3M8 7.5v7",
   demand: "M2 12h3V7H2zM6.5 12h3V4h-3zM11 12h3V2h-3z",
   map: "M2 4l4-2 4 2 4-2v10l-4 2-4-2-4 2zM6 2v10M10 4v10",
   inbox: "M2 3h12v10H2zM2 3l6 5 6-5",

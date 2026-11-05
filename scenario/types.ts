@@ -3,7 +3,7 @@ import type { Escrow } from "../engine/escrow";
 import type { Stage } from "./stages";
 import type { Checkpoint } from "./shipment";
 
-export type PanelId = "demand" | "map" | "inbox" | "bom" | "rules";
+export type PanelId = "products" | "demand" | "map" | "inbox" | "bom" | "rules";
 
 export interface Message {
   id: string;

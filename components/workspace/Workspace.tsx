@@ -13,6 +13,7 @@ import { MapPanel } from "./panels/MapPanel";
 import { InboxPanel } from "./panels/InboxPanel";
 import { BomPanel } from "./panels/BomPanel";
 import { RulesPanel } from "./panels/RulesPanel";
+import { ProductsPanel } from "./panels/ProductsPanel";
 import { ActionsContext, type WorkspaceActions } from "./actions";
 import { PhotoViewer } from "./PhotoViewer";
 import { Chip, Pill } from "./ui";
@@ -25,7 +26,7 @@ import { StatsBar } from "./StatsBar";
 import s from "./workspace.module.css";
 
 const PANELS: Record<PanelId, (p: { st: WorkspaceState; pulse: boolean }) => React.ReactNode> = {
-  demand: DemandPanel, map: MapPanel, inbox: InboxPanel, bom: BomPanel, rules: RulesPanel,
+  products: ProductsPanel, demand: DemandPanel, map: MapPanel, inbox: InboxPanel, bom: BomPanel, rules: RulesPanel,
 };
 
 const PIN_KEY = "evernear.pinnedPanels";

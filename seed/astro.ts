@@ -41,6 +41,39 @@ export const bom10MA: BomLine[] = [
   line(14, "Fastener kit", 1, { standard: "ISO metric", grade: "A2 stainless" }),
 ];
 
+/** Sample BOMs for the products the story does not play, so the Products view can be browsed. */
+const sampleLine = (product: string, n: number, part: string, qty: number, specs: Record<string, string>): BomLine => ({
+  id: `${product}-${String(n).padStart(2, "0")}`, product, part, qty, specs,
+});
+export const bomKip: BomLine[] = [
+  sampleLine("kip", 1, "Brush motor", 2, { voltage: "24 V", speed: "1,200 rpm" }),
+  sampleLine("kip", 2, "Suction fan", 1, { airflow: "18 l/s", voltage: "24 V" }),
+  sampleLine("kip", 3, "Battery pack", 1, { voltage: "24 V", capacity: "10 Ah" }),
+  sampleLine("kip", 4, "Bumper sensor", 4, { type: "microswitch", travel: "3 mm" }),
+  sampleLine("kip", 5, "Controller board", 1, { mcu: "ARM Cortex-M4", bus: "CAN" }),
+  sampleLine("kip", 6, "Drive wheel", 2, { diameter: "90 mm", tread: "rubber" }),
+  sampleLine("kip", 7, "Water tank", 1, { volume: "2 l", material: "PP" }),
+  sampleLine("kip", 8, "Housing", 1, { material: "ABS", finish: "matte" }),
+];
+export const bomPorter: BomLine[] = [
+  sampleLine("porter", 1, "Hub motor", 4, { power: "250 W", voltage: "48 V" }),
+  sampleLine("porter", 2, "Battery pack", 2, { voltage: "48 V", capacity: "30 Ah" }),
+  sampleLine("porter", 3, "Lidar sensor", 2, { range: "25 m", interface: "Ethernet" }),
+  sampleLine("porter", 4, "Controller board", 1, { mcu: "ARM Cortex-A53", bus: "CAN FD" }),
+  sampleLine("porter", 5, "Cargo deck", 1, { load: "150 kg", material: "steel" }),
+  sampleLine("porter", 6, "Safety light", 2, { colour: "amber", rating: "IP65" }),
+  sampleLine("porter", 7, "Caster wheel", 2, { diameter: "100 mm", tread: "polyurethane" }),
+];
+export const bomFor: Record<string, BomLine[]> = { "10ma": bom10MA, kip: bomKip, porter: bomPorter };
+
+/** Sample stock on hand per part (units). The actuator motor count comes from the scenario. */
+export const partStock: Record<string, number> = {
+  "Chassis frame": 9, "Arm servo": 22, "Battery pack": 16, "Controller board": 12, "Camera module": 30, "Encoder harness": 48,
+  "Drive wheel": 26, "Lidar sensor": 11, "Head shell": 14, "Speaker": 19, "Microphone array": 15, "Wiring loom": 13, "Fastener kit": 40,
+  "Brush motor": 34, "Suction fan": 12, "Bumper sensor": 80, "Water tank": 17, "Housing": 15, "Hub motor": 20, "Cargo deck": 6,
+  "Safety light": 24, "Caster wheel": 18,
+};
+
 export const suppliers: Supplier[] = [
   { id: "ultra", name: "Ultra Motion", city: "Illinois", country: "USA", approved: true, isNew: false, receiveChain: "near", receiveAddress: "ultra-motion.testnet" },
   { id: "haoyun", name: "Haoyun Precision", city: "Shenzhen", country: "China", approved: true, isNew: true, receiveChain: "base", receiveAddress: "0x2003975a521c6fa45238dbc402c9e4adcb8863e0" },

@@ -2,8 +2,8 @@
 // panels that are not pinned. At most MAX_PANELS. With nothing pinned it is the scene's layout.
 import type { PanelId } from "./types";
 
-export const PANEL_ORDER: PanelId[] = ["demand", "map", "inbox", "bom", "rules"];
-export const PANEL_NAMES: Record<PanelId, string> = { demand: "Demand", map: "Shipment", inbox: "Inbox", bom: "BOM", rules: "Rules" };
+export const PANEL_ORDER: PanelId[] = ["products", "demand", "map", "inbox", "bom", "rules"];
+export const PANEL_NAMES: Record<PanelId, string> = { products: "Products", demand: "Demand", map: "Shipment", inbox: "Inbox", bom: "Sourcing", rules: "Rules" };
 export const MAX_PANELS = 5;
 
 export function composeLayout(pinned: readonly PanelId[], scene: readonly PanelId[]): PanelId[] {

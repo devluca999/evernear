@@ -454,3 +454,19 @@
 .stat dt { margin: 0; color: var(--text-muted); }
 .statValue { margin: 0; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 18px; }
 .stat[data-alert="true"] .statValue { color: var(--state-alert, var(--text-primary)); }
+
+/* Products and BOM. */
+.prodTabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.prodTab { all: unset; cursor: pointer; display: grid; gap: 2px; padding: 8px 12px; border-radius: var(--radius-sm, 6px); border: 1px solid var(--line-hairline); font-weight: 600; font-size: 13px; }
+.prodTab .faint { font-weight: 400; font-size: 11px; }
+.prodTab[aria-selected="true"] { border-color: var(--text-primary); box-shadow: inset 0 -2px 0 var(--text-primary); }
+.prodTab:focus-visible, .bomRowBtn:focus-visible { outline: 2px solid var(--line-focus); outline-offset: 2px; }
+.prodHead { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.bomList { list-style: none; margin: 0; padding: 0; max-height: 340px; overflow-y: auto; border-top: 1px solid var(--line-hairline); }
+.bomRow { border-bottom: 1px solid var(--line-hairline); }
+.bomRowBtn { all: unset; cursor: pointer; box-sizing: border-box; width: 100%; display: grid; grid-template-columns: 28px minmax(0, 1fr) 44px 56px; gap: 8px; align-items: center; padding: 8px 4px; font-size: 13px; }
+.bomRowBtn:hover { background: var(--bg-sunken); }
+.bomRow[data-open="true"] .bomRowBtn { background: var(--bg-sunken); }
+.bomPart { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.bomSpecs { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px 16px; margin: 0; padding: 8px 4px 12px 40px; }
+.bomSpecs dd { margin: 2px 0 0; font-size: 13px; }

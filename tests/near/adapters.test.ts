@@ -5,6 +5,9 @@ import { Approvals, approvalMessage } from "@/convex/near/approval";
 import { EscrowAdapter, escrowPolicy } from "@/convex/near/escrow";
 import { Gmail } from "@/convex/near/gmail";
 import { Inference, isConfidential } from "@/convex/near/inference";
+import { secp256k1 } from "@noble/curves/secp256k1";
+import { ethAddressOf, signed } from "./ecdsaFixtures";
+import type { Fetch, ProofSink } from "@/convex/near/http";
 import { Payout, finaleAmounts } from "@/convex/near/payout";
 import { MainnetRefused, outlayerBase, sha256Hex } from "@/convex/near/http";
 import { createEscrow } from "@/engine/escrow";
@@ -135,37 +138,67 @@ describe("gmail connector", () => {
 
 describe("private inference", () => {
   const model = "Qwen/Qwen3-VL-30B-A3B-Instruct";
-  function routes(sig: (reqSha: string, resSha: string) => unknown, withAtt = true) {
+  const teeKey = secp256k1.utils.randomPrivateKey();
+  const otherKey = secp256k1.utils.randomPrivateKey();
+  const TEE = ethAddressOf(teeKey);
+  function routes(o: { sig?: (reqSha: string, resSha: string) => unknown; attAddress?: string | null; withAtt?: boolean; notFoundTimes?: number } = {}) {
     let reqBody = "";
+    let misses = o.notFoundTimes ?? 0;
     const resBody = { id: "chatcmpl-1", choices: [{ message: { content: JSON.stringify({ po: "1042", quantity: 1800 }) } }] };
+    const att = o.attAddress === null ? {} : { signing_address: o.attAddress ?? TEE };
     return mockFetch({
       "GET /v1/models": () => ({ data: [{ id: "openai/gpt", owned_by: "openai" }, { id: model, owned_by: "nearai" }] }),
-      "GET /v1/attestation/report": () => ({ model_attestations: withAtt ? [{ signing_address: "0xABC" }] : [] }),
+      "GET /v1/attestation/report": () => ({ model_attestations: o.withAtt === false ? [] : [att] }),
       "POST /v1/chat/completions": (req) => { reqBody = req.body; return resBody; },
-      "GET /v1/signature/chatcmpl-1": async () => sig(await sha256Hex(reqBody), await sha256Hex(JSON.stringify(resBody))),
+      "GET /v1/signature/chatcmpl-1": async () => {
+        if (misses-- > 0) return [404, { detail: "Chat id not found or expired" }];
+        const a = await sha256Hex(reqBody), b = await sha256Hex(JSON.stringify(resBody));
+        return o.sig ? o.sig(a, b) : signed(`${model}:${a}:${b}`, teeKey);
+      },
     });
   }
+  const read = (fetch: Fetch, sink: ProofSink = () => {}) =>
+    new Inference({ fetch, apiKey: "k", sink, sleep: async () => {} }).read<{ quantity: number }>({ kind: "packing_slip", text: "Qty 1800", fields: ["po", "quantity"], label: "Packing slip read privately" });
+
   it("only picks confidential TEE models", () => {
     expect(isConfidential({ id: "x", owned_by: "openai" })).toBe(false);
     expect(isConfidential({ id: model, owned_by: "nearai" })).toBe(true);
   });
   it("refuses to send a document when the model has no attestation", async () => {
-    const { fetch, sent } = routes(() => ({}), false);
-    await expect(new Inference({ fetch, apiKey: "k", sink: () => {} }).read({ kind: "packing_slip", text: "Qty 1800", fields: ["quantity"], label: "Slip" })).rejects.toThrow("no model attestation");
+    const { fetch, sent } = routes({ withAtt: false });
+    await expect(read(fetch)).rejects.toThrow("no model attestation");
     expect(sent.some((s) => s.url.includes("/chat/completions"))).toBe(false);
   });
-  it("binds the reply to the model, request and response when the signature matches", async () => {
-    const { fetch } = routes((a, b) => ({ text: `${model}:${a}:${b}`, signature: "0xsig", signing_address: "0xabc", signature_kind: "provider_tee" }));
+  it("binds the reply when the signer recovered from the signature is the attested TEE key", async () => {
+    const { fetch, sent } = routes();
     const { proofs, sink } = sinkRecorder();
-    const r = await new Inference({ fetch, apiKey: "k", sink }).read<{ quantity: number }>({ kind: "packing_slip", text: "Qty 1800", fields: ["po", "quantity"], label: "Packing slip read privately" });
+    const r = await read(fetch, sink);
     expect(r.fields.quantity).toBe(1800);
     expect(r.record.bound).toBe(true);
+    expect(r.record.recoveredAddress).toBe(TEE.toLowerCase());
     expect(proofs[0].kind).toBe("attestation");
+    const lookup = sent.find((s) => s.url.includes("/signature/"))!;
+    expect(new URL(lookup.url).searchParams.get("model")).toBe(model);
+    expect(new URL(lookup.url).searchParams.get("signing_algo")).toBe("ecdsa");
   });
-  it("marks the read unbound when the signature does not match", async () => {
-    const { fetch } = routes(() => ({ text: "other", signature: "0x", signing_address: "0xabc", signature_kind: "provider_tee" }));
-    const r = await new Inference({ fetch, apiKey: "k", sink: () => {} }).read({ kind: "offer", text: "x", fields: ["unit price"], label: "Offer" });
+  it("marks the read unbound when the signed text does not match", async () => {
+    const { fetch } = routes({ sig: () => signed("other", teeKey) });
+    expect((await read(fetch)).record.bound).toBe(false);
+  });
+  it("marks the read unbound when another key signed, even if the reported address is the TEE's", async () => {
+    const { fetch } = routes({ sig: (a, b) => ({ ...signed(`${model}:${a}:${b}`, otherKey), signing_address: TEE }) });
+    const r = await read(fetch);
     expect(r.record.bound).toBe(false);
+    expect(r.record.recoveredAddress).toBe(ethAddressOf(otherKey).toLowerCase());
+  });
+  it("marks the read unbound when the attestation names no signing address", async () => {
+    const { fetch } = routes({ attAddress: null });
+    expect((await read(fetch)).record.bound).toBe(false);
+  });
+  it("retries the signature lookup while the serving node is not found", async () => {
+    const { fetch, sent } = routes({ notFoundTimes: 2 });
+    expect((await read(fetch)).record.bound).toBe(true);
+    expect(sent.filter((s) => s.url.includes("/signature/"))).toHaveLength(3);
   });
 });
 

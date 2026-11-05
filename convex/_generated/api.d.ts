@@ -17,6 +17,7 @@ import type * as messages from "../messages.js";
 import type * as near_approval from "../near/approval.js";
 import type * as near_custody from "../near/custody.js";
 import type * as near_dockcheck from "../near/dockcheck.js";
+import type * as near_ecdsa from "../near/ecdsa.js";
 import type * as near_escrow from "../near/escrow.js";
 import type * as near_gmail from "../near/gmail.js";
 import type * as near_http from "../near/http.js";
@@ -40,6 +41,7 @@ declare const fullApi: ApiFromModules<{
   "near/approval": typeof near_approval;
   "near/custody": typeof near_custody;
   "near/dockcheck": typeof near_dockcheck;
+  "near/ecdsa": typeof near_ecdsa;
   "near/escrow": typeof near_escrow;
   "near/gmail": typeof near_gmail;
   "near/http": typeof near_http;

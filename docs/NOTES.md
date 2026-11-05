@@ -381,3 +381,11 @@ Wallet registered with `scripts/rehearse-testnet.mjs`; trial key issued. Through
 - `GET /wallet/v1/address?chain=near` returns `wallet_id`, `address` (the implicit account, 64 hex), `public_key`, `executor_account_id` (same as address) and `asset_account_id: null`.
 - `GET /wallet/v1/policy` on a fresh wallet: `{"policy":"none","frozen":false,"usage":{}}` plus `controller` (the wallet's own ed25519 key). No policy until the owner sets one.
 - `GET /wallet/v1/balance?chain=near&token=usdc.fakes.testnet`: `"0"`.
+
+## 12. NEAR AI Cloud, checked against the near-ai-cloud skill (Nov 5 2026)
+
+Source: `.agents/skills/near-ai-cloud` (near/agent-skills 1.1.0), references `chat-verification.md` and `private-vs-anonymised.md`.
+- The gateway signature lookup is `GET /v1/signature/{chat_id}?model={model}&signing_algo=ecdsa`. We now send `model`.
+- A model runs on several TEE nodes; the lookup can return "Chat id not found or expired" until it reaches the right one. We retry up to 5 times.
+- Verify by recovering the signer (Ethereum personal_sign over `text`) and comparing it to the model attestation's `signing_address`. We now recover it in `convex/near/ecdsa.ts`, and a missing attested address no longer passes.
+- Models are "Private" (TEE) or "Anonymised" (routed to third parties). Only Private models may see the BOM. `isConfidential` uses `owned_by === "nearai"`; the skill does not confirm that field, so check it against the live `/v1/models` on the first call with a real key.

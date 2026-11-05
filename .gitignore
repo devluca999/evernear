@@ -16,3 +16,7 @@ worker/**/target/
 
 # agent worktrees
 .claude/worktrees/
+
+# Agent skills, installed per machine (skills-lock.json pins them)
+.agents/
+.claude/skills/

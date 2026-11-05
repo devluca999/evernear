@@ -3,6 +3,7 @@
 // Per read we keep: model, nonce, attestation report signer, completion id, request and
 // response sha256, and the provider signature. Flow: docs/NOTES.md section 2.
 import { httpJson, NEARAI_BASE, proofHash, sha256Hex, type Fetch, type ProofSink } from "./http";
+import { recoverSigner } from "./ecdsa";
 
 const PATH = "convex/near/inference.ts";
 
@@ -21,14 +22,16 @@ export interface ReadRecord {
   signatureText: string | null;
   signature: string | null;
   signatureKind: string | null;
-  /** True only when the signed text binds this model, this request and this response. */
+  /** The signer recovered from the signature itself (lowercase), not the address the server reports. */
+  recoveredAddress: string | null;
+  /** True only when the attested TEE key signed text that binds this model, this request and this response. */
   bound: boolean;
 }
 
 const SYSTEM = "You read supply chain documents. Reply with one JSON object holding only the fields asked for, copied exactly as printed. Never compute totals.";
 
 export class Inference {
-  constructor(private o: { fetch: Fetch; apiKey?: string; sink: ProofSink; model?: string; nonce?: () => string }) {}
+  constructor(private o: { fetch: Fetch; apiKey?: string; sink: ProofSink; model?: string; nonce?: () => string; sleep?: (ms: number) => Promise<void> }) {}
   private h() {
     if (!this.o.apiKey) throw new Error("NEARAI_API_KEY not configured");
     return { Authorization: `Bearer ${this.o.apiKey}`, "x-no-aliasing": "true", "Accept-Encoding": "identity" };
@@ -58,23 +61,40 @@ export class Inference {
       fetch: this.o.fetch, base: NEARAI_BASE, method: "POST", path: "/chat/completions", headers: this.h(),
       body: { model, stream: false, temperature: 0, response_format: { type: "json_object" }, messages: [{ role: "system", content: SYSTEM }, { role: "user", content }] },
     });
-    const sig = await httpJson<{ text?: string; signature?: string; signing_address?: string; signature_kind?: string; error_code?: string }>({
-      fetch: this.o.fetch, base: NEARAI_BASE, method: "GET", path: `/signature/${c.json.id}?signing_algo=ecdsa`, headers: this.h(),
-    }).catch(() => null);
-
+    const sig = await this.signature(c.json.id, model);
     const requestSha256 = await sha256Hex(c.requestText);
     const responseSha256 = await sha256Hex(c.responseText);
-    const s = sig?.json;
+    const s = sig;
+    const attested = modelAtt.signing_address?.toLowerCase() ?? null;
+    const recoveredAddress = s?.text && s.signature ? recoverSigner(s.text, s.signature) : null;
     const bound = !!s && !s.error_code && s.signature_kind === "provider_tee"
       && s.text === `${model}:${requestSha256}:${responseSha256}`
-      && (!modelAtt.signing_address || s.signing_address?.toLowerCase() === modelAtt.signing_address.toLowerCase());
+      && !!attested && recoveredAddress === attested;
     const record: ReadRecord = {
       model, nonce, signingAddress: modelAtt.signing_address ?? null, completionId: c.json.id, requestSha256, responseSha256,
-      signatureText: s?.text ?? null, signature: s?.signature ?? null, signatureKind: s?.signature_kind ?? null, bound,
+      signatureText: s?.text ?? null, signature: s?.signature ?? null, signatureKind: s?.signature_kind ?? null, recoveredAddress, bound,
     };
     let fields: T;
     try { fields = JSON.parse(c.json.choices[0].message.content) as T; } catch { throw new Error("model reply was not JSON"); }
     await this.o.sink({ kind: "attestation", label: i.label, call: "POST /v1/chat/completions (NEAR AI Cloud)", codePath: `${PATH}#read`, network: "offchain", hash: await proofHash(c.requestText, c.responseText), response: { record, fields }, replay: false, synthetic: false });
     return { fields, record };
+  }
+
+  /** The model TEE signature for a completion. A model can run on several TEE nodes and the signature
+   *  lives on the node that served it, so "not found" is retried a few times. */
+  private async signature(chatId: string, model: string) {
+    type Sig = { text?: string; signature?: string; signing_address?: string; signature_kind?: string; error_code?: string };
+    const sleep = this.o.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        return (await httpJson<Sig>({
+          fetch: this.o.fetch, base: NEARAI_BASE, method: "GET", headers: this.h(),
+          path: `/signature/${encodeURIComponent(chatId)}?model=${encodeURIComponent(model)}&signing_algo=ecdsa`,
+        })).json;
+      } catch {
+        await sleep(400 * (attempt + 1));
+      }
+    }
+    return null;
   }
 }

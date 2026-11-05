@@ -34,3 +34,23 @@ describe("gates", () => {
     expect(nextGate(gates[4].atMs)).toBeNull();
   });
 });
+
+describe("live holds", () => {
+  it("names the four money steps in story order", async () => {
+    const { liveStepOf } = await import("../gates");
+    const { suppliers } = await import("@/seed/astro");
+    const addr = suppliers.find((x) => x.id === "haoyun")!.receiveAddress;
+    expect(timeline.map((b) => liveStepOf(b, addr)).filter(Boolean)).toEqual(["commit", "refuse", "pay", "reclaim"]);
+  });
+  it("holds the clock before a live step until it is done, then lets it pass", async () => {
+    const { stepClockWith, heldAt, liveStepOf } = await import("../gates");
+    const commit = timeline.find((b) => b.ev.type === "lock_funds")!;
+    const done = new Set<string>();
+    const blocked = (b: (typeof timeline)[number]) => liveStepOf(b, "x") === "commit" && !done.has("commit");
+    const t = stepClockWith(commit.atMs - 100, commit.atMs + 100, blocked);
+    expect(t).toBe(commit.atMs - 1);
+    expect(heldAt(t, blocked)?.ev.type).toBe("lock_funds");
+    done.add("commit");
+    expect(stepClockWith(t, commit.atMs + 100, blocked)).toBe(commit.atMs + 100);
+  });
+});

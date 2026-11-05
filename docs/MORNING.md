@@ -25,6 +25,8 @@ Status, Nov 5 2026: everything is on `main` at https://github.com/devluca999/eve
 
 Then: `RECORD=1 npm run rehearse` writes real proofs to `fixtures/recorded/`, which replace the synthetic ones on screen.
 
+**Presenting (Nov 5):** the demo holds at the end of each scene and at each of your moments; Cmd+K (Ctrl+K) continues. "Waits for me" off, or `?autoplay=1`, plays straight through. The drawer stays collapsed as a bar with the latest call; its chevron pulls it up to half the screen (drag to resize), raw call on the left and "What happened" in plain words on the right. **Live mode** (local now; hosted needs a Convex cloud deployment with the Tidepool env and `LIVE_ENABLED=1`): press "Replay" to switch to "Live". A full live run passed through the public functions on Nov 5 (Base Sepolia tx `0xf3c8eaeda8ddd35dace6771ca17d0dc987e8ce44895637...`).
+
 ## 3. Decisions settled with you
 
 - Convex holds Astro's capped agent key; the README says so plainly.

@@ -25,7 +25,9 @@ export function InboxPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }
           </li>
         ))}
         {refusedMail.map((r) => (
-          <li key={r.atMs} className={`${s.mailItem} ${s.refusedRow}`}><Led tone="alert" />Refused: {r.detail}</li>
+          st.t - r.atMs < 4000
+            ? <li key={r.atMs} className={`${s.mailItem} ${s.refusedRow}`}><Led tone="success" />Blocked as designed: {r.detail}</li>
+            : <li key={r.atMs} className={s.quietNote}>1 off list email blocked</li>
         ))}
       </ul>
     </Panel>

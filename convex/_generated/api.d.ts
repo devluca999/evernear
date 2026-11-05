@@ -12,6 +12,8 @@ import type * as channels_email from "../channels/email.js";
 import type * as channels_telegram from "../channels/telegram.js";
 import type * as channels_verify from "../channels/verify.js";
 import type * as http from "../http.js";
+import type * as live from "../live.js";
+import type * as liveState from "../liveState.js";
 import type * as messages from "../messages.js";
 import type * as near_agentapi from "../near/agentapi.js";
 import type * as near_approval from "../near/approval.js";
@@ -37,6 +39,8 @@ declare const fullApi: ApiFromModules<{
   "channels/telegram": typeof channels_telegram;
   "channels/verify": typeof channels_verify;
   http: typeof http;
+  live: typeof live;
+  liveState: typeof liveState;
   messages: typeof messages;
   "near/agentapi": typeof near_agentapi;
   "near/approval": typeof near_approval;

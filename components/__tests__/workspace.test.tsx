@@ -13,15 +13,42 @@ describe("workspace", () => {
     at(0);
     expect(screen.queryByLabelText("Presenter camera")).toBeNull();
   });
-  it("docks the phone and the developer drawer at the bottom, and the chevron collapses and expands the drawer", () => {
-    at(sceneStartMs(6) + 700); // the escrow proof has just opened the drawer
+  it("docks the phone and a collapsed developer drawer at the bottom; the chevron pulls it up with plain words beside the call", () => {
+    at(sceneStartMs(6) + 700); // the escrow proof has just arrived
     const drawer = screen.getByLabelText("Developer drawer");
     expect(drawer.parentElement).toBe(screen.getByLabelText("Phone").parentElement);
-    expect(drawer.className).toMatch(/drawerOpen/);
-    fireEvent.click(screen.getByRole("button", { name: "Collapse developer drawer" }));
     expect(drawer.className).not.toMatch(/drawerOpen/);
+    expect(within(drawer).getByRole("button", { name: "Expand developer drawer" }).textContent).toContain("Committed for PO 1042");
     fireEvent.click(screen.getByRole("button", { name: "Expand developer drawer" }));
     expect(drawer.className).toMatch(/drawerOpen/);
+    expect(within(screen.getByLabelText("What happened")).getByText(/can only pay Haoyun or go back to Astro/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Collapse developer drawer" }));
+    expect(drawer.className).not.toMatch(/drawerOpen/);
+  });
+  it("holds at the end of a scene until Cmd+K, so the presenter can narrate", () => {
+    at(sceneStartMs(3) - 1);
+    expect(screen.getByRole("group", { name: "End of scene" }).textContent).toContain("Sourcing and fitment");
+    fireEvent.keyDown(window, { key: "k", metaKey: true });
+    expect(screen.queryByRole("group", { name: "End of scene" })).toBeNull();
+    expect(screen.getByText("SCENE 3")).toBeTruthy();
+  });
+  it("keeps the phone tucked away unless it is waiting for you", () => {
+    at(sceneStartMs(5) + 1000);
+    expect(screen.getByLabelText("Phone").className).not.toMatch(/phoneOpen/);
+  });
+  it("says a wrong address refusal is the guard working, then reduces it to a quiet line", () => {
+    const r = timeline.find((b) => b.ev.type === "release")!;
+    at(r.atMs + 500);
+    expect(screen.getByText(/^Blocked as designed: a release to 0x0000…dead is not one of the three exits$/)).toBeTruthy();
+    cleanup();
+    at(r.atMs + 6000);
+    expect(screen.queryByText(/Blocked as designed/)).toBeNull();
+    expect(screen.getByText("1 wrong address release blocked")).toBeTruthy();
+  });
+  it("shows the end card in the workspace instead of over the panels", () => {
+    at(sceneStartMs(9) + 1000);
+    expect(screen.getByRole("region", { name: "End card" }).closest("main")).toBeTruthy();
+    expect(document.querySelectorAll("[data-panel]")).toHaveLength(0);
   });
   it("shows the rail with eight steps", () => {
     at(0);

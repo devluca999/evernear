@@ -45,9 +45,14 @@ export default defineSchema({
   poAccounts: defineTable({ agentId: v.string(), account: v.string(), grantHash: v.string(), busy: v.boolean() })
     .index("by_busy", ["busy"]).index("by_agent", ["agentId"]),
   approvals: defineTable({ restockId: v.id("restocks"), approver: v.string(), signedAt: v.number(), proofId: v.optional(v.id("proofs")) }).index("by_restock", ["restockId"]),
+  // A live run from the workspace (convex/live.ts): one PO committed, refused, paid and closed on Tidepool.
+  liveRuns: defineTable({
+    startedAt: v.number(), escrowId: v.optional(v.id("escrows")), error: v.optional(v.string()),
+    done: v.array(v.union(v.literal("commit"), v.literal("refuse"), v.literal("pay"), v.literal("reclaim"))),
+  }).index("by_started", ["startedAt"]),
   proofs: defineTable({
-    restockId: v.optional(v.id("restocks")), scene: v.number(), kind: v.string(), label: v.string(), call: v.string(),
+    restockId: v.optional(v.id("restocks")), runId: v.optional(v.id("liveRuns")), scene: v.number(), kind: v.string(), label: v.string(), call: v.string(),
     hash: v.string(), explorerUrl: v.optional(v.string()), codePath: v.string(), network,
     response: v.any(), replay: v.boolean(), synthetic: v.boolean(), at: v.number(),
-  }).index("by_restock", ["restockId"]).index("by_scene", ["scene"]),
+  }).index("by_restock", ["restockId"]).index("by_scene", ["scene"]).index("by_run", ["runId"]),
 });

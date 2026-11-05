@@ -4,7 +4,7 @@ import { network } from "./schema";
 
 export const record = internalMutation({
   args: {
-    restockId: v.optional(v.id("restocks")), scene: v.number(), kind: v.string(), label: v.string(), call: v.string(),
+    restockId: v.optional(v.id("restocks")), runId: v.optional(v.id("liveRuns")), scene: v.number(), kind: v.string(), label: v.string(), call: v.string(),
     hash: v.string(), explorerUrl: v.optional(v.string()), codePath: v.string(), network,
     response: v.any(), replay: v.boolean(), synthetic: v.boolean(),
   },

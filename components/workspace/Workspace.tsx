@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { stateAt, sceneStartMs, stageStartMs } from "@/scenario/runner";
 import { scenes, totalDurationMs } from "@/scenario/scenes";
-import { products } from "@/seed/astro";
-import type { PanelId, WorkspaceState } from "@/scenario/types";
+import { products, suppliers } from "@/seed/astro";
+import type { Beat, PanelId, WorkspaceState } from "@/scenario/types";
 import { Rail } from "./Rail";
 import { Drawer } from "./Drawer";
 import { Phone } from "./Phone";
@@ -19,7 +19,8 @@ import { PhotoViewer } from "./PhotoViewer";
 import { Chip, Pill } from "./ui";
 import { CHECKPOINTS } from "@/scenario/shipment";
 import { composeLayout, togglePin, PANEL_ORDER } from "@/scenario/layout";
-import { stepClock, waitingAt } from "@/scenario/gates";
+import { heldAt, liveStepOf, stepClockWith } from "@/scenario/gates";
+import { useLive } from "./useLive";
 import { PinContext } from "./Panel";
 import { Sidebar } from "./Sidebar";
 import { StatsBar } from "./StatsBar";
@@ -30,17 +31,19 @@ const PANELS: Record<PanelId, (p: { st: WorkspaceState; pulse: boolean }) => Rea
 };
 
 const PIN_KEY = "evernear.pinnedPanels";
+const HAOYUN = suppliers.find((x) => x.id === "haoyun")!.receiveAddress;
 
 const TIME_CARD: Record<number, string> = { 7: "Day 9 · Chicago dock" };
 
 export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: number; autoplay?: boolean }) {
   const [t, setT] = useState(initialMs);
   const [playing, setPlaying] = useState(autoplay);
-  // Waits at each human moment for a click; ?autoplay=1 plays straight through (recording).
+  // Waits at each human moment and at the end of each scene; ?autoplay=1 plays straight through.
   const [waitForMe, setWaitForMe] = useState(true);
+  const live = useLive();
   const [mode, setMode] = useState<"dark" | "light">("dark");
-  // null: the drawer follows the proofs (opens for a moment at each); true or false: the chevron decided.
-  const [drawerOverride, setDrawerOverride] = useState<boolean | null>(null);
+  // The drawer stays collapsed (its bar shows the latest call) until the chevron opens it.
+  const [drawerOpenState, setDrawerOpen] = useState(false);
   const [phonePinned, setPhonePinned] = useState<boolean | null>(null);
   const last = useRef<number | null>(null);
   const [viewer, setViewer] = useState<{ checkpointId: string; index: number } | null>(null);
@@ -79,6 +82,16 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
     });
   }, []);
 
+  // What holds the clock: a human moment, the end of a scene (narrate, then Cmd+K), or a live step still running.
+  const blocked = (b: Beat) => {
+    if (waitForMe && (b.gate || (b.ev.type === "scene" && b.scene > 0))) return true;
+    if (!live.on || live.error) return false;
+    const step = liveStepOf(b, HAOYUN);
+    return !!step && !live.done.includes(step);
+  };
+  const blockedRef = useRef(blocked);
+  useEffect(() => { blockedRef.current = blocked; });
+
   useEffect(() => {
     if (!playing) { last.current = null; return; }
     let raf = 0;
@@ -86,7 +99,7 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
       const dt = last.current === null ? 0 : now - last.current;
       last.current = now;
       setT((x) => {
-        const next = stepClock(x, Math.min(totalDurationMs, x + dt), waitForMe);
+        const next = stepClockWith(x, Math.min(totalDurationMs, x + dt), (b) => blockedRef.current(b));
         if (next >= totalDurationMs) setPlaying(false);
         return next;
       });
@@ -94,11 +107,28 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [playing, waitForMe]);
+  }, [playing]);
+
+  const held = heldAt(t, blocked);
+  const heldStep = held ? liveStepOf(held, HAOYUN) : null;
+  const waiting = held?.gate ?? null;
+  const sceneEnd = held && held.ev.type === "scene" ? held : null;
+  /** Continue: answer the human moment, or go on to the next scene. A live step cannot be skipped. */
+  const proceed = () => {
+    if (held && (held.gate || held.ev.type === "scene")) { setT(held.atMs); setPhonePinned(null); setPlaying(true); return; }
+    if (!held) { setT(sceneStartMs(Math.min(9, stateAt(t).scene + 1))); setPlaying(true); }
+  };
+  const proceedRef = useRef(proceed);
+  useEffect(() => { proceedRef.current = proceed; });
+
+  // Fire the live step the clock is holding at.
+  const liveRun = live.run;
+  useEffect(() => { if (heldStep && live.on && !live.pending && !live.error) void liveRun(heldStep); }, [heldStep, live.on, live.pending, live.error, liveRun]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || viewer) return;
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); proceedRef.current(); return; }
       if (e.key === " ") { e.preventDefault(); setPlaying((p) => !p); }
       const cur = stateAt(t).scene;
       if (e.key === "ArrowRight") setT(sceneStartMs(Math.min(9, cur + 1)));
@@ -108,16 +138,17 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
     return () => window.removeEventListener("keydown", onKey);
   }, [t, viewer]);
 
-  const st = useMemo(() => stateAt(t), [t]);
+  const base = useMemo(() => stateAt(t), [t]);
+  // In live mode the real proofs replace the placeholders as they arrive.
+  const st = useMemo(() => ({ ...base, proofs: base.proofs.map((p) => (live.byKey[p.id] ? { ...live.byKey[p.id], scene: p.scene } : p)) }), [base, live.byKey]);
   const lastProof = st.proofs.at(-1) ?? null;
   const pinned = pinnedProof ? st.proofs.find((p) => p.id === pinnedProof) ?? null : null;
   const layout = composeLayout(pinnedPanels, st.layout);
-  const drawerOpen = drawerOverride ?? (!!pinned || !!st.drawer);
-  const waiting = waitingAt(t, waitForMe)?.gate ?? null;
-  const answer = () => { const g = waitingAt(t, waitForMe); if (g) { setT(g.atMs); setPlaying(true); } };
+  const drawerOpen = drawerOpenState || !!pinned;
+  const answer = proceed;
   const scene = scenes.find((x) => x.id === st.scene)!;
   const stalled = st.stage === "low" && st.scene >= 1;
-  const jump = (id: number) => { setT(sceneStartMs(id)); setPhonePinned(null); setDrawerOverride(null); setPinnedProof(null); setViewer(null); };
+  const jump = (id: number) => { setT(sceneStartMs(id)); setPhonePinned(null); setPinnedProof(null); setViewer(null); };
 
   return (
     <ActionsContext.Provider value={actions}>
@@ -137,12 +168,19 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
         onClear={() => { setPinnedPanels([]); try { localStorage.removeItem(PIN_KEY); } catch { /* ignore */ } }} />
       <StatsBar st={st} />
       <main className={s.stageArea}>
-        <div className={s.panels} data-count={layout.length}>
-          {layout.map((id) => {
-            const P = PANELS[id];
-            return <P key={id} st={st} pulse={st.pulse === id} />;
-          })}
-        </div>
+        {st.endCard ? (
+          <div className={s.endCard} role="region" aria-label="End card">
+            <p className={s.endLine}><span className={s.fig}>0</span> wires. <span className={s.fig}>0</span> days waiting. <span className={s.fig}>1</span> human decision.</p>
+            <p className={s.mono}>github.com/devluca999/evernear</p>
+          </div>
+        ) : (
+          <div className={s.panels} data-count={layout.length}>
+            {layout.map((id) => {
+              const P = PANELS[id];
+              return <P key={id} st={st} pulse={st.pulse === id} />;
+            })}
+          </div>
+        )}
         {viewer && (
           <PhotoViewer checkpointId={viewer.checkpointId} index={viewer.index}
             onIndex={(index) => setViewer({ ...viewer, index })} onClose={() => setViewer(null)}
@@ -161,10 +199,20 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
               <button type="button" className={s.btn} onClick={answer}>{waiting.action}</button>
             </div>
           )}
+          {sceneEnd && (
+            <div className={s.waiting} data-kind="scene" role="group" aria-label="End of scene">
+              <span className={s.micro}>END OF SCENE {st.scene}</span>
+              <button type="button" className={s.btn} onClick={proceed}>Next: {scenes.find((x) => x.id === sceneEnd.scene)?.title} <kbd className={s.kbd}>⌘K</kbd></button>
+            </div>
+          )}
+          {live.on && (live.pending || live.error) && (
+            <p className={s.liveStatus} role="status">{live.error ? `Live call failed (${live.error}). The replay carries on.` : `Live on Tidepool testnet: ${live.pending} running`}</p>
+          )}
         </div>
         <div className={s.controls}>
           <button className={s.btn} onClick={() => { if (t >= totalDurationMs) setT(0); setPlaying((p) => !p); }}>{playing ? "Pause" : "Play"}</button>
           <button className={s.btnQuiet} aria-pressed={waitForMe} onClick={() => setWaitForMe((w) => !w)} title="When on, the demo stops at each human moment until you click">{waitForMe ? "Waits for me" : "Plays through"}</button>
+          {live.available && <button className={s.btnQuiet} aria-pressed={live.on} onClick={() => live.setOn(!live.on)} title="Run the money steps for real on Tidepool testnet">{live.on ? "Live" : "Replay"}</button>}
           <button className={s.btnQuiet} onClick={() => setMode((m) => (m === "dark" ? "light" : "dark"))}>{mode === "dark" ? "Light" : "Dark"}</button>
         </div>
         <ol className={s.sceneList} aria-label="Scenes">
@@ -179,17 +227,11 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
       </aside>
 
       <div className={s.dock}>
-        <Phone messages={st.messages} open={phonePinned ?? (st.phoneOpen || !!waiting)} waiting={waiting} onAnswer={answer} onToggle={() => setPhonePinned(!(phonePinned ?? (st.phoneOpen || !!waiting)))} />
-        <Drawer proof={pinned ?? st.drawer} lastProof={lastProof} open={drawerOpen}
-          onToggle={() => { if (pinned) setPinnedProof(null); setDrawerOverride(!drawerOpen); }} />
+        <Phone messages={st.messages} open={phonePinned ?? !!waiting} waiting={waiting} onAnswer={answer} onToggle={() => setPhonePinned(!(phonePinned ?? !!waiting))} />
+        <Drawer proof={pinned ?? lastProof} lastProof={lastProof} open={drawerOpen}
+          onToggle={() => { if (pinned) setPinnedProof(null); setDrawerOpen(!drawerOpen); }} />
       </div>
 
-      {st.endCard && (
-        <div className={s.endCard} role="dialog" aria-label="End card">
-          <p className={s.endLine}><span className={s.fig}>0</span> wires. <span className={s.fig}>0</span> days waiting. <span className={s.fig}>1</span> human decision.</p>
-          <p className={s.mono}>github.com/devluca999/evernear</p>
-        </div>
-      )}
     </div>
     </PinContext.Provider>
     </ActionsContext.Provider>

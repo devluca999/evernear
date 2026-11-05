@@ -10,6 +10,7 @@ import s from "../workspace.module.css";
 import p from "../premium.module.css";
 
 const haoyun = suppliers.find((x) => x.id === "haoyun")!;
+const RECENT_MS = 4000;
 
 function poTone(st: WorkspaceState): Tone {
   if (st.stage === "paid" || st.stage === "closed") return "success";
@@ -103,9 +104,14 @@ export function RulesPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }
           A commitment, not a lock: Tidepool enforces the rules, and Astro can change them.
         </p>
       )}
-      {st.refused.filter((r) => r.kind === "wrong_address_release").map((r) => (
-        <p key={r.atMs} className={s.refusal}><Led tone="alert" />Release refused: {r.detail.split(":")[0]} is not one of the three exits</p>
-      ))}
+      {st.refused.filter((r) => r.kind === "wrong_address_release").map((r) => {
+        const to = r.detail.split(":")[0];
+        const short = to.length > 14 ? `${to.slice(0, 6)}…${to.slice(-4)}` : to;
+        // A refusal here is the guard working: said as such, then reduced to a quiet line.
+        return st.t - r.atMs < RECENT_MS
+          ? <p key={r.atMs} className={s.refusal}><Led tone="success" />Blocked as designed: a release to {short} is not one of the three exits</p>
+          : <p key={r.atMs} className={s.quietNote}>1 wrong address release blocked</p>;
+      })}
     </Panel>
   );
 }

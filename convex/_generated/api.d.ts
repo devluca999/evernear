@@ -8,13 +8,41 @@
  * @module
  */
 
+import type * as channels_email from "../channels/email.js";
+import type * as channels_telegram from "../channels/telegram.js";
+import type * as channels_verify from "../channels/verify.js";
+import type * as http from "../http.js";
+import type * as messages from "../messages.js";
+import type * as near_approval from "../near/approval.js";
+import type * as near_custody from "../near/custody.js";
+import type * as near_escrow from "../near/escrow.js";
+import type * as near_gmail from "../near/gmail.js";
+import type * as near_http from "../near/http.js";
+import type * as near_inference from "../near/inference.js";
+import type * as near_payout from "../near/payout.js";
+import type * as proofs from "../proofs.js";
+
 import type {
   ApiFromModules,
   FilterApi,
   FunctionReference,
 } from "convex/server";
 
-declare const fullApi: ApiFromModules<{}>;
+declare const fullApi: ApiFromModules<{
+  "channels/email": typeof channels_email;
+  "channels/telegram": typeof channels_telegram;
+  "channels/verify": typeof channels_verify;
+  http: typeof http;
+  messages: typeof messages;
+  "near/approval": typeof near_approval;
+  "near/custody": typeof near_custody;
+  "near/escrow": typeof near_escrow;
+  "near/gmail": typeof near_gmail;
+  "near/http": typeof near_http;
+  "near/inference": typeof near_inference;
+  "near/payout": typeof near_payout;
+  proofs: typeof proofs;
+}>;
 
 /**
  * A utility for referencing Convex functions in your app's public API.

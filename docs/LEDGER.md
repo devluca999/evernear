@@ -11,7 +11,7 @@ Each batch: goal, status (todo, doing, done, blocked), commits, what was verifie
 | 2 | Stage machine and scenario runner | done | 0934cbb | 17 tests: guards, 8 s routine, approvals before lock, drawer 3 s, pulse, synthetic labels |
 | 3 | Workspace UI | done | batch 3 commit | 9 UI tests (jsdom): camera corner, rail, max 3 panels, exact fitment text, dock figures, synthetic labels, end card; voice test over every scene; screenshots of scenes 3 to 7 in dark and light |
 | 4 | NEAR adapters | done (mocks; live testnet rehearsal pending keys) | batch 4 commit | 21 adapter tests: testnet host guard, ft_transfer units, sub-wallet key derivation, approval message, escrow exits before any call, Gmail allowlist, attestation binding, mainnet gate, no-leak |
-| 5 | Channels and simulators | todo | | |
+| 5 | Channels and simulators | done (local Convex) | batch 5 commit | 8 tests via convex-test: Telegram secret and DM-only, phone sync under 1 s and deduped, inbound email secret and reading, negotiation depends on the agent counter, demand reaches 14 for 6 |
 | 6 | Attested dock check worker | todo | | |
 | 7 | Anatomy figures | todo | | |
 | 8 | README and checks | todo | | |

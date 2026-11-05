@@ -6,7 +6,7 @@ const ui = Space_Grotesk({ variable: "--font-ui-loaded", subsets: ["latin"] });
 const mono = Geist_Mono({ variable: "--font-mono-loaded", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Evernear",
+  title: "everNEAR",
   description: "An agent that sources, verifies and pays for parts, on NEAR.",
 };
 

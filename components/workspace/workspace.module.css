@@ -51,6 +51,7 @@
 }
 .brand { display: flex; align-items: baseline; gap: var(--space-3, 8px); flex: none; }
 .wordmark { font-family: var(--font-display); font-weight: 600; font-size: 18px; letter-spacing: var(--tracking-display, -0.022em); }
+.wordmarkNear { font-weight: 700; letter-spacing: 0.02em; }
 
 .fig, .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 .mono { font-size: 12.5px; word-break: break-all; }
@@ -87,6 +88,8 @@
 .panels[data-count="1"] { grid-template-columns: minmax(0, 760px); justify-content: center; }
 .panels[data-count="2"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .panels[data-count="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.panels[data-count="4"] { grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; overflow-y: auto; }
+.panels[data-count="5"] { grid-template-columns: repeat(3, minmax(0, 1fr)); align-content: start; overflow-y: auto; }
 
 .panel, .card, .sceneCard, .dockCard {
   background: var(--bg-raised);
@@ -341,7 +344,7 @@
 @media (max-width: 1100px) {
   .root { grid-template-columns: minmax(0, 1fr); height: auto; overflow: visible; }
   .panel { max-height: none; }
-  .panels[data-count="2"], .panels[data-count="3"] { grid-template-columns: minmax(0, 1fr); }
+  .panels[data-count="2"], .panels[data-count="3"], .panels[data-count="4"], .panels[data-count="5"] { grid-template-columns: minmax(0, 1fr); }
   .camera { width: 100%; max-width: 360px; }
   .drawer { right: 0; }
   .endCard { inset: 0; }
@@ -406,3 +409,17 @@
 .chipYes, .chipNo { height: 26px; padding: 0 14px; display: inline-flex; align-items: center; border-radius: var(--radius-pill, 999px); font-size: 12px; font-weight: 600; }
 .chipYes { background: var(--accent); color: var(--accent-fg); }
 .chipNo { border: 1px solid var(--line-strong); color: var(--text-secondary); }
+
+/* Pinning: a pin on each panel header and a tray of all five panels in the side column. */
+.panelMeta { display: inline-flex; align-items: center; gap: 8px; }
+.pinBtn { all: unset; cursor: pointer; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: var(--radius-sm, 6px); color: var(--text-muted); }
+.pinBtn:hover { color: var(--text-primary); background: var(--bg-sunken); }
+.pinBtn[aria-pressed="true"] { color: var(--text-primary); }
+.pinBtn:focus-visible, .pinChip:focus-visible, .pinClear:focus-visible { outline: 2px solid var(--line-focus); outline-offset: 2px; }
+.panel[data-pinned="true"] { border-color: var(--text-muted); }
+.pinTray { display: grid; gap: 8px; }
+.pinRow { display: flex; flex-wrap: wrap; gap: 6px; }
+.pinChip { all: unset; cursor: pointer; font-size: 12px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line-hairline); color: var(--text-secondary); }
+.pinChip:hover { border-color: var(--text-muted); color: var(--text-primary); }
+.pinChip[aria-pressed="true"] { background: var(--text-primary); color: var(--bg-raised, var(--bg-base)); border-color: var(--text-primary); }
+.pinClear { all: unset; cursor: pointer; justify-self: start; font-size: 12px; color: var(--text-muted); text-decoration: underline; }

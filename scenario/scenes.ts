@@ -74,7 +74,7 @@ export const scenes: Scene[] = [
     [11600, { type: "price_quote", unitCents: 1900, from: "Haoyun Precision" }],
     [12800, { type: "phone", open: false }],
   ] },
-  { id: 6, title: "Funds locked", durationMs: 10000, layout: ["map", "rules"], beats: [
+  { id: 6, title: "Funds committed", durationMs: 10000, layout: ["map", "rules"], beats: [
     [400, { type: "lock_funds" }],
     [500, stage("funds_locked")],
     [600, proof("escrow_wallet")],

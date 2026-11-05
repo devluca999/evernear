@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 import { describe, expect, it, afterEach } from "vitest";
-import { render, screen, cleanup, within } from "@testing-library/react";
+import { render, screen, cleanup, within, fireEvent } from "@testing-library/react";
 import { Workspace } from "../workspace/Workspace";
 import { sceneStartMs, stateAt } from "@/scenario/runner";
 import { totalDurationMs } from "@/scenario/scenes";
 
-afterEach(cleanup);
+afterEach(() => { cleanup(); localStorage.clear(); });
 const at = (ms: number) => render(<Workspace initialMs={ms} autoplay={false} />);
 
 describe("workspace", () => {
@@ -17,7 +17,24 @@ describe("workspace", () => {
     at(0);
     expect(within(screen.getByLabelText("Restock progress")).getAllByRole("listitem")).toHaveLength(8);
   });
-  it("never renders more than 3 panels", () => {
+  it("shows the everNEAR wordmark", () => {
+    at(0);
+    expect(screen.getByLabelText("everNEAR").textContent).toBe("everNEAR");
+  });
+  it("keeps a pinned panel on screen across scenes, and gives control back when unpinned", () => {
+    at(sceneStartMs(6) + 2000);
+    const panels = () => [...document.querySelectorAll("[data-panel]")].map((e) => e.getAttribute("data-panel"));
+    expect(panels()).not.toContain("demand");
+    fireEvent.click(within(screen.getByRole("group", { name: "Pin panels" })).getByRole("button", { name: "Demand" }));
+    expect(panels()[0]).toBe("demand");
+    fireEvent.click(screen.getByRole("button", { name: "Pin Shipment" }));
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    expect(panels()).toEqual(["demand", "map", "bom"]); // scene 7 wants BOM and Shipment
+    expect(screen.getByRole("button", { name: "Unpin Shipment" }).getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: "Clear pins" }));
+    expect(panels()).toEqual(["bom", "map"]);
+  });
+  it("never renders more than 3 panels when nothing is pinned", () => {
     for (const id of [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]) {
       const { container, unmount } = at(sceneStartMs(id) + 2000);
       expect(container.querySelectorAll("[data-panel]").length).toBeLessThanOrEqual(3);

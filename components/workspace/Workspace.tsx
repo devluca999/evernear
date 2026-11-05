@@ -17,11 +17,15 @@ import { ActionsContext, type WorkspaceActions } from "./actions";
 import { PhotoViewer } from "./PhotoViewer";
 import { Chip, Pill } from "./ui";
 import { CHECKPOINTS } from "@/scenario/shipment";
+import { composeLayout, togglePin, PANEL_ORDER, PANEL_NAMES } from "@/scenario/layout";
+import { PinContext } from "./Panel";
 import s from "./workspace.module.css";
 
 const PANELS: Record<PanelId, (p: { st: WorkspaceState; pulse: boolean }) => React.ReactNode> = {
   demand: DemandPanel, map: MapPanel, inbox: InboxPanel, bom: BomPanel, rules: RulesPanel,
 };
+
+const PIN_KEY = "evernear.pinnedPanels";
 
 const TIME_CARD: Record<number, string> = { 7: "Day 9 · Chicago dock" };
 
@@ -34,6 +38,15 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
   const last = useRef<number | null>(null);
   const [viewer, setViewer] = useState<{ checkpointId: string; index: number } | null>(null);
   const [pinnedProof, setPinnedProof] = useState<string | null>(null);
+  const [pinnedPanels, setPinnedPanels] = useState<PanelId[]>([]);
+  const pins = useMemo(() => ({
+    pinned: pinnedPanels,
+    toggle: (id: PanelId) => setPinnedPanels((cur) => {
+      const next = togglePin(cur, id);
+      try { localStorage.setItem(PIN_KEY, JSON.stringify(next)); } catch { /* storage may be blocked */ }
+      return next;
+    }),
+  }), [pinnedPanels]);
   const actions = useMemo<WorkspaceActions>(() => ({
     openPhoto: (checkpointId, index) => { setPlaying(false); setViewer({ checkpointId, index }); },
     openProof: (id) => { setPinnedProof(id); },
@@ -50,6 +63,10 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
       if (q.get("mode") === "light") setMode("light");
       const photo = q.get("photo");
       if (photo && photo.split(":")[0] in CHECKPOINTS) setViewer({ checkpointId: photo.split(":")[0], index: Number(photo.split(":")[1] ?? 0) });
+      try {
+        const saved = JSON.parse(localStorage.getItem(PIN_KEY) ?? "[]");
+        if (Array.isArray(saved)) setPinnedPanels(saved.filter((x): x is PanelId => PANEL_ORDER.includes(x)));
+      } catch { /* no saved pins */ }
     });
   }, []);
 
@@ -85,16 +102,18 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
   const st = useMemo(() => stateAt(t), [t]);
   const lastProof = st.proofs.at(-1) ?? null;
   const pinned = pinnedProof ? st.proofs.find((p) => p.id === pinnedProof) ?? null : null;
+  const layout = composeLayout(pinnedPanels, st.layout);
   const scene = scenes.find((x) => x.id === st.scene)!;
   const stalled = st.stage === "low" && st.scene >= 1;
   const jump = (id: number) => { setT(sceneStartMs(id)); setPhonePinned(null); setPinnedProof(null); setViewer(null); };
 
   return (
     <ActionsContext.Provider value={actions}>
+    <PinContext.Provider value={pins}>
     <div className={s.root} data-theme="clean" data-mode={mode} data-working={playing && st.stage !== "closed"}>
       <header className={s.top}>
         <div className={s.brand}>
-          <span className={s.wordmark}>Evernear</span>
+          <span className={s.wordmark} aria-label="everNEAR">ever<span className={s.wordmarkNear}>NEAR</span></span>
           <span className={s.faint}>for Astro Robotics</span>
         </div>
         <Rail stage={st.stage} stalled={stalled}
@@ -103,8 +122,8 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
       </header>
 
       <main className={s.stageArea}>
-        <div className={s.panels} data-count={st.layout.length}>
-          {st.layout.map((id) => {
+        <div className={s.panels} data-count={layout.length}>
+          {layout.map((id) => {
             const P = PANELS[id];
             return <P key={id} st={st} pulse={st.pulse === id} />;
           })}
@@ -128,6 +147,15 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
           <button className={s.btn} onClick={() => { if (t >= totalDurationMs) setT(0); setPlaying((p) => !p); }}>{playing ? "Pause" : "Play"}</button>
           <button className={s.btnQuiet} onClick={() => setMode((m) => (m === "dark" ? "light" : "dark"))}>{mode === "dark" ? "Light" : "Dark"}</button>
         </div>
+        <div className={s.pinTray} role="group" aria-label="Pin panels">
+          <span className={s.micro}>PIN PANELS</span>
+          <div className={s.pinRow}>
+            {PANEL_ORDER.map((id) => (
+              <button key={id} type="button" className={s.pinChip} aria-pressed={pinnedPanels.includes(id)} onClick={() => pins.toggle(id)}>{PANEL_NAMES[id]}</button>
+            ))}
+          </div>
+          {pinnedPanels.length > 0 && <button type="button" className={s.pinClear} onClick={() => { setPinnedPanels([]); try { localStorage.removeItem(PIN_KEY); } catch { /* ignore */ } }}>Clear pins</button>}
+        </div>
         <ol className={s.sceneList} aria-label="Scenes">
           {scenes.map((x) => (
             <li key={x.id}><button className={s.sceneBtn} data-current={x.id === st.scene} onClick={() => jump(x.id)}><span className={s.fig}>{x.id}</span>{x.title}</button></li>
@@ -147,6 +175,7 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
         </div>
       )}
     </div>
+    </PinContext.Provider>
     </ActionsContext.Provider>
   );
 }

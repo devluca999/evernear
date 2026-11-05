@@ -19,6 +19,7 @@
     "@noble/curves": "^1.9.7",
     "@noble/hashes": "^1.8.0",
     "convex": "^1.49.0",
+    "lucide-react": "^0.511.0",
     "next": "16.4.5",
     "react": "19.3.0",
     "react-dom": "19.3.0"

@@ -95,14 +95,23 @@ describe("workspace", () => {
     at(sceneStartMs(6) + 2000);
     const panels = () => [...document.querySelectorAll("[data-panel]")].map((e) => e.getAttribute("data-panel"));
     expect(panels()).not.toContain("demand");
-    fireEvent.click(within(screen.getByRole("navigation", { name: "Workspace components" })).getByRole("button", { name: "Demand" }));
+    fireEvent.click(within(screen.getByRole("navigation", { name: "Workspace components" })).getByRole("button", { name: "Orders" }));
     expect(panels()[0]).toBe("demand");
-    fireEvent.click(screen.getByRole("button", { name: "Pin Shipment" }));
+    fireEvent.click(screen.getByRole("button", { name: "Pin Suppliers" }));
     fireEvent.keyDown(window, { key: "ArrowRight" });
-    expect(panels()).toEqual(["demand", "map", "bom"]); // scene 7 wants BOM and Shipment
-    expect(screen.getByRole("button", { name: "Unpin Shipment" }).getAttribute("aria-pressed")).toBe("true");
+    expect(panels()).toEqual(["demand", "map", "bom"]); // scene 7 wants BOM and Suppliers
+    expect(screen.getByRole("button", { name: "Unpin Suppliers" }).getAttribute("aria-pressed")).toBe("true");
     fireEvent.click(screen.getByRole("button", { name: "Clear pins" }));
     expect(panels()).toEqual(["bom", "map"]);
+  });
+  it("reorders panels from the grip, and keeps the new order across scenes", () => {
+    at(sceneStartMs(7) + 2000);
+    const panels = () => [...document.querySelectorAll("[data-panel]")].map((e) => e.getAttribute("data-panel"));
+    expect(panels()).toEqual(["bom", "map"]);
+    fireEvent.keyDown(screen.getByRole("button", { name: "Move Suppliers" }), { key: "ArrowLeft", altKey: true });
+    expect(panels()).toEqual(["map", "bom"]);
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    expect(panels().slice(0, 2)).toEqual(["map", "bom"]);
   });
   it("never renders more than 3 panels when nothing is pinned", () => {
     for (const id of [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]) {

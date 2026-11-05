@@ -18,7 +18,7 @@ import { ActionsContext, type WorkspaceActions } from "./actions";
 import { PhotoViewer } from "./PhotoViewer";
 import { Chip, Pill } from "./ui";
 import { CHECKPOINTS } from "@/scenario/shipment";
-import { composeLayout, togglePin, PANEL_ORDER } from "@/scenario/layout";
+import { composeLayout, movePanel, togglePin, PANEL_ORDER } from "@/scenario/layout";
 import { heldAt, liveStepOf, stepClockWith } from "@/scenario/gates";
 import { useLive } from "./useLive";
 import { PinContext } from "./Panel";
@@ -50,12 +50,15 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
   const [pinnedProof, setPinnedProof] = useState<string | null>(null);
   const [pinnedPanels, setPinnedPanels] = useState<PanelId[]>([]);
   const [navOpen, setNavOpen] = useState(true);
+  const savePins = (next: PanelId[]) => { try { localStorage.setItem(PIN_KEY, JSON.stringify(next)); } catch { /* storage may be blocked */ } return next; };
+  const layoutRef = useRef<PanelId[]>([]);
   const pins = useMemo(() => ({
     pinned: pinnedPanels,
-    toggle: (id: PanelId) => setPinnedPanels((cur) => {
-      const next = togglePin(cur, id);
-      try { localStorage.setItem(PIN_KEY, JSON.stringify(next)); } catch { /* storage may be blocked */ }
-      return next;
+    toggle: (id: PanelId) => setPinnedPanels((cur) => savePins(togglePin(cur, id))),
+    move: (id: PanelId, over: PanelId) => setPinnedPanels(() => savePins(movePanel(layoutRef.current, id, over))),
+    nudge: (id: PanelId, by: -1 | 1) => setPinnedPanels(() => {
+      const cur = layoutRef.current, i = cur.indexOf(id), j = i + by;
+      return savePins(j < 0 || j >= cur.length ? [...cur] : movePanel(cur, id, cur[j]));
     }),
   }), [pinnedPanels]);
   const actions = useMemo<WorkspaceActions>(() => ({
@@ -127,7 +130,7 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || viewer) return;
+      if (e.target instanceof HTMLInputElement || viewer || e.altKey) return;
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); proceedRef.current(); return; }
       if (e.key === " ") { e.preventDefault(); setPlaying((p) => !p); }
       const cur = stateAt(t).scene;
@@ -144,6 +147,7 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
   const lastProof = st.proofs.at(-1) ?? null;
   const pinned = pinnedProof ? st.proofs.find((p) => p.id === pinnedProof) ?? null : null;
   const layout = composeLayout(pinnedPanels, st.layout);
+  useEffect(() => { layoutRef.current = layout; });
   const drawerOpen = drawerOpenState || !!pinned;
   const answer = proceed;
   const scene = scenes.find((x) => x.id === st.scene)!;

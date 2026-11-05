@@ -2,6 +2,7 @@
 // The developer drawer: a bar along the bottom with the latest call and a chevron. The chevron pulls
 // it up to half the screen; drag its top edge to adjust. Raw call on the left, plain words on the right.
 import { useRef, useState } from "react";
+import { ChevronUp } from "lucide-react";
 import type { Proof } from "@/scenario/types";
 import { Chip, Pill } from "./ui";
 import { PLAIN } from "./plain";
@@ -26,7 +27,7 @@ export function Drawer({ proof, open, onToggle, lastProof }: { proof: Proof | nu
       )}
       <button className={s.drawerTab} onClick={onToggle} aria-expanded={open} aria-label={open ? "Collapse developer drawer" : "Expand developer drawer"}>
         <span>Developer{p ? <span className={s.faint}> · {p.label}{p.hash !== "none" ? ` · ${p.hash.slice(0, 10)}` : ""}</span> : null}</span>
-        <svg className={s.chevron} data-open={open} viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3.5 10l4.5-4.5 4.5 4.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        <ChevronUp className={s.chevron} data-open={open} size={16} strokeWidth={2} aria-hidden="true" />
       </button>
       {open && p && (
         <div className={s.drawerBody}>

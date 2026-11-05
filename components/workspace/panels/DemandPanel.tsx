@@ -14,7 +14,7 @@ export function DemandPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean 
   const poly = pts.map((v, i) => `${(i / (pts.length - 1)) * w},${h - (v / max) * h}`).join(" ");
   const reorderY = h - ((seed.motorsPerRobot * 6) / max) * h;
   return (
-    <Panel id="demand" title="Demand" pulse={pulse} meta={short ? <span className={s.metaAttention}><Led tone="attention" />Short</span> : null}>
+    <Panel id="demand" title="Orders" pulse={pulse} meta={short ? <span className={s.metaAttention}><Led tone="attention" />Short</span> : null}>
       <p className={s.headline}>{d.ordered > 0 ? d.headline : "Waiting for orders"}</p>
       <dl className={s.stats}>
         <div><dt>ORDERS IN</dt><dd className={s.fig}>{d.ordered}</dd></div>

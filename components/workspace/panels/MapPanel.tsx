@@ -87,7 +87,7 @@ export function MapPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }) 
   const pinCls = (c: keyof typeof MAP.pins) => (failed.has(c) ? s.pinFail : passed.has(c) || (shipping && c === "Shenzhen") ? s.pinOk : s.pin);
 
   return (
-    <Panel id="map" title="Shipment" pulse={pulse}>
+    <Panel id="map" title="Suppliers" pulse={pulse}>
       <svg className={s.map} viewBox={`0 0 ${MAP.width} ${MAP.height}`} role="img"
         aria-label={shipping ? `Air freight from Shenzhen to Chicago O'Hare, ${Math.round(t * 100)} percent of the way` : "Supplier locations and Astro in Chicago"}>
         <rect width={MAP.width} height={MAP.height} className={s.ocean} />

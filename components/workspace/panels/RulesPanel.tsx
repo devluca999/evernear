@@ -1,5 +1,6 @@
 import type { WorkspaceState } from "@/scenario/types";
-import { policy, PO, astro, suppliers } from "@/seed/astro";
+import { PO, astro, suppliers } from "@/seed/astro";
+import { RulesEditor } from "../rules";
 import { formatUsd, formatUsdShort, formatInt, scaleTestnet, TESTNET_SCALE } from "@/engine/money";
 import { RAIL, railState } from "@/scenario/stages";
 import { Panel } from "../Panel";
@@ -19,13 +20,15 @@ function poTone(st: WorkspaceState): Tone {
 }
 
 export function RulesPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }) {
+  const policy = st.policy;
   const showOrder = st.scene >= 4 && st.scene !== 9;
   const overCap = PO.revisedTotalCents >= policy.autoApproveUnderCents;
   const approved = st.approvals.length >= st.requiredApprovals;
   const paid = st.escrow !== null && st.escrow.releasedCents > 0;
   const rows: { tone: Tone; text: React.ReactNode }[] = [
+    { tone: "success", text: <>Actuator motor at most <span className={s.fig}>{formatUsd(policy.priceCaps["Actuator motor"] ?? 0)}</span> a unit</> },
     { tone: showOrder && overCap ? (approved ? "success" : "attention") : "success", text: <>Auto approve under <span className={s.fig}>{formatUsdShort(policy.autoApproveUnderCents)}</span></> },
-    { tone: showOrder ? (approved ? "success" : "attention") : "success", text: <>New supplier needs <span className={s.fig}>{policy.approversRequired}</span> approvers</> },
+    { tone: showOrder ? (approved ? "success" : "attention") : "success", text: <>Over the cap or a new supplier: <span className={s.fig}>{policy.approversRequired}</span> {policy.approversRequired === 1 ? "approver" : "approvers"}</> },
     { tone: st.price.history.length ? (st.price.history.at(-1)!.pass ? "success" : "attention") : "success", text: <>Price change up to <span className={s.fig}>{pct(policy.priceChangeLimitBps)}</span></> },
   ];
 
@@ -50,6 +53,7 @@ export function RulesPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }
           </ol>
         </div>
       )}
+      <RulesEditor />
       <ul className={s.rules}>
         {rows.map((r, i) => <li key={i}><Led tone={r.tone} />{r.text}</li>)}
       </ul>
@@ -57,7 +61,7 @@ export function RulesPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }
         <>
           <div className={s.orderLine}>
             <div><span className={s.micro}>ORDER TOTAL · PO {PO.number}</span><p className={s.big}><span className={s.fig}>{formatUsdShort(PO.revisedTotalCents)}</span></p></div>
-            <p className={s.orderNote}><Led tone={approved ? "success" : "attention"} />{approved ? "Over the cap, approved by 2" : `Over the ${formatUsdShort(policy.autoApproveUnderCents)} cap and a new supplier: 2 approvals needed`}</p>
+            <p className={s.orderNote}><Led tone={approved ? "success" : "attention"} />{approved ? `Approved by ${st.approvals.length}` : `${overCap ? `Over the ${formatUsdShort(policy.autoApproveUnderCents)} cap` : "Under the cap"} and a new supplier: ${st.requiredApprovals} ${st.requiredApprovals === 1 ? "approval" : "approvals"} needed`}</p>
           </div>
           {st.price.history.length > 0 && (
             <div>

@@ -2,7 +2,9 @@ import { plainEngine } from "../engine/plain";
 import { requiredApprovals, checkPriceChange } from "../engine/policy";
 import { createEscrow, release, reclaimHeld } from "../engine/escrow";
 import { cents } from "../engine/money";
-import { bom10MA, offers, policy, suppliers, PO, routineReorder, demand } from "../seed/astro";
+import { bom10MA, offers, policy as defaultPolicy, suppliers, PO, routineReorder, demand } from "../seed/astro";
+import type { Policy } from "../engine/types";
+import { formatUsdShort } from "../engine/money";
 import { advance } from "./stages";
 import { timeline, scenes } from "./scenes";
 import { proofFor } from "./proofs";
@@ -16,7 +18,7 @@ const ESCROW_DEADLINE_MS = 30 * 24 * 3600 * 1000;
 const haoyun = suppliers.find((s) => s.id === "haoyun")!;
 const OWNER = "astro-robotics.testnet";
 
-export function initialState(): WorkspaceState {
+export function initialState(policy: Policy = defaultPolicy): WorkspaceState {
   const motorsFor = Math.floor(demand.motorsOnHand / demand.motorsPerRobot);
   return {
     t: 0, scene: 0, stage: "low", layout: [], phoneOpen: false, drawer: null, pulse: null, wallet: null,
@@ -27,12 +29,23 @@ export function initialState(): WorkspaceState {
     approvals: [],
     price: { originalCents: PO.originalUnitCents, limitBps: policy.priceChangeLimitBps, history: [] },
     escrow: null, shipment: { progress: 0, docs: [], checkpoints: [] }, dock: null, refused: [], endCard: false,
+    policy, halted: null,
   };
 }
+
+const pctText = (bps: number) => `${(bps / 100).toFixed(bps % 100 ? 1 : 0)}%`;
+
+/** The PO stops here under the viewer's rules: the story freezes and says why. */
+const halt = (s: WorkspaceState, b: Beat, reason: string): WorkspaceState => ({ ...s, halted: { atMs: b.atMs, scene: b.scene, reason } });
+
+/** Beats that still play after a halt: the scene frame and the end card, nothing that moves the PO. */
+const AFTER_HALT = new Set(["scene", "layout", "phone", "end_card"]);
 
 function apply(s: WorkspaceState, b: Beat): WorkspaceState {
   const ev = b.ev;
   const at = b.atMs;
+  const policy = s.policy;
+  if (s.halted && !AFTER_HALT.has(ev.type)) return s;
   switch (ev.type) {
     case "scene": return { ...s, scene: ev.id, layout: ev.layout.slice(0, 3) };
     case "layout": return { ...s, layout: ev.panels.slice(0, 3) };
@@ -44,11 +57,18 @@ function apply(s: WorkspaceState, b: Beat): WorkspaceState {
         approvals: s.approvals.length, requiredApprovals: s.requiredApprovals,
         priceOk: last ? last.pass : true, dockChecked: s.dock !== null,
       });
+      if (ev.to === "approval" && !s.fitment.some((f) => f.pass)) {
+        return halt(s, b, `No supplier passes your rules (motor price cap ${formatUsdShort(policy.priceCaps["Actuator motor"] ?? 0)}). Sourcing stops before any order.`);
+      }
+      if (!r.ok && r.reason === "approvals_missing") return halt(s, b, `Your rules need ${s.requiredApprovals} approvals for PO ${PO.number}; it has ${s.approvals.length}. Nothing is committed.`);
+      if (!r.ok && r.reason === "price_over_limit") return halt(s, b, `Haoyun's price change of +${pctText(last!.bps)} is over your ${pctText(policy.priceChangeLimitBps)} limit. The PO stops before any money is committed.`);
       if (!r.ok) throw new Error(`scenario bug: ${s.stage} -> ${ev.to} refused (${r.reason}) at ${at}ms`);
       return { ...s, stage: ev.to };
     }
     case "routine": {
       const r = advance(s.routine.stage, ev.to, { approvals: 0, requiredApprovals: requiredApprovals({ totalCents: s.routine.totalCents, supplier: suppliers[0] }, policy), priceOk: true, dockChecked: true });
+      if (!r.ok && r.reason === "approvals_missing") return { ...s, routine: { ...s.routine, held: `Under your rules this ${formatUsdShort(s.routine.totalCents)} reorder needs approval, so it waits for a person.` } };
+      if (s.routine.held) return s;
       if (!r.ok) throw new Error(`scenario bug: routine ${s.routine.stage} -> ${ev.to} refused (${r.reason})`);
       return { ...s, routine: { ...s.routine, stage: ev.to } };
     }
@@ -77,7 +97,8 @@ function apply(s: WorkspaceState, b: Beat): WorkspaceState {
     case "refused": return { ...s, refused: [...s.refused, { kind: ev.kind, detail: ev.detail, atMs: at }] };
     case "lock_funds": {
       const last = s.price.history.at(-1);
-      if (s.approvals.length < s.requiredApprovals) throw new Error("scenario bug: lock before approvals");
+      if (s.approvals.length < s.requiredApprovals) return halt(s, b, `Your rules need ${s.requiredApprovals} approvals for PO ${PO.number}; it has ${s.approvals.length}. Nothing is committed.`);
+      if (last && !last.pass) return halt(s, b, `Haoyun's price change of +${pctText(last.bps)} is over your ${pctText(policy.priceChangeLimitBps)} limit. The PO stops before any money is committed.`);
       const unit = last?.pass ? last.unitCents : PO.originalUnitCents;
       return { ...s, escrow: createEscrow({ supplier: haoyun.receiveAddress, owner: OWNER, lockedCents: unit * PO.quantity, deadlineMs: ESCROW_DEADLINE_MS }) };
     }
@@ -107,8 +128,8 @@ function apply(s: WorkspaceState, b: Beat): WorkspaceState {
 }
 
 /** Deterministic replay: the workspace at time t is the fold of every beat up to t. */
-export function stateAt(t: number, beats: Beat[] = timeline): WorkspaceState {
-  let s = initialState();
+export function stateAt(t: number, beats: Beat[] = timeline, policy: Policy = defaultPolicy): WorkspaceState {
+  let s = initialState(policy);
   let pulseAt = -Infinity;
   for (const b of beats) {
     if (b.atMs > t) break;

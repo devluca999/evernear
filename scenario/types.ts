@@ -1,4 +1,4 @@
-import type { FitmentResult } from "../engine/types";
+import type { FitmentResult, Policy } from "../engine/types";
 import type { Escrow } from "../engine/escrow";
 import type { Stage } from "./stages";
 import type { Checkpoint } from "./shipment";
@@ -77,7 +77,7 @@ export interface WorkspaceState {
   drawer: Proof | null;
   pulse: PanelId | null;
   wallet: { owner: string; agentKeyCapCents: number } | null;
-  routine: { stage: Stage; approvals: number; totalCents: number };
+  routine: { stage: Stage; approvals: number; totalCents: number; held?: string };
   demand: { ordered: number; shippedOut: number; motorsOnHand: number; series: number[]; headline: string };
   messages: Message[];
   proofs: Proof[];
@@ -90,4 +90,8 @@ export interface WorkspaceState {
   dock: { receivedQty: number; orderedQty: number; releaseCents: number; holdCents: number } | null;
   refused: { kind: string; detail: string; atMs: number }[];
   endCard: boolean;
+  /** The rules this replay runs on (seed/astro.ts policy unless the viewer changed them). */
+  policy: Policy;
+  /** Set when the viewer's rules stop PO 1042: the story freezes there and says why. */
+  halted: { atMs: number; scene: number; reason: string } | null;
 }

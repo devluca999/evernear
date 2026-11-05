@@ -113,6 +113,15 @@ describe("workspace", () => {
     fireEvent.keyDown(window, { key: "ArrowRight" });
     expect(panels().slice(0, 2)).toEqual(["map", "bom"]);
   });
+  it("lets you change the thresholds, says where a stricter rule stops PO 1042, and resets", () => {
+    at(sceneStartMs(6) + 2000);
+    fireEvent.click(screen.getByRole("button", { name: "Change thresholds" }));
+    fireEvent.change(screen.getByLabelText("price change limit"), { target: { value: "2" } });
+    expect(within(screen.getByRole("status", { name: "Stopped by your rules" })).getByText(/over your 2% limit/)).toBeTruthy();
+    expect(within(screen.getByLabelText("Scenario numbers")).getByText("PO 1042").nextElementSibling!.textContent).toBe("not placed");
+    fireEvent.click(within(screen.getByRole("status", { name: "Stopped by your rules" })).getByRole("button", { name: "Reset to Astro's rules" }));
+    expect(screen.queryByRole("status", { name: "Stopped by your rules" })).toBeNull();
+  });
   it("never renders more than 3 panels when nothing is pinned", () => {
     for (const id of [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]) {
       const { container, unmount } = at(sceneStartMs(id) + 2000);

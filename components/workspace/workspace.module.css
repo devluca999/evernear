@@ -510,3 +510,13 @@
 .mapBtn { all: unset; cursor: pointer; display: grid; place-items: center; width: 26px; height: 26px; border-radius: var(--radius-sm, 6px); background: var(--bg-raised); border: 1px solid var(--line-hairline); box-shadow: var(--elev-1); color: var(--text-secondary); }
 .mapBtn:hover { border-color: var(--line-strong); color: var(--text-primary); }
 .mapBtn:focus-visible { outline: 2px solid var(--line-focus); outline-offset: 2px; }
+
+/* Company rules editor. */
+.rulesEditor { display: grid; gap: 8px; margin-bottom: 10px; }
+.rulesEditorHead { display: flex; align-items: center; gap: 12px; }
+.ruleGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px 14px; padding: 12px; border: 1px solid var(--line-hairline); border-radius: var(--radius-md, 8px); background: var(--bg-sunken); }
+.ruleGrid > p { grid-column: 1 / -1; margin: 0; font-size: 12px; }
+.ruleField { display: grid; gap: 4px; }
+.ruleInput { display: inline-flex; align-items: center; gap: 4px; height: 32px; padding: 0 8px; border: 1px solid var(--line-hairline); border-radius: var(--radius-sm, 6px); background: var(--bg-raised); }
+.ruleInput:focus-within { border-color: var(--line-strong); }
+.ruleInput input { all: unset; width: 100%; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 14px; color: var(--text-primary); }

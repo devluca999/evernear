@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { stateAt, sceneStartMs, stageStartMs } from "@/scenario/runner";
-import { scenes, totalDurationMs } from "@/scenario/scenes";
+import { scenes, timeline, totalDurationMs } from "@/scenario/scenes";
 import { products, suppliers } from "@/seed/astro";
 import type { Beat, PanelId, WorkspaceState } from "@/scenario/types";
 import { Rail } from "./Rail";
@@ -21,6 +21,9 @@ import { CHECKPOINTS } from "@/scenario/shipment";
 import { composeLayout, movePanel, togglePin, PANEL_ORDER } from "@/scenario/layout";
 import { heldAt, liveStepOf, stepClockWith } from "@/scenario/gates";
 import { useLive } from "./useLive";
+import { loadPolicy, PolicyContext, POLICY_KEY, sameRules } from "./rules";
+import { policy as defaultPolicy } from "@/seed/astro";
+import type { Policy } from "@/engine/types";
 import { PinContext } from "./Panel";
 import { Sidebar } from "./Sidebar";
 import { StatsBar } from "./StatsBar";
@@ -41,6 +44,13 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
   // Waits at each human moment and at the end of each scene; ?autoplay=1 plays straight through.
   const [waitForMe, setWaitForMe] = useState(true);
   const live = useLive();
+  const [policy, setPolicyState] = useState<Policy>(defaultPolicy);
+  const policyCtx = useMemo(() => ({
+    policy,
+    setPolicy: (p: Policy) => { setPolicyState(p); try { localStorage.setItem(POLICY_KEY, JSON.stringify(p)); } catch { /* storage may be blocked */ } },
+    reset: () => { setPolicyState(defaultPolicy); try { localStorage.removeItem(POLICY_KEY); } catch { /* ignore */ } },
+    changed: !sameRules(policy, defaultPolicy),
+  }), [policy]);
   const [mode, setMode] = useState<"dark" | "light">("dark");
   // The drawer stays collapsed (its bar shows the latest call) until the chevron opens it.
   const [drawerOpenState, setDrawerOpen] = useState(false);
@@ -78,6 +88,7 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
       if (q.get("mode") === "light") setMode("light");
       const photo = q.get("photo");
       if (photo && photo.split(":")[0] in CHECKPOINTS) setViewer({ checkpointId: photo.split(":")[0], index: Number(photo.split(":")[1] ?? 0) });
+      try { setPolicyState(loadPolicy(localStorage.getItem(POLICY_KEY))); } catch { /* no saved rules */ }
       try {
         const saved = JSON.parse(localStorage.getItem(PIN_KEY) ?? "[]");
         if (Array.isArray(saved)) setPinnedPanels(saved.filter((x): x is PanelId => PANEL_ORDER.includes(x)));
@@ -85,9 +96,14 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
     });
   }, []);
 
+  // Where the viewer's rules stop the PO, if they do (a full replay; cheap).
+  const haltedAt = useMemo(() => stateAt(totalDurationMs, timeline, policy).halted?.atMs ?? null, [policy]);
   // What holds the clock: a human moment, the end of a scene (narrate, then Cmd+K), or a live step still running.
   const blocked = (b: Beat) => {
-    if (waitForMe && (b.gate || (b.ev.type === "scene" && b.scene > 0))) return true;
+    if (waitForMe && b.ev.type === "scene" && b.scene > 0) return true;
+    // Once the rules stop the PO, nothing after it asks you or runs live.
+    if (haltedAt !== null && b.atMs > haltedAt) return false;
+    if (waitForMe && b.gate) return true;
     if (!live.on || live.error) return false;
     const step = liveStepOf(b, HAOYUN);
     return !!step && !live.done.includes(step);
@@ -141,7 +157,7 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
     return () => window.removeEventListener("keydown", onKey);
   }, [t, viewer]);
 
-  const base = useMemo(() => stateAt(t), [t]);
+  const base = useMemo(() => stateAt(t, timeline, policy), [t, policy]);
   // In live mode the real proofs replace the placeholders as they arrive.
   const st = useMemo(() => ({ ...base, proofs: base.proofs.map((p) => (live.byKey[p.id] ? { ...live.byKey[p.id], scene: p.scene } : p)) }), [base, live.byKey]);
   const lastProof = st.proofs.at(-1) ?? null;
@@ -155,6 +171,7 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
   const jump = (id: number) => { setT(sceneStartMs(id)); setPhonePinned(null); setPinnedProof(null); setViewer(null); };
 
   return (
+    <PolicyContext.Provider value={policyCtx}>
     <ActionsContext.Provider value={actions}>
     <PinContext.Provider value={pins}>
     <div className={s.root} data-theme="clean" data-mode={mode} data-working={playing && st.stage !== "closed"}>
@@ -203,6 +220,13 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
               <button type="button" className={s.btn} onClick={answer}>{waiting.action}</button>
             </div>
           )}
+          {st.halted && (
+            <div className={s.waiting} role="status" aria-label="Stopped by your rules">
+              <span className={s.micro}>STOPPED BY YOUR RULES</span>
+              <p className={s.waitingPrompt}>{st.halted.reason}</p>
+              <button type="button" className={s.btnQuiet} onClick={policyCtx.reset}>Reset to Astro&apos;s rules</button>
+            </div>
+          )}
           {sceneEnd && (
             <div className={s.waiting} data-kind="scene" role="group" aria-label="End of scene">
               <span className={s.micro}>END OF SCENE {st.scene}</span>
@@ -239,5 +263,6 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
     </div>
     </PinContext.Provider>
     </ActionsContext.Provider>
+    </PolicyContext.Provider>
   );
 }

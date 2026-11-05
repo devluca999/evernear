@@ -45,3 +45,10 @@ Full detail: `docs/NOTES.md` section 10.
 - Live testnet calls and real proofs (keys, section 2).
 - Panels replay the scenario; they are not yet driven by live Convex queries.
 - Figures: in the exploded view the robot's arms read small and far from the body.
+
+## 6. Tidepool (testnet Agent API, community-run, not affiliated with NEAR)
+
+- **Key**: `AGENT_API_KEY` in `.env.local` (from `POST /v1/keys`, no account). 25 agents per key in total, never deleted.
+- **Astro's owner**: a dedicated implicit testnet account made for this, never a founder wallet: `e6c1d43a7d90094dbeabf630c06687f0b1c24cea68830ae4123c3b5df014616b`. Its key is `AGENT_OWNER_PRIVATE_KEY_PKCS8` in `.env.local` only. Back it up somewhere private: losing it means the PO accounts can no longer be frozen or changed.
+- **Node 24** is now required (the SDK). CI and Vercel are switched. Locally: `brew install node@24` or install nvm and run `nvm install 24`.
+- Tidepool's own end-to-end check passed 18 of 18, including a Base Sepolia withdraw.

@@ -6,6 +6,7 @@ import { bom10MA, offers, policy, suppliers, PO, routineReorder, demand } from "
 import { advance } from "./stages";
 import { timeline, scenes } from "./scenes";
 import { proofFor } from "./proofs";
+import { CHECKPOINTS } from "./shipment";
 import type { WorkspaceState, Beat } from "./types";
 
 export const DRAWER_MS = 3000;
@@ -25,7 +26,7 @@ export function initialState(): WorkspaceState {
     requiredApprovals: requiredApprovals({ totalCents: PO.revisedTotalCents, supplier: haoyun }, policy),
     approvals: [],
     price: { originalCents: PO.originalUnitCents, limitBps: policy.priceChangeLimitBps, history: [] },
-    escrow: null, shipment: { progress: 0, docs: [] }, dock: null, refused: [], endCard: false,
+    escrow: null, shipment: { progress: 0, docs: [], checkpoints: [] }, dock: null, refused: [], endCard: false,
   };
 }
 
@@ -80,7 +81,12 @@ function apply(s: WorkspaceState, b: Beat): WorkspaceState {
       const unit = last?.pass ? last.unitCents : PO.originalUnitCents;
       return { ...s, escrow: createEscrow({ supplier: haoyun.receiveAddress, owner: OWNER, lockedCents: unit * PO.quantity, deadlineMs: ESCROW_DEADLINE_MS }) };
     }
-    case "shipment": return { ...s, shipment: { progress: ev.progress, docs: ev.docs } };
+    case "shipment": return { ...s, shipment: { ...s.shipment, progress: ev.progress, docs: ev.docs } };
+    case "checkpoint": {
+      const c = CHECKPOINTS[ev.id];
+      if (!c) throw new Error(`scenario bug: no checkpoint ${ev.id}`);
+      return { ...s, shipment: { ...s.shipment, checkpoints: [...s.shipment.checkpoints, c] } };
+    }
     case "dock": {
       const unit = s.escrow!.lockedCents / PO.quantity;
       const m = plainEngine.matchReceipt({ orderedQty: PO.quantity, receivedQty: ev.receivedQty, unitCents: unit });

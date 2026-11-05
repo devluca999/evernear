@@ -54,7 +54,7 @@ The adapter tests run against a recording mock of `fetch`. They prove the reques
 
 ## What is simulated
 
-Only Astro and the people around it: Astro Robotics itself ([seed/astro.ts](seed/astro.ts)), its customers ([scenarios/demand.ts](scenarios/demand.ts)) and its suppliers ([scenarios/suppliers.ts](scenarios/suppliers.ts)). Supplier replies go through the real inbound email path ([convex/channels/email.ts](convex/channels/email.ts)). The negotiation is not canned: Haoyun's simulator sends the +2.5% revision only if the agent's counter stayed within the 3% limit ([test](tests/channels.test.ts)).
+Only Astro and the people around it: Astro Robotics itself ([seed/astro.ts](seed/astro.ts)), its customers ([scenarios/demand.ts](scenarios/demand.ts)) its suppliers ([scenarios/suppliers.ts](scenarios/suppliers.ts)), and the shipment's checkpoints and photos ([scenario/shipment.ts](scenario/shipment.ts), [test](components/__tests__/tracking.test.tsx)). The photos are drawn stand-ins, labelled "synthetic photo" on screen. Supplier replies go through the real inbound email path ([convex/channels/email.ts](convex/channels/email.ts)). The negotiation is not canned: Haoyun's simulator sends the +2.5% revision only if the agent's counter stayed within the 3% limit ([test](tests/channels.test.ts)).
 
 ## The reference engine
 

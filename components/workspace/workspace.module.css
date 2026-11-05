@@ -2,7 +2,9 @@
    Colour is state only. Figures in Geist Mono with tabular numerals. */
 
 .root {
-  min-height: 100vh;
+  height: 100vh;
+  min-height: 640px;
+  overflow: hidden;
   box-sizing: border-box;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 360px;
@@ -54,8 +56,8 @@
 .rail_stalled .railBar { background: var(--state-attention); }
 
 /* Stage area holds the panels; the drawer and phone pull up from its bottom edge. */
-.stageArea { position: relative; overflow: hidden; min-height: 560px; }
-.panels { display: grid; gap: var(--space-5, 16px); height: 100%; align-content: start; padding-bottom: 48px; box-sizing: border-box; }
+.stageArea { position: relative; overflow: hidden; min-height: 0; }
+.panels { display: grid; gap: var(--space-5, 16px); height: 100%; align-items: start; padding-bottom: 44px; box-sizing: border-box; }
 .panels[data-count="1"] { grid-template-columns: minmax(0, 1fr); max-width: 760px; }
 .panels[data-count="2"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .panels[data-count="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -66,10 +68,11 @@
   border-radius: var(--radius-lg, 12px);
   box-shadow: var(--elev-1);
 }
-.panel { display: flex; flex-direction: column; min-width: 0; transition: border-color var(--dur-base, 200ms); }
+.panel { display: flex; flex-direction: column; min-width: 0; max-height: 100%; min-height: 0; transition: border-color var(--dur-base, 200ms); }
 .panelHead { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: var(--space-4, 12px) var(--space-5, 16px); border-bottom: 1px solid var(--line-hairline); }
 .panelTitle { margin: 0; font-size: 13px; font-weight: 600; }
-.panelBody { padding: var(--space-5, 16px); display: flex; flex-direction: column; gap: var(--space-4, 12px); min-width: 0; }
+.panelBody > * { flex-shrink: 0; }
+.panelBody { padding: var(--space-5, 16px); display: flex; flex-direction: column; gap: var(--space-4, 12px); min-width: 0; min-height: 0; overflow-y: auto; scrollbar-width: thin; }
 .card, .dockCard { padding: var(--space-4, 12px) var(--space-5, 16px); box-shadow: none; background: var(--bg-sunken); }
 .card p, .dockCard p { margin: 4px 0 0; }
 
@@ -265,10 +268,52 @@
 }
 
 @media (max-width: 1100px) {
-  .root { grid-template-columns: minmax(0, 1fr); }
+  .root { grid-template-columns: minmax(0, 1fr); height: auto; overflow: visible; }
+  .panel { max-height: none; }
   .panels[data-count="2"], .panels[data-count="3"] { grid-template-columns: minmax(0, 1fr); }
   .camera { width: 100%; max-width: 360px; }
   .drawer { right: 0; }
   .endCard { inset: 0; }
   .rail .railLabel { font-size: 10px; }
 }
+
+/* Tracking: checkpoints newest first, each with who acknowledged it and its evidence. */
+.tracking { border-top: 1px solid var(--line-hairline); padding-top: var(--space-4, 12px); display: flex; flex-direction: column; gap: var(--space-3, 8px); }
+.trackHead { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.trackLast { font-size: 12px; color: var(--text-secondary); }
+.trackList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.trackItem { display: grid; grid-template-columns: 16px minmax(0, 1fr); padding: 10px 0; border-bottom: 1px solid var(--line-hairline); }
+.trackItem:last-child { border-bottom: none; }
+.trackItem .led { margin-top: 5px; }
+.trackItem[data-latest="false"] .trackTitle { color: var(--text-secondary); font-weight: 500; }
+.trackMain { min-width: 0; }
+.trackRow { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+.trackTitle { font-weight: 600; font-size: 13.5px; }
+.trackTime { font-size: 12px; color: var(--text-secondary); white-space: nowrap; }
+.trackMeta { margin: 2px 0 0; font-size: 12px; color: var(--text-muted); }
+.trackDetail { margin: 4px 0 0; font-size: 13px; color: var(--text-secondary); }
+.thumbs { display: flex; gap: 8px; margin-top: 8px; }
+.thumb, .chatPhoto {
+  all: unset; cursor: pointer; display: block; width: 96px; border-radius: var(--radius-sm, 6px); overflow: hidden;
+  border: 1px solid var(--line-strong); box-shadow: var(--elev-1);
+}
+.thumb:hover, .chatPhoto:hover { border-color: var(--text-muted); }
+.thumb:focus-visible, .chatPhoto:focus-visible { outline: 2px solid var(--line-focus); outline-offset: 2px; }
+.chatPhoto { width: 180px; margin-bottom: 6px; }
+
+/* Photo viewer: a dialog over the stage area. The camera corner stays clear. */
+.viewerScrim { position: fixed; inset: 0 392px 0 0; z-index: 6; background: var(--scrim); display: grid; place-items: center; padding: var(--space-6, 20px); }
+.viewer {
+  display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(240px, 1fr); max-width: 980px; width: 100%;
+  background: var(--bg-raised); border: 1px solid var(--line-hairline); border-radius: var(--radius-lg, 12px); box-shadow: var(--elev-dialog); overflow: hidden;
+}
+.viewerPhoto { position: relative; background: var(--bg-sunken); }
+.viewerTag { position: absolute; top: 12px; left: 12px; background: var(--bg-raised); }
+.viewerSide { padding: var(--space-6, 20px); display: flex; flex-direction: column; gap: 8px; }
+.viewerTitle { margin: 0; font-size: 20px; font-weight: 500; }
+.viewerMeta { margin: 8px 0 0; display: flex; flex-direction: column; gap: 10px; }
+.viewerMeta dt { font-size: 10.5px; letter-spacing: var(--tracking-micro, 0.08em); color: var(--text-muted); }
+.viewerMeta dd { margin: 2px 0 0; font-size: 13.5px; }
+.viewerActions { display: flex; gap: 8px; align-items: center; margin-top: auto; padding-top: 8px; }
+.viewerActions + .viewerActions { margin-top: 0; }
+@media (max-width: 1100px) { .viewer { grid-template-columns: minmax(0, 1fr); } .viewerScrim { inset: 0; } }

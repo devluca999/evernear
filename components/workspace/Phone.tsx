@@ -1,9 +1,13 @@
 import type { Message } from "@/scenario/types";
+import { PHOTO_CAPTION, type PhotoId } from "@/scenario/shipment";
+import { useActions } from "./actions";
+import { Photo } from "./photos/Photo";
 import s from "./workspace.module.css";
 
 /** Generic phone frame mirroring the Stockbot chat on Telegram. Pull up only. */
 export function Phone({ messages, open, onToggle }: { messages: Message[]; open: boolean; onToggle: () => void }) {
   const chat = messages.filter((m) => m.channel === "telegram");
+  const { openPhoto } = useActions();
   return (
     <section className={`${s.phone} ${open ? s.phoneOpen : ""}`} aria-label="Phone">
       <button className={s.phoneTab} onClick={onToggle} aria-expanded={open}>Phone</button>
@@ -12,9 +16,11 @@ export function Phone({ messages, open, onToggle }: { messages: Message[]; open:
         <ol className={s.chat}>
           {chat.map((m) => (
             <li key={m.id} className={m.direction === "out" ? s.botMsg : s.userMsg}>
-              {m.photo && <span className={s.photo} aria-label="Packing slip photo">
-                <span className={s.photoBox}>QTY 1,800</span><span className={s.faint}>of 2,000</span>
-              </span>}
+              {m.photo && m.photo in PHOTO_CAPTION && (
+                <button className={s.chatPhoto} onClick={() => openPhoto("dock", 0)} aria-label={`Open photo: ${PHOTO_CAPTION[m.photo as PhotoId]}`}>
+                  <Photo id={m.photo as PhotoId} label={PHOTO_CAPTION[m.photo as PhotoId]} />
+                </button>
+              )}
               {m.text}
             </li>
           ))}

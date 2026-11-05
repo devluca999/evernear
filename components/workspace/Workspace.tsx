@@ -13,6 +13,9 @@ import { MapPanel } from "./panels/MapPanel";
 import { InboxPanel } from "./panels/InboxPanel";
 import { BomPanel } from "./panels/BomPanel";
 import { RulesPanel } from "./panels/RulesPanel";
+import { ActionsContext, type WorkspaceActions } from "./actions";
+import { PhotoViewer } from "./PhotoViewer";
+import { CHECKPOINTS } from "@/scenario/shipment";
 import s from "./workspace.module.css";
 
 const PANELS: Record<PanelId, (p: { st: WorkspaceState; pulse: boolean }) => React.ReactNode> = {
@@ -28,8 +31,14 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
   const [drawerPinned, setDrawerPinned] = useState(false);
   const [phonePinned, setPhonePinned] = useState<boolean | null>(null);
   const last = useRef<number | null>(null);
+  const [viewer, setViewer] = useState<{ checkpointId: string; index: number } | null>(null);
+  const [pinnedProof, setPinnedProof] = useState<string | null>(null);
+  const actions = useMemo<WorkspaceActions>(() => ({
+    openPhoto: (checkpointId, index) => { setPlaying(false); setViewer({ checkpointId, index }); },
+    openProof: (id) => { setPinnedProof(id); },
+  }), []);
 
-  // ?scene=7 jumps to a scene; ?paused=1 holds it there; ?mode=light picks the theme.
+  // ?scene=7 jumps to a scene; ?paused=1 holds it there; ?mode=light picks the theme; ?photo=dock:0 opens a photo.
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
     const id = q.get("scene");
@@ -38,6 +47,8 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
       if (id !== null) setT(sceneStartMs(Number(id)) + off);
       if (q.get("paused") === "1") setPlaying(false);
       if (q.get("mode") === "light") setMode("light");
+      const photo = q.get("photo");
+      if (photo && photo.split(":")[0] in CHECKPOINTS) setViewer({ checkpointId: photo.split(":")[0], index: Number(photo.split(":")[1] ?? 0) });
     });
   }, []);
 
@@ -60,7 +71,7 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement) return;
+      if (e.target instanceof HTMLInputElement || viewer) return;
       if (e.key === " ") { e.preventDefault(); setPlaying((p) => !p); }
       const cur = stateAt(t).scene;
       if (e.key === "ArrowRight") setT(sceneStartMs(Math.min(9, cur + 1)));
@@ -68,15 +79,17 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [t]);
+  }, [t, viewer]);
 
   const st = useMemo(() => stateAt(t), [t]);
   const lastProof = st.proofs.at(-1) ?? null;
+  const pinned = pinnedProof ? st.proofs.find((p) => p.id === pinnedProof) ?? null : null;
   const scene = scenes.find((x) => x.id === st.scene)!;
   const stalled = st.stage === "low" && st.scene >= 1;
-  const jump = (id: number) => { setT(sceneStartMs(id)); setPhonePinned(null); };
+  const jump = (id: number) => { setT(sceneStartMs(id)); setPhonePinned(null); setPinnedProof(null); setViewer(null); };
 
   return (
+    <ActionsContext.Provider value={actions}>
     <div className={s.root} data-theme="clean" data-mode={mode}>
       <header className={s.top}>
         <div className={s.brand}>
@@ -93,7 +106,13 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
             return <P key={id} st={st} pulse={st.pulse === id} />;
           })}
         </div>
-        <Drawer proof={st.drawer} lastProof={lastProof} open={!!st.drawer || drawerPinned} onToggle={() => setDrawerPinned((x) => !x)} />
+        <Drawer proof={pinned ?? st.drawer} lastProof={lastProof} open={!!pinned || !!st.drawer || drawerPinned}
+          onToggle={() => { if (pinned) setPinnedProof(null); else setDrawerPinned((x) => !x); }} />
+        {viewer && (
+          <PhotoViewer checkpointId={viewer.checkpointId} index={viewer.index}
+            onIndex={(index) => setViewer({ ...viewer, index })} onClose={() => setViewer(null)}
+            onProof={(id) => { setPinnedProof(id); setViewer(null); }} />
+        )}
         <Phone messages={st.messages} open={phonePinned ?? st.phoneOpen} onToggle={() => setPhonePinned(!(phonePinned ?? st.phoneOpen))} />
       </main>
 
@@ -125,5 +144,6 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
         </div>
       )}
     </div>
+    </ActionsContext.Provider>
   );
 }

@@ -14,18 +14,18 @@ describe("shipment map", () => {
     const x = (n: keyof typeof MAP.pins) => MAP.pins[n][0];
     expect(x("Stuttgart")).toBeLessThan(x("Shenzhen"));
     expect(x("Shenzhen")).toBeLessThan(x("Osaka"));
-    expect(x("Osaka")).toBeLessThan(x("Long Beach"));
-    expect(x("Long Beach")).toBeLessThan(x("Chicago"));
+    expect(x("Osaka")).toBeLessThan(x("Chicago"));
   });
-  it("routes from Shenzhen by sea to Long Beach, then by rail to Chicago", () => {
+  it("flies from Shenzhen to Chicago across the Pacific, inside the frame", () => {
     const r = MAP.route as readonly Pt[];
-    const near = (a: readonly number[], b: readonly number[]) => Math.hypot(a[0] - b[0], a[1] - b[1]) < 1;
+    const near = (p: readonly number[], q: readonly number[]) => Math.hypot(p[0] - q[0], p[1] - q[1]) < 2;
     expect(near(r[0], MAP.pins.Shenzhen)).toBe(true);
-    expect(near(r[MAP.seaPoints - 1], MAP.pins["Long Beach"])).toBe(true);
-    expect(near(r[r.length - 1], MAP.pins.Chicago)).toBe(true);
+    expect(near(r[MAP.stops.dock], MAP.pins.Chicago)).toBe(true);
+    expect(MAP.stops.origin).toBeLessThan(MAP.stops.szx);
+    expect(MAP.stops.szx).toBeLessThan(MAP.stops.ord);
     expect(r.every(inside)).toBe(true);
-    expect(MAP.seaKm).toBeGreaterThan(11_000);
-    expect(MAP.railKm).toBeGreaterThan(2_500);
+    expect(MAP.airKm).toBeGreaterThan(12_000);
+    expect(MAP.airKm).toBeLessThan(13_500);
   });
   it("finds the point a share of the way along the route", () => {
     const pts: Pt[] = [[0, 0], [10, 0], [10, 10]];

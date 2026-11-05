@@ -2,6 +2,7 @@ import type { WorkspaceState } from "@/scenario/types";
 import { MAP } from "../map/generated";
 import { cumulative, pointAt, polyline, type Pt } from "../map/route";
 import { Panel } from "../Panel";
+import { Tracking } from "../Tracking";
 import s from "../workspace.module.css";
 
 const ROUTE = MAP.route as readonly Pt[];
@@ -13,9 +14,19 @@ const SUPPLIER_CITY: Record<string, keyof typeof MAP.pins> = { kansai: "Osaka", 
 const DOC_AT = [0.06, 0.24, 0.42];
 const DOC_TONE = { done: s.docDone, working: s.docWorking, problem: s.docProblem };
 const LABEL: Partial<Record<keyof typeof MAP.pins, { dx: number; dy: number; anchor?: "end" }>> = {
-  Dongguan: { dx: -6, dy: -6, anchor: "end" }, Shenzhen: { dx: 6, dy: 12 }, Chicago: { dx: -6, dy: -7, anchor: "end" },
-  "Long Beach": { dx: -6, dy: 13, anchor: "end" },
+  Dongguan: { dx: -6, dy: -6, anchor: "end" }, Shenzhen: { dx: 6, dy: 12 }, Chicago: { dx: -6, dy: 14, anchor: "end" },
 };
+const TOTAL = CUM[CUM.length - 1];
+const STOP_AT = Object.fromEntries(Object.entries(MAP.stops).map(([k, i]) => [k, CUM[i] / TOTAL])) as Record<keyof typeof MAP.stops, number>;
+
+/** A small cargo plane pointing along the route. */
+function Plane({ t }: { t: number }) {
+  const [x, y] = pointAt(ROUTE, t, CUM);
+  const [x2, y2] = pointAt(ROUTE, Math.min(1, t + 0.01), CUM);
+  const [x0, y0] = pointAt(ROUTE, Math.max(0, t - 0.01), CUM);
+  const deg = (Math.atan2(y2 - y0, x2 - x0) * 180) / Math.PI;
+  return <path transform={`translate(${x} ${y}) rotate(${deg})`} d="M8 0 L2 1.2 L-2 6 L-4 6 L-1 1.2 L-5 1.2 L-7 3.2 L-8 3.2 L-6.5 0 L-8 -3.2 L-7 -3.2 L-5 -1.2 L-1 -1.2 L-4 -6 L-2 -6 L2 -1.2 Z" className={s.ship} />;
+}
 
 function Pin({ name, cls }: { name: keyof typeof MAP.pins; cls: string }) {
   const [x, y] = MAP.pins[name];
@@ -41,13 +52,12 @@ export function MapPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }) 
   const passed = new Set(st.fitment.filter((f) => f.pass).map((f) => SUPPLIER_CITY[f.supplierId]));
   const scanned = st.fitment.length > 0 || st.stage === "sourcing";
   const candidates = (scanned ? ["Stuttgart", "Osaka", "Dongguan", "Shenzhen"] : ["Shenzhen"]) as (keyof typeof MAP.pins)[];
-  const ship = pointAt(ROUTE, t, CUM);
   const pinCls = (c: keyof typeof MAP.pins) => (failed.has(c) ? s.pinFail : passed.has(c) || shipping ? s.pinOk : s.pin);
 
   return (
     <Panel id="map" title="Shipment" pulse={pulse}>
       <svg className={s.map} viewBox={`0 0 ${MAP.width} ${MAP.height}`} role="img"
-        aria-label={shipping ? `Route Shenzhen to Long Beach by sea, then rail to Chicago, ${Math.round(t * 100)} percent of the way` : "Supplier locations and Astro in Chicago"}>
+        aria-label={shipping ? `Air freight from Shenzhen to Chicago O'Hare, ${Math.round(t * 100)} percent of the way` : "Supplier locations and Astro in Chicago"}>
         <rect width={MAP.width} height={MAP.height} className={s.ocean} />
         <path d={MAP.graticule} className={s.grat} />
         <path d={MAP.land} className={s.land} />
@@ -56,20 +66,21 @@ export function MapPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }) 
           <>
             <path d={ROUTE_D} className={s.route} fill="none" />
             {t > 0 && <path d={ROUTE_D} className={s.routeDone} fill="none" pathLength={1} strokeDasharray={`${t} 1`} />}
-            <Pin name="Long Beach" cls={s.pinWay} />
+            {(["szx", "ord"] as const).map((k) => { const [x, y] = pointAt(ROUTE, STOP_AT[k], CUM); return <circle key={k} cx={x} cy={y} r="2.4" className={s.pinWay} />; })}
             {st.shipment.docs.map((d, i) => <Doc key={d.name} at={pointAt(ROUTE, DOC_AT[i] ?? 0.5, CUM)} state={d.state} />)}
           </>
         )}
         {candidates.map((c) => <Pin key={c} name={c} cls={pinCls(c)} />)}
         <Pin name="Chicago" cls={s.pinHome} />
-        {shipping && t > 0 && <rect x={ship[0] - 3.5} y={ship[1] - 3.5} width="7" height="7" rx="1.5" className={s.ship} />}
+        {shipping && t > 0 && t < 1 && <Plane t={t} />}
       </svg>
       {st.shipment.docs.length > 0 && (
         <ul className={s.docs}>
           {st.shipment.docs.map((d) => <li key={d.name}><span className={`${s.docIcon} ${DOC_TONE[d.state]}`} aria-hidden />{d.name}</li>)}
-          <li className={s.faint}><span className={s.fig}>{MAP.seaKm.toLocaleString("en-US")}</span> km by sea, <span className={s.fig}>{MAP.railKm.toLocaleString("en-US")}</span> km by rail</li>
+          <li className={s.faint}><span className={s.fig}>{MAP.airKm.toLocaleString("en-US")}</span> km by air, SZX to ORD</li>
         </ul>
       )}
+      <Tracking checkpoints={st.shipment.checkpoints} />
     </Panel>
   );
 }

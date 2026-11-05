@@ -1,6 +1,7 @@
 import type { FitmentResult } from "../engine/types";
 import type { Escrow } from "../engine/escrow";
 import type { Stage } from "./stages";
+import type { Checkpoint } from "./shipment";
 
 export type PanelId = "demand" | "map" | "inbox" | "bom" | "rules";
 
@@ -48,6 +49,7 @@ export type Event =
   | { type: "refused"; kind: string; detail: string }
   | { type: "lock_funds" }
   | { type: "shipment"; progress: number; docs: { name: string; state: "done" | "working" | "problem" }[] }
+  | { type: "checkpoint"; id: string }
   | { type: "dock"; receivedQty: number }
   | { type: "release"; to: string }
   | { type: "reclaim" }
@@ -78,7 +80,7 @@ export interface WorkspaceState {
   approvals: { by: string; atMs: number }[];
   price: { originalCents: number; limitBps: number; history: { unitCents: number; bps: number; pass: boolean; from: string }[] };
   escrow: Escrow | null;
-  shipment: { progress: number; docs: { name: string; state: "done" | "working" | "problem" }[] };
+  shipment: { progress: number; docs: { name: string; state: "done" | "working" | "problem" }[]; checkpoints: Checkpoint[] };
   dock: { receivedQty: number; orderedQty: number; releaseCents: number; holdCents: number } | null;
   refused: { kind: string; detail: string; atMs: number }[];
   endCard: boolean;

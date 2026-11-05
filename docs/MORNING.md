@@ -50,5 +50,5 @@ Full detail: `docs/NOTES.md` section 10.
 
 - **Key**: `AGENT_API_KEY` in `.env.local` (from `POST /v1/keys`, no account). 25 agents per key in total, never deleted.
 - **Astro's owner**: a dedicated implicit testnet account made for this, never a founder wallet: `e6c1d43a7d90094dbeabf630c06687f0b1c24cea68830ae4123c3b5df014616b`. Its key is `AGENT_OWNER_PRIVATE_KEY_PKCS8` in `.env.local` only. Back it up somewhere private: losing it means the PO accounts can no longer be frozen or changed.
-- **Node 24** is now required (the SDK). CI and Vercel are switched. Locally: `brew install node@24` or install nvm and run `nvm install 24`.
+- **Node 24** is now required (the SDK). CI and Vercel are switched. Locally: Node 24.22.2 is installed in `~/.local/opt/node24` (checksum verified), beside the old Node 22 in `~/.local/opt/node`. To make it the default, put `export PATH="$HOME/.local/opt/node24/bin:$PATH"` in `~/.zshrc`. Tests, typecheck and `check:ip` pass on it.
 - Tidepool's own end-to-end check passed 18 of 18, including a Base Sepolia withdraw.

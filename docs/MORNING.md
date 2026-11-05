@@ -1,6 +1,6 @@
 # Morning
 
-Status, Nov 5 2026: everything is on `main` at https://github.com/devluca999/evernear (private, CI green). 129 tests pass; typecheck, lint, check:ip and `next build` are green. `DEMO_MODE=1 npm run demo` works from a fresh clone with no keys. No live testnet call has run yet: that is the next step and needs your keys.
+Status, Nov 5 2026: everything is on `main` at https://github.com/devluca999/evernear (private). 153 tests pass; typecheck, lint and check:ip are green. `DEMO_MODE=1 npm run demo` works from a fresh clone with no keys. The per-PO escrow and payout now run on the NEAR Intents Agent API through Tidepool (testnet, 1:1,000), and have run live once end to end through Convex (section 6). The other live calls (OutLayer approvals, Gmail, NEAR AI, dock check) still need your keys.
 
 ## 1. Links
 
@@ -21,28 +21,29 @@ Status, Nov 5 2026: everything is on `main` at https://github.com/devluca999/eve
 9. **Inbound email** provider, `INBOUND_EMAIL_SECRET` and `DEMO_EMAIL_DOMAIN` in the Convex env.
 10. **Gmail on OutLayer**: a dedicated demo Gmail at app.outlayer.ai/connect/gmail (testnet), policy `recipients` set to the supplier mailboxes.
 11. **Rust**: installed (rustc 1.99.1, wasm32-wasip2). `cargo test` passes (2 tests, shared vectors) and the release build is `1ba889c6...cb990`, 136 KB, now in `.env.local` as `DOCK_CHECK_WASM_SHA256`. Left: `outlayer login testnet` and deploy, then use the hash OutLayer reports.
-12. **Funded mainnet wallet** for the finale, later, and only with your explicit yes.
+12. **Mainnet**: optional and later. It is only a switch of `AGENT_API_BASE_URL`, and only with your explicit yes. Nothing needs funding now.
 
 Then: `RECORD=1 npm run rehearse` writes real proofs to `fixtures/recorded/`, which replace the synthetic ones on screen.
 
 ## 3. Decisions settled with you
 
 - Convex holds Astro's capped agent key; the README says so plainly.
-- After a partial release, a held part Astro never reclaimed is refunded at the deadline (`convex/escrows.ts`, `tests/escrows.test.ts`). Only a release of the whole amount cancels the refund.
+- After a partial release, a held part Astro never reclaimed is refunded at the deadline (`convex/near/deadline.ts`, `tests/deadline.test.ts`). Only a release of the whole amount cancels the refund.
+- Escrow and payout on Tidepool at 1:1,000; the escrow is called a commitment, not a lock, on screen ("Committed"), in the README and in `docs/VIDEO.md` (Nov 5).
 - A throwaway testnet wallet registration is fine.
 
 ## 4. Open design questions
 
 Full detail: `docs/NOTES.md` section 10.
 
-1. **Finale payout**: payment checks break "three exits only" (mainnet only, bypass the whitelist, the claimer picks the amount, expiry never refunds). Recommended: a whitelisted `intents/transfer` instead.
-2. **Finale on Haoyun's chain**: bridge minimums may refuse $3.42 cross-chain. Fallback: settle on NEAR, labelled.
+1. **Approvals now gate an OutLayer request that moves no PO money.** The two approvals still sign an OutLayer pending request (Astro's wallet into a PO sub-wallet, fake USDC), and only then does the rehearsal commit on Tidepool. It works, but the approved request is no longer the money that moves. Options: keep it as the approval artefact, or have the approvers sign a NEP-413 vote that Convex verifies. My pick: keep it until the demo is recorded, then decide.
+2. **Convex holds Astro's testnet owner key** to sign each PO account's policy (README, honest limit). In production Astro's wallet would sign at approval time.
 3. **Whitelist inside `ft_transfer`**: unverified whether the policy checks the recipient. First testnet test to run.
 4. **Huaxin's 3 failing lines**: the connector failure sits on a separate "Encoder harness" line. Change it if you meant otherwise.
 
 ## 5. Not done
 
-- Live testnet calls and real proofs (keys, section 2).
+- Real recorded proofs: `RECORD=1 npm run rehearse` needs the approvals (section 2), so the escrow proofs on screen are still synthetic. The live run's proofs are in the local Convex `proofs` table.
 - Panels replay the scenario; they are not yet driven by live Convex queries.
 - Figures: in the exploded view the robot's arms read small and far from the body.
 
@@ -52,3 +53,8 @@ Full detail: `docs/NOTES.md` section 10.
 - **Astro's owner**: a dedicated implicit testnet account made for this, never a founder wallet: `e6c1d43a7d90094dbeabf630c06687f0b1c24cea68830ae4123c3b5df014616b`. Its key is `AGENT_OWNER_PRIVATE_KEY_PKCS8` in `.env.local` only. Back it up somewhere private: losing it means the PO accounts can no longer be frozen or changed.
 - **Node 24** is now required (the SDK). CI and Vercel are switched. Locally: Node 24.22.2 is installed in `~/.local/opt/node24` (checksum verified), beside the old Node 22 in `~/.local/opt/node`. To make it the default, put `export PATH="$HOME/.local/opt/node24/bin:$PATH"` in `~/.zshrc`. Tests, typecheck and `check:ip` pass on it.
 - Tidepool's own end-to-end check passed 18 of 18, including a Base Sepolia withdraw.
+- **Astro's treasury** agent `agent_bd29fdad161bb80b3b07599c` (`AGENT_TREASURY_ID`): it funds each PO account and takes the held part back. It tops itself up from the faucet (one drip an hour) and swaps into Base USDC.
+- **Haoyun's Base Sepolia address**: `0x2003975a521c6fa45238dbc402c9e4adcb8863e0` (seed). Its demo key is `HAOYUN_BASE_PRIVATE_KEY` in `.env.local` only.
+- **PO account pool**: `agent_fe8606f9c6dc60f3f1768ed9` is slot 1, registered in the local Convex `poAccounts` table. At most 4 accounts (`POOL_MAX`), reused for every run, so the hosted "Run scenario" button will not use up the 25 agents. Agents used so far: 2 of 25.
+- **Live run through Convex, Nov 5** (local backend): $38.00 committed; a release to `0x...dead` refused in code and then refused live by the account's policy (`policy_destination_denied`); $34.20 to Haoyun, Base Sepolia tx `0xa1ca4983cccd01c2f40f3565c453ebb44668...` (sepolia.basescan.org); the deadline job refunded the held $3.80 to Astro. Each step wrote a proof row with its explorer link.
+- **For a cloud Convex deployment**: set `AGENT_API_BASE_URL`, `AGENT_API_KEY`, `AGENT_OWNER_ACCOUNT_ID`, `AGENT_OWNER_PUBLIC_KEY`, `AGENT_OWNER_PRIVATE_KEY_PKCS8` and `AGENT_TREASURY_ID` in its env, then register the pool slot again (`npx convex run near/escrowState:addAccount`).

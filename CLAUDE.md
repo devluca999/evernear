@@ -24,6 +24,7 @@ Before building against any service, read its llms.txt (or the skill that replac
 
 - NEAR: https://docs.near.org/llms.txt
 - NEAR Intents Agent API: https://api.agentsonintents.com/llms.txt
+- Tidepool (testnet Agent API): https://www.usetidepool.tech/llms.txt
 - Convex: https://docs.convex.dev/llms.txt
 - Vercel, Next.js, OutLayer, NEAR AI, Telegram: try `/llms.txt` on each docs domain, else the docs and skills below
 - Hackathon agent brief: https://nearhackathon.com/HACKATHON.md
@@ -36,13 +37,18 @@ Before building against any service, read its llms.txt (or the skill that replac
 - Entry skill: https://skills.outlayer.ai/outlayer/SKILL.md (routes to the rest)
 - agent-custody, building-outlayer-apps, outlayer-cli, outlayer-connectors, gmail-connector, mercury-connector: https://skills.outlayer.ai
 - Docs: https://app.outlayer.ai/docs · workers: https://workers.outlayer.ai · source: https://github.com/out-layer/outlayer
-- Testnet API: `https://testnet-api.outlayer.ai` (exactly this host). Contract `outlayer.testnet`, connectors `connectors.outlayer.testnet`, stablecoin `usdc.fakes.testnet`. NEAR Intents (swaps, cross-chain, intents balances, payment checks) are mainnet only.
+- Testnet API: `https://testnet-api.outlayer.ai` (exactly this host). Contract `outlayer.testnet`, connectors `connectors.outlayer.testnet`, stablecoin `usdc.fakes.testnet`. On OutLayer, NEAR Intents (swaps, cross-chain, intents balances, payment checks) are mainnet only, so the escrow and payout run on the Agent API through Tidepool instead.
 
 **NEAR**
 - Agent skills: https://github.com/near/agent-skills · tools for AI: https://docs.near.org/getting-started/tools-for-ai
 - NEAR AI private inference: https://docs.near.ai/ · https://github.com/nearai/cloud-api
 - NEAR Intents: https://docs.near-intents.org/ · https://github.com/near/intents
-- Intents Agent API (alternative for the final payout): https://github.com/NEAR-Intents-Agent-API/skills · SDK `@near-intents-agent-api/sdk` · mainnet only
+- NEAR Intents Agent API (per-PO escrow and payout): https://github.com/NEAR-Intents-Agent-API/skills · SDK `@near-intents-agent-api/sdk` (Node 24) · mainnet host `api.agentsonintents.com`, never called without Luca's yes
+
+**Tidepool (escrow and payout, testnet)**
+- https://www.usetidepool.tech · guide https://www.usetidepool.tech/docs/guides/agent-api · spec https://www.usetidepool.tech/v1/openapi.json · notes in `docs/NOTES.md` section 14
+- A community-run testnet of the Agent API (`/v1`) and 1Click (`/v0`), not affiliated with NEAR; it runs NEAR's Intents verifier on testnet. The SDK points at it with `baseUrl` from `AGENT_API_BASE_URL`.
+- Limits: 25 agents per key, never deleted (reuse the PO account pool); 5 keys per IP per day; one faucet drip per agent per hour. Unit tests use `tests/near/fakeTidepool.ts` and never create agents.
 - Trezu multisig (optional): https://trezu.org
 
 **Design:** Anatomy https://github.com/wheresryan22/anatomy (MIT, credit in README) · design rules in `docs/BUILD.md` section 10
@@ -55,7 +61,7 @@ Before building against any service, read its llms.txt (or the skill that replac
 4. **Deterministic spine.** Amounts, thresholds and releases are computed in code. Models only read documents and draft messages.
 5. **Evernear never holds funds.** Owner keys belong to Astro; the agent gets a limited key.
 6. **Never commit secrets.** `.env.example` only; real values in gitignored `.env.local` or the host's env settings.
-7. **Networks.** Testnet for everything except the final payout. No mainnet call, ever, without Luca's explicit yes in this session. Never spend money, buy anything or start a paid plan.
+7. **Networks.** Testnet for everything, including the escrow and payout (Tidepool, at 1:1,000). Mainnet is optional and later, only by switching `AGENT_API_BASE_URL`, and no mainnet call, ever, without Luca's explicit yes in this session. No real assets are sent to Tidepool. Never spend money, buy anything or start a paid plan.
 8. **Repo stays private** until Luca makes it public after the IP check. Never push to `Everstock-Inc/everstock`.
 9. **Voice and design** per `docs/BUILD.md` section 10.
 

@@ -1,0 +1,10 @@
+[
+  { "input": { "po": "1042", "ordered_qty": 2000, "received_qty": 1800, "unit_cents": 1900 },
+    "output": { "po": "1042", "accepted_qty": 1800, "release_cents": 3420000, "hold_cents": 380000 } },
+  { "input": { "po": "1042", "ordered_qty": 2000, "received_qty": 2000, "unit_cents": 1900 },
+    "output": { "po": "1042", "accepted_qty": 2000, "release_cents": 3800000, "hold_cents": 0 } },
+  { "input": { "po": "1042", "ordered_qty": 2000, "received_qty": 2100, "unit_cents": 1900 },
+    "output": { "po": "1042", "accepted_qty": 2000, "release_cents": 3800000, "hold_cents": 0 } },
+  { "input": { "po": "77", "ordered_qty": 300, "received_qty": 0, "unit_cents": 1854 },
+    "output": { "po": "77", "accepted_qty": 0, "release_cents": 0, "hold_cents": 556200 } }
+]

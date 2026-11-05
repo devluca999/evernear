@@ -374,3 +374,10 @@ Checked against [BUILD.md](BUILD.md) section 5 (architecture) and section 8 (acc
 - BUILD.md: the mainnet finale pays on Haoyun's chain.
 - Sources: a payment-check claim lands in the claimer's intents balance; moving to another chain is a separate `/wallet/v1/intents/withdraw` with `chain`, which needs the `cross_chain_withdraw` type and capability in policy and `async: true` ([payment-checks](https://skills.outlayer.ai/agent-custody/references/payment-checks.md), [api-index](https://skills.outlayer.ai/agent-custody/references/api-index.md), [full docs](https://app.outlayer.ai/llms-full.txt)). 1Click has bridge minimums (`upstream_rejected`), so a $3.42 cross-chain leg may be refused (unverified).
 - Safest build option: quote with `withdraw/dry-run` first; if the amount is under the bridge minimum, settle on NEAR (intents transfer to Haoyun's account) and label the scaled amounts on screen, rather than raising amounts without Luca's yes.
+
+## 11. First live testnet calls (Nov 5 2026)
+
+Wallet registered with `scripts/rehearse-testnet.mjs`; trial key issued. Through `convex/near/custody.ts`, unchanged:
+- `GET /wallet/v1/address?chain=near` returns `wallet_id`, `address` (the implicit account, 64 hex), `public_key`, `executor_account_id` (same as address) and `asset_account_id: null`.
+- `GET /wallet/v1/policy` on a fresh wallet: `{"policy":"none","frozen":false,"usage":{}}` plus `controller` (the wallet's own ed25519 key). No policy until the owner sets one.
+- `GET /wallet/v1/balance?chain=near&token=usdc.fakes.testnet`: `"0"`.

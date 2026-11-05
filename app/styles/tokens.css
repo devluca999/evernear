@@ -1,0 +1,1017 @@
+/* Breakpoints. Desktop is the existing layout. Compact (390px) is for phone and chat cards.
+   Custom properties cannot drive @media, so the query below is the source of truth and the
+   tokens document it. .es-compact forces compact density inside a fixed-size frame (a chat card). */
+:root{
+  --bp-compact:390px; /* @kind spacing */
+  --bp-desktop:1024px; /* @kind spacing */
+}
+@media (max-width:390px){
+  :root,[data-theme]{
+    --pad-panel:var(--space-6);
+    --pad-panel-lg:var(--space-7);
+    --gap-section:var(--space-8);
+    --grid-pitch:28px;
+    --grid-pitch-major:112px;
+  }
+}
+.es-compact{
+  --pad-panel:var(--space-6);
+  --pad-panel-lg:var(--space-7);
+  --gap-section:var(--space-8);
+  --grid-pitch:28px;
+  --grid-pitch-major:112px;
+  max-width:var(--bp-compact);
+}
+/* Tier 2: semantic colour. Set per theme and mode.
+   Themes: data-theme="clean" (Default) | "legacy" (Legacy Matrix). Modes: data-mode="dark" | "light".
+   Rule: data-theme and data-mode always travel together on the same element (the page root,
+   or a nested specimen pane). With no attributes the page resolves to Default, dark.
+   Hue is STATE ONLY, never category. Category lives in icon, shape or position. */
+
+/* --- State language: identical meaning AND value in both themes, so it is keyed by mode only.
+   Blue = agent working. Orange (Default) / amber (Legacy Matrix) = needs a person. Jade = done.
+   Crimson = failed or blocked. Indigo = infrastructure category only, never a task state.
+   Attention: colour marks the INDICATOR (LED, pill dot, count). No coloured edge strips anywhere. Names, links and amounts
+   stay in ink. --state-attention-ink is only for the one word that names the state. -------------- */
+:root,[data-mode="dark"]{
+  --state-active:var(--hue-blue-d);
+  --state-active-soft:var(--hue-blue-d-soft);
+  /* Contrast on page #16171B / raised #212227 / sunken #0F1012 / tint #2F292B:
+     attention + ink #D67855 5.69 / 5.05 / 6.05 / 4.53. Never for text on a gr-700 hover fill. */
+  --state-attention:var(--hue-orange);
+  --state-attention-ink:var(--hue-orange);
+  --state-attention-tint:var(--hue-orange-tint-d);
+  --state-attention-soft:var(--state-attention-ink);
+  --state-attention-on:var(--eg-900);
+  --state-attention-copy:var(--text-secondary);
+  --state-attention-figure:var(--text-primary);
+  --state-attention-cue:inline-flex; /* @kind other */
+  /* Waiting pill, dark: deep clay enamel #7A4939, warm-white text 6.61:1. */
+  --badge-attention-bg:var(--pill-attention-bg);
+  --badge-attention-fg:var(--pill-on);
+  /* Crimson carries its own shape: a rounded diamond, so it never relies on hue against orange. */
+  --led-alert-radius:1.5px; /* @kind radius */
+  --led-alert-turn:45deg; /* @kind other */
+  --led-alert-scale:.86; /* @kind other */
+  /* Solid pills, dark: deep enamel fills (52% hue over graphite) with warm-white text, so the pill
+     sits in the surface instead of glaring off it. Text: blue 6.82, orange 6.61, jade 5.22, crimson 7.20, indigo 7.07. */
+  --pill-on:#F4F2EE;
+  --pill-active-bg:#2B5392;
+  --pill-attention-bg:#7A4939;
+  --pill-success-bg:#23715E;
+  --pill-alert-bg:#843743;
+  --pill-infra-bg:#4C4B86;
+  --pill-idle-bg:var(--gr-700);
+  --pill-idle-fg:var(--gr-025);
+  /* Proposed: deeper solid clay, soft orange text 7.62:1. */
+  --pill-proposed-bg:#48302A;
+  --pill-proposed-fg:#F2C3AE;
+  /* Material: top sheen, bottom shade, hairline rim, grain. Text sits mid-pill, clear of both bands. */
+  --pill-sheen:rgba(255,255,255,.13);
+  --pill-shade:rgba(0,0,0,.18);
+  --pill-rim:rgba(0,0,0,.45);
+  --pill-highlight:rgba(255,255,255,.16);
+  --pill-grain-opacity:.10; /* @kind other */
+  --pill-drop:0 1px 1px rgba(0,0,0,.35),0 2px 6px -2px rgba(0,0,0,.30); /* @kind shadow */
+  --state-proposed:#915744;
+  --state-success:var(--hue-jade-d);
+  --state-success-soft:var(--hue-jade-d-soft);
+  --state-alert:var(--hue-crimson-d);
+  --state-alert-soft:var(--hue-crimson-d-soft);
+  --state-idle:var(--gr-400);
+
+  --accent-infra:var(--hue-indigo-d);
+  --accent-infra-soft:var(--hue-indigo-d-soft);
+  --accent-infra-wash:rgba(126,123,232,.15);
+  --accent-infra-edge:rgba(126,123,232,.46);
+
+  --state-active-wash:rgba(62,139,255,.14);
+  --state-attention-wash:var(--state-attention-tint);
+  --state-success-wash:rgba(47,196,155,.14);
+  --state-alert-wash:rgba(234,85,104,.15);
+  --state-active-edge:rgba(62,139,255,.45);
+  --state-attention-edge:var(--hue-orange-edge-d);
+  --state-success-edge:rgba(47,196,155,.45);
+  --state-alert-edge:rgba(234,85,104,.48);
+
+  /* LED lamp constants and overlays, shared by both themes */
+  --led-spec:#FFFFFF;
+  --led-shade:#000000;
+  --led-glint:rgba(255,255,255,.5);
+  --led-unlit-bg:radial-gradient(circle at 40% 34%,rgba(255,255,255,.34) 0 10%,rgba(148,150,156,.26) 38%,rgba(52,53,58,.80) 100%); /* @kind other */
+  --led-unlit-ring:0 0 0 .5px rgba(0,0,0,.55),inset 0 .5px .5px rgba(255,255,255,.28); /* @kind shadow */
+  --steps-link:rgba(255,255,255,.2);
+  --scrim:rgba(9,10,12,.62);
+  --switch-knob-shadow:0 1px 2px rgba(0,0,0,.5);
+}
+[data-mode="light"]{
+  /* Contrast vs raised surface: active 6.9:1, success 5.9:1, alert 7.2:1.
+     Attention LED #C2603C on page #FAF7F1 / raised #FEFDFB / sunken #F3F1EC: 3.90 / 4.10 / 3.70.
+     Ink #A34C2C: 5.41 / 5.69 / 5.13, on tint #FAF0EA 5.16. Waiting pill: white on #A34C2C 5.79. */
+  --state-active:var(--hue-blue-l);
+  --state-active-soft:var(--hue-blue-l-soft);
+  --state-attention:var(--hue-orange-l);
+  --state-attention-ink:var(--hue-orange-ink-l);
+  --state-attention-tint:var(--hue-orange-tint-l);
+  --state-attention-soft:var(--state-attention-ink);
+  --state-attention-on:var(--eg-900);
+  --state-attention-copy:var(--text-secondary);
+  --state-attention-figure:var(--text-primary);
+  --state-attention-cue:inline-flex; /* @kind other */
+  /* Waiting pill, light: #D67855 with graphite text (5.69:1). */
+  --badge-attention-bg:var(--pill-attention-bg);
+  --badge-attention-fg:var(--pill-on);
+  --led-alert-radius:1.5px; /* @kind radius */
+  --led-alert-turn:45deg; /* @kind other */
+  --led-alert-scale:.86; /* @kind other */
+  /* Solid pills, light: bright fills with graphite text, never white.
+     Text: blue 5.41, orange 5.69, jade 8.09, crimson 5.12, indigo 5.02 (≥4.5 across the bottom shade band). */
+  --pill-on:var(--gr-900);
+  --pill-active-bg:var(--hue-blue-d);
+  --pill-attention-bg:var(--hue-orange);
+  --pill-success-bg:var(--hue-jade-d);
+  --pill-alert-bg:var(--hue-crimson-d);
+  --pill-infra-bg:var(--hue-indigo-d);
+  --pill-idle-bg:var(--eg-200);
+  --pill-idle-fg:var(--eg-900);
+  /* Proposed: solid clay blush #F0D0C3, graphite text 12.38:1. */
+  --pill-proposed-bg:#F0D0C3;
+  --pill-proposed-fg:var(--gr-900);
+  --pill-sheen:rgba(255,255,255,.34);
+  --pill-shade:rgba(0,0,0,.06);
+  --pill-rim:rgba(28,26,23,.22);
+  --pill-highlight:rgba(255,255,255,.55);
+  --pill-grain-opacity:.07; /* @kind other */
+  --pill-drop:0 1px 1px rgba(28,26,23,.12),0 2px 5px -2px rgba(28,26,23,.16); /* @kind shadow */
+  --state-proposed:#D99C85;
+  --state-success:var(--hue-jade-l);
+  --state-success-soft:var(--hue-jade-l-soft);
+  --state-alert:var(--hue-crimson-l);
+  --state-alert-soft:var(--hue-crimson-l-soft);
+  --state-idle:var(--eg-600);
+
+  --accent-infra:var(--hue-indigo-l);
+  --accent-infra-soft:var(--hue-indigo-l-soft);
+  --accent-infra-wash:rgba(74,70,181,.11);
+  --accent-infra-edge:rgba(74,70,181,.42);
+
+  --state-active-wash:rgba(11,95,208,.10);
+  --state-attention-wash:var(--state-attention-tint);
+  --state-success-wash:rgba(8,116,90,.10);
+  --state-alert-wash:rgba(168,30,50,.10);
+  --state-active-edge:rgba(11,95,208,.40);
+  --state-attention-edge:var(--hue-orange-edge-l);
+  --state-success-edge:rgba(8,116,90,.40);
+  --state-alert-edge:rgba(168,30,50,.42);
+
+  --led-spec:#FFFFFF;
+  --led-shade:#000000;
+  --led-glint:rgba(255,255,255,.55);
+  --led-unlit-bg:radial-gradient(circle at 40% 34%,rgba(255,255,255,.34) 0 10%,rgba(148,150,156,.26) 38%,rgba(52,53,58,.80) 100%); /* @kind other */
+  --led-unlit-ring:0 0 0 .5px rgba(70,66,59,.42),inset 0 .5px .5px rgba(255,255,255,.6); /* @kind shadow */
+  --steps-link:rgba(70,66,59,.34);
+  --scrim:rgba(46,43,38,.36);
+  --switch-knob-shadow:0 1px 2px rgba(0,0,0,.5);
+}
+
+/* --- Legacy Matrix keeps its amber attention and round alert LED. Values unchanged. ---------- */
+[data-theme="legacy"],[data-theme="legacy"][data-mode="dark"]{
+  --state-attention:var(--hue-amber-d);
+  --state-attention-soft:var(--hue-amber-d-soft);
+  --state-attention-ink:var(--hue-amber-d);
+  --state-attention-tint:rgba(255,178,36,.14);
+  --state-attention-wash:rgba(255,178,36,.14);
+  --state-attention-edge:rgba(255,178,36,.45);
+  --state-attention-on:var(--gr-1000);
+  --state-attention-copy:var(--state-attention);
+  --state-attention-figure:var(--state-attention);
+  --state-attention-cue:none; /* @kind other */
+  --badge-attention-bg:var(--state-attention);
+  --badge-attention-fg:var(--gr-900);
+  --pill-proposed-bg:color-mix(in oklab,var(--state-attention) 16%,var(--bg-raised));
+  --pill-proposed-fg:var(--state-attention);
+  --pill-on:var(--gr-900);
+  --pill-active-bg:var(--state-active);--pill-attention-bg:var(--state-attention);--pill-success-bg:var(--state-success);--pill-alert-bg:var(--state-alert);--pill-infra-bg:var(--accent-infra);
+  --pill-sheen:transparent;--pill-shade:transparent;--pill-rim:transparent;--pill-highlight:transparent;--pill-drop:0 0 0 transparent; /* @kind shadow */
+  --pill-grain-opacity:0; /* @kind other */
+  --state-proposed:#A87922;
+  --led-alert-radius:50%; /* @kind radius */
+  --led-alert-turn:0deg; /* @kind other */
+  --led-alert-scale:1; /* @kind other */
+}
+[data-theme="legacy"][data-mode="light"]{
+  --state-attention:var(--hue-amber-l);
+  --state-attention-soft:var(--hue-amber-l-soft);
+  --state-attention-ink:var(--hue-amber-l);
+  --state-attention-tint:rgba(150,89,10,.12);
+  --state-attention-wash:rgba(150,89,10,.12);
+  --state-attention-edge:rgba(150,89,10,.40);
+  --state-attention-on:var(--hue-white);
+  --badge-attention-bg:var(--state-attention);
+  --badge-attention-fg:var(--hue-white);
+  --pill-on:var(--hue-white);
+  --pill-proposed-fg:var(--state-attention);
+  --state-proposed:#BF9A68;
+}
+
+/* --- Default (clean), dark ------------------------------------------------------------------
+   Same graphite base as Legacy Matrix. Raised sits at gr-800 so a flat fill still separates
+   from the page with no sheen or grain doing the work. Interactive tint is ink, never blue. */
+:root,[data-theme="clean"],[data-mode="dark"],[data-theme="clean"][data-mode="dark"]{
+  --bg-page:var(--gr-900);
+  --bg-sunken:var(--gr-950);
+  --bg-raised:var(--gr-800);
+  --bg-inset:rgba(0,0,0,.20);
+
+  --text-primary:var(--gr-025);
+  --text-secondary:var(--gr-200);
+  --text-muted:var(--gr-300);
+  --text-faint:var(--gr-400);
+  --text-inverse:var(--gr-950);
+  --text-on-accent:var(--gr-1000);
+  --text-link:var(--text-primary);
+  --text-link-hover:var(--text-secondary);
+
+  --line-hairline:rgba(236,236,234,.10);
+  --line-strong:rgba(236,236,234,.18);
+  --line-focus:var(--gr-025);
+
+  --grid-line:rgb(236 236 234 / calc(.045 * var(--grid-strength)));
+  --grid-line-major:rgb(236 236 234 / calc(.075 * var(--grid-strength)));
+
+  --accent:var(--gr-025);
+  --accent-fg:var(--gr-900);
+  --accent-soft:var(--gr-050);
+  --accent-wash:rgba(237,236,234,.08);
+  --accent-edge:rgba(237,236,234,.40);
+  --tile-shine:rgba(255,255,255,.055);
+}
+/* --- Default (clean), light -----------------------------------------------------------------
+   Page is eggshell #FAF7F1, never #FFFFFF. Raised is eg-010, a lighter near-neutral, so a flat
+   card does not read beige once grain and sheen are gone. */
+[data-mode="light"],[data-theme="clean"][data-mode="light"]{
+  --bg-page:var(--eg-050);
+  --bg-sunken:var(--eg-n100);
+  --bg-raised:var(--eg-010);
+  --bg-inset:rgba(70,66,59,.045);
+
+  --text-primary:var(--eg-900);
+  --text-secondary:var(--eg-700);
+  --text-muted:var(--eg-600);
+  --text-faint:var(--eg-500);
+  --text-inverse:var(--eg-050);
+  --text-on-accent:var(--hue-white);
+  --text-link:var(--text-primary);
+  --text-link-hover:var(--text-secondary);
+
+  --line-hairline:rgba(70,66,59,.14);
+  --line-strong:rgba(70,66,59,.24);
+  --line-focus:var(--gr-900);
+
+  --grid-line:rgb(70 66 59 / calc(.055 * var(--grid-strength)));
+  --grid-line-major:rgb(70 66 59 / calc(.085 * var(--grid-strength)));
+
+  --accent:var(--gr-900);
+  --accent-fg:var(--eg-050);
+  --accent-soft:var(--gr-700);
+  --accent-wash:rgba(22,23,27,.06);
+  --accent-edge:rgba(22,23,27,.36);
+  --tile-shine:rgba(70,66,59,.05);
+}
+
+/* --- Legacy Matrix, dark. Every value unchanged from the original system. ------------------- */
+[data-theme="legacy"],[data-theme="legacy"][data-mode="dark"]{
+  --bg-page:var(--gr-900);
+  --bg-sunken:var(--gr-950);
+  --bg-raised:var(--gr-850);
+  --bg-inset:rgba(0,0,0,.24);
+
+  --text-primary:var(--gr-025);
+  --text-secondary:var(--gr-200);
+  --text-muted:var(--gr-300);
+  --text-faint:var(--gr-400);
+  --text-inverse:var(--gr-950);
+  --text-on-accent:var(--gr-1000);
+  --text-link:var(--state-active);
+  --text-link-hover:var(--state-active-soft);
+
+  --line-hairline:rgba(236,236,234,.10);
+  --line-strong:rgba(236,236,234,.18);
+  --line-focus:var(--state-active);
+
+  --grid-line:rgba(236,236,234,.045);
+  --grid-line-major:rgba(236,236,234,.075);
+
+  --accent:var(--state-active);
+  --accent-fg:var(--gr-1000);
+  --accent-soft:var(--state-active-soft);
+  --accent-wash:var(--state-active-wash);
+  --accent-edge:var(--state-active-edge);
+  --tile-shine:rgba(255,255,255,.055);
+}
+/* --- Legacy Matrix, light. Every value unchanged from the original system. ------------------ */
+[data-theme="legacy"][data-mode="light"]{
+  --bg-page:var(--eg-050);
+  --bg-sunken:var(--eg-150);
+  --bg-raised:var(--eg-025);
+  --bg-inset:rgba(70,66,59,.055);
+
+  --text-primary:var(--eg-900);
+  --text-secondary:var(--eg-700);
+  --text-muted:var(--eg-600);
+  --text-faint:var(--eg-500);
+  --text-inverse:var(--eg-050);
+  --text-on-accent:var(--hue-white);
+  --text-link:var(--state-active);
+  --text-link-hover:var(--state-active-soft);
+
+  --line-hairline:rgba(70,66,59,.14);
+  --line-strong:rgba(70,66,59,.24);
+  --line-focus:var(--state-active);
+
+  --grid-line:rgba(70,66,59,.055);
+  --grid-line-major:rgba(70,66,59,.085);
+
+  --accent:var(--state-active);
+  --accent-fg:var(--hue-white);
+  --accent-soft:var(--state-active-soft);
+  --accent-wash:var(--state-active-wash);
+  --accent-edge:var(--state-active-edge);
+  --tile-shine:rgba(70,66,59,.05);
+}
+
+/* Live grid lines (Default presence). Derived from state hues, so they follow mode automatically.
+   Blue = agent working (breathing grid), jade = done (stamp ripple). */
+:root,[data-theme],[data-mode]{
+  --grid-line-working:color-mix(in oklab,var(--state-active) 26%,transparent);
+  --grid-line-ripple:color-mix(in oklab,var(--state-success) 55%,transparent);
+}
+/* Elevation, set per theme and mode. Selector pattern matches tokens/color.css. */
+
+/* --- Default (clean), dark: one soft two-stop shadow. No inset highlight, no vignette. ---- */
+:root,[data-theme="clean"],[data-mode="dark"],[data-theme="clean"][data-mode="dark"]{
+  --elev-0:none;
+  --field-vignette:none; /* @kind shadow */
+  --elev-1:0 1px 2px rgba(0,0,0,.40),0 8px 24px rgba(0,0,0,.28);
+  --elev-2:0 2px 4px rgba(0,0,0,.40),0 16px 40px rgba(0,0,0,.32);
+  --elev-3:0 4px 8px rgba(0,0,0,.42),0 24px 56px rgba(0,0,0,.36);
+  --elev-inset:inset 0 0 0 0 transparent;
+  --elev-settled:0 1px 2px rgba(0,0,0,.40); /* first stop only: a committed surface sits down */
+  --elev-dialog:0 1px 2px rgba(0,0,0,.56),0 8px 24px rgba(0,0,0,.44);
+  --crail-lift-shadow:0 0 0 0 transparent; /* @kind shadow */
+  /* State reads as a hairline ring. No bloom. */
+  --glow-active:0 0 0 1px var(--state-active-edge);
+  --glow-attention:0 0 0 1px var(--state-attention-edge);
+  --glow-success:0 0 0 1px var(--state-success-edge);
+  --glow-alert:0 0 0 1px var(--state-alert-edge);
+  --glow-infra:0 0 0 1px var(--accent-infra-edge);
+}
+/* --- Default (clean), light ---------------------------------------------------------------- */
+[data-mode="light"],[data-theme="clean"][data-mode="light"]{
+  --elev-0:none;
+  --field-vignette:none; /* @kind shadow */
+  --elev-1:0 1px 2px rgba(28,26,23,.06),0 8px 24px rgba(28,26,23,.06);
+  --elev-2:0 2px 4px rgba(28,26,23,.07),0 16px 40px rgba(28,26,23,.09);
+  --elev-3:0 4px 8px rgba(28,26,23,.08),0 24px 56px rgba(28,26,23,.12);
+  --elev-inset:inset 0 0 0 0 transparent;
+  --elev-settled:0 1px 2px rgba(28,26,23,.06);
+  --elev-dialog:0 1px 2px rgba(28,26,23,.12),0 8px 24px rgba(28,26,23,.16);
+  --crail-lift-shadow:0 0 0 0 transparent; /* @kind shadow */
+  --glow-active:0 0 0 1px var(--state-active-edge);
+  --glow-attention:0 0 0 1px var(--state-attention-edge);
+  --glow-success:0 0 0 1px var(--state-success-edge);
+  --glow-alert:0 0 0 1px var(--state-alert-edge);
+  --glow-infra:0 0 0 1px var(--accent-infra-edge);
+}
+
+/* --- Legacy Matrix, dark. Values unchanged. -------------------------------------------------
+   Dual-stack shadows only: ambient + key + inset top highlight. The tiers are deliberately far
+   apart: Z-1 reads clearly lifted off the field, Z-2 clearly floating above Z-1. */
+[data-theme="legacy"],[data-theme="legacy"][data-mode="dark"]{
+  --elev-0:none;
+  /* Z-0: the field recedes. Vignette + inner darkening, no cast shadow. */
+  --field-vignette:inset 0 0 180px 50px rgba(0,0,0,.55), inset 0 0 420px 140px rgba(0,0,0,.28); /* @kind shadow */
+  /* Z-1: stage module, hub tiles, standard panels. */
+  --elev-1:
+    0 16px 34px -12px rgba(0,0,0,.60),
+    0 4px 9px -3px rgba(0,0,0,.55),
+    0 1px 2px rgba(0,0,0,.40),
+    inset 0 1px 0 rgba(255,255,255,.075);
+  /* Z-2: expanded oval, modals, anything over a Z-1 surface. */
+  --elev-2:
+    0 44px 88px -20px rgba(0,0,0,.82),
+    0 14px 30px -8px rgba(0,0,0,.66),
+    0 3px 6px -1px rgba(0,0,0,.48),
+    inset 0 1px 0 rgba(255,255,255,.11),
+    inset 0 -1px 0 rgba(0,0,0,.35);
+  /* Z-3: reserved for the single topmost element in a stack. */
+  --elev-3:
+    0 76px 150px -26px rgba(0,0,0,.90),
+    0 28px 56px -12px rgba(0,0,0,.74),
+    0 5px 10px -2px rgba(0,0,0,.55),
+    inset 0 1px 0 rgba(255,255,255,.15),
+    inset 0 -1px 0 rgba(0,0,0,.40);
+  /* Recessed wells: the inverse of elevation. */
+  --elev-inset:
+    inset 0 2px 4px rgba(0,0,0,.50),
+    inset 0 1px 1px rgba(0,0,0,.35),
+    inset 0 -1px 0 rgba(255,255,255,.045);
+  --crail-lift-shadow:0 6px 14px -8px rgba(0,0,0,.65); /* @kind shadow */
+  --elev-dialog:var(--elev-3);
+  /* State glows: added to, never replacing, the dual stack */
+  --glow-active:0 0 0 1px var(--state-active-edge), 0 0 28px -6px rgba(62,139,255,.55);
+  --glow-attention:0 0 0 1px var(--state-attention-edge), 0 0 28px -6px rgba(255,178,36,.50);
+  --glow-success:0 0 0 1px var(--state-success-edge), 0 0 28px -6px rgba(47,196,155,.48);
+  --glow-alert:0 0 0 1px var(--state-alert-edge), 0 0 28px -6px rgba(234,85,104,.55);
+  --glow-infra:0 0 0 1px var(--accent-infra-edge), 0 0 28px -6px rgba(126,123,232,.50);
+}
+/* --- Legacy Matrix, light. Values unchanged. Shadows soften; they never vanish. ----------- */
+[data-theme="legacy"][data-mode="light"]{
+  --elev-0:none;
+  --field-vignette:inset 0 0 160px 50px rgba(70,66,59,.10), inset 0 0 380px 130px rgba(70,66,59,.05); /* @kind shadow */
+  --elev-1:
+    0 12px 26px -10px rgba(46,43,38,.22),
+    0 3px 6px -2px rgba(46,43,38,.16),
+    0 1px 1px rgba(46,43,38,.10),
+    inset 0 1px 0 rgba(255,255,255,.85);
+  --elev-2:
+    0 34px 66px -18px rgba(46,43,38,.30),
+    0 10px 22px -7px rgba(46,43,38,.20),
+    0 2px 4px -1px rgba(46,43,38,.12),
+    inset 0 1px 0 rgba(255,255,255,.95),
+    inset 0 -1px 0 rgba(46,43,38,.07);
+  --elev-3:
+    0 58px 112px -24px rgba(46,43,38,.34),
+    0 20px 40px -10px rgba(46,43,38,.24),
+    0 4px 8px -2px rgba(46,43,38,.14),
+    inset 0 1px 0 rgba(255,255,255,1),
+    inset 0 -1px 0 rgba(46,43,38,.09);
+  --elev-inset:
+    inset 0 2px 3px rgba(46,43,38,.16),
+    inset 0 1px 1px rgba(46,43,38,.10),
+    inset 0 -1px 0 rgba(255,255,255,.75);
+  --crail-lift-shadow:0 6px 14px -8px rgba(46,43,38,.28); /* @kind shadow */
+  --elev-dialog:var(--elev-3);
+  --glow-active:0 0 0 1px var(--state-active-edge), 0 0 20px -8px rgba(11,95,208,.40);
+  --glow-attention:0 0 0 1px var(--state-attention-edge), 0 0 20px -8px rgba(150,89,10,.38);
+  --glow-success:0 0 0 1px var(--state-success-edge), 0 0 20px -8px rgba(8,116,90,.34);
+  --glow-alert:0 0 0 1px var(--state-alert-edge), 0 0 20px -8px rgba(168,30,50,.40);
+  --glow-infra:0 0 0 1px var(--accent-infra-edge), 0 0 20px -8px rgba(74,70,181,.36);
+}
+/* Everstock product typefaces.
+   Space Grotesk (UI) + Geist Mono (data), Google Fonts.
+   General Sans (display), Fontshare (Indian Type Foundry); not on Google Fonts,
+   so its faces are declared explicitly below against the Fontshare CDN.
+   No binaries are vendored in this project. */
+
+@font-face{font-family:"General Sans";font-weight:400;font-style:normal;font-display:swap;src:url("https://cdn.fontshare.com/wf/MFQT7HFGCR2L5ULQTW6YXYZXXHMPKLJ3/YWQ244D6TACUX5JBKATPOW5I5MGJ3G73/7YY3ZAAE3TRV2LANYOLXNHTPHLXVWTKH.woff2") format("woff2"),url("https://cdn.fontshare.com/wf/MFQT7HFGCR2L5ULQTW6YXYZXXHMPKLJ3/YWQ244D6TACUX5JBKATPOW5I5MGJ3G73/7YY3ZAAE3TRV2LANYOLXNHTPHLXVWTKH.woff") format("woff")}
+@font-face{font-family:"General Sans";font-weight:500;font-style:normal;font-display:swap;src:url("https://cdn.fontshare.com/wf/3RZHWSNONLLWJK3RLPEKUZOMM56GO4LJ/BPDRY7AHVI3MCDXXVXTQQ76H3UXA63S3/SB2OEB6IKZPRR6JT4GFJ2TFT6HBB6AZN.woff2") format("woff2"),url("https://cdn.fontshare.com/wf/3RZHWSNONLLWJK3RLPEKUZOMM56GO4LJ/BPDRY7AHVI3MCDXXVXTQQ76H3UXA63S3/SB2OEB6IKZPRR6JT4GFJ2TFT6HBB6AZN.woff") format("woff")}
+@font-face{font-family:"General Sans";font-weight:600;font-style:normal;font-display:swap;src:url("https://cdn.fontshare.com/wf/K46YRH762FH3QJ25IQM3VAXAKCHEXXW4/ISLWQPUZHZF33LRIOTBMFOJL57GBGQ4B/3ZLMEXZEQPLTEPMHTQDAUXP5ZZXCZAEN.woff2") format("woff2"),url("https://cdn.fontshare.com/wf/K46YRH762FH3QJ25IQM3VAXAKCHEXXW4/ISLWQPUZHZF33LRIOTBMFOJL57GBGQ4B/3ZLMEXZEQPLTEPMHTQDAUXP5ZZXCZAEN.woff") format("woff")}
+@font-face{font-family:"General Sans";font-weight:700;font-style:normal;font-display:swap;src:url("https://cdn.fontshare.com/wf/KWXO5X3YW4X7OLUMPO4X24HQJGJU7E2Q/VOWUQZS3YLP66ZHPTXAFSH6YACY4WJHT/NIQ54PVBBIWVK3PFSOIOUJSXIJ5WTNDP.woff2") format("woff2"),url("https://cdn.fontshare.com/wf/KWXO5X3YW4X7OLUMPO4X24HQJGJU7E2Q/VOWUQZS3YLP66ZHPTXAFSH6YACY4WJHT/NIQ54PVBBIWVK3PFSOIOUJSXIJ5WTNDP.woff") format("woff")}
+/* Illustration palette for the ordered (Bayer 4x4) dither. Set per theme x mode.
+   Read by DitherBox at draw time; a theme or mode switch redraws with the new palette.
+   Artwork is never inverted with filters. Dither is for illustrations only: never on data,
+   never behind text, never on photos of real goods. No blue in dither, ever. */
+
+/* Default: kraft faces in every mode, graphite shadow from the theme, label paper. */
+:root,[data-theme="clean"],[data-theme="clean"][data-mode="dark"]{
+  --ill-top:var(--kraft-top);
+  --ill-front:var(--kraft-front);
+  --ill-end:var(--kraft-end);
+  --ill-tape:var(--tape);
+  --ill-label:var(--label-paper);
+  --ill-seam:var(--kraft-seam);
+  --ill-shadow:var(--gr-1000);
+}
+[data-theme="clean"][data-mode="light"],[data-mode="light"]{
+  --ill-top:var(--kraft-top);
+  --ill-front:var(--kraft-front);
+  --ill-end:var(--kraft-end);
+  --ill-tape:var(--tape);
+  --ill-label:var(--label-paper);
+  --ill-seam:var(--kraft-seam);
+  --ill-shadow:var(--gr-500);
+}
+/* Legacy Matrix: graphite tones only. */
+[data-theme="legacy"],[data-theme="legacy"][data-mode="dark"]{
+  --ill-top:var(--gr-500);
+  --ill-front:var(--gr-600);
+  --ill-end:var(--gr-700);
+  --ill-tape:var(--gr-400);
+  --ill-label:var(--gr-200);
+  --ill-seam:var(--gr-850);
+  --ill-shadow:var(--gr-1000);
+}
+[data-theme="legacy"][data-mode="light"]{
+  --ill-top:var(--gr-100);
+  --ill-front:var(--gr-200);
+  --ill-end:var(--gr-300);
+  --ill-tape:var(--gr-050);
+  --ill-label:var(--gr-025);
+  --ill-seam:var(--gr-400);
+  --ill-shadow:var(--gr-500);
+}
+
+/* Logo. --logo-recipe picks the mark's material: dither (Default) or chrome (Legacy Matrix).
+   Default dither tones: graphite on eggshell in light, light greys on graphite in dark. Never blue. */
+:root,[data-theme="clean"],[data-theme="clean"][data-mode="dark"]{
+  --logo-recipe:dither; /* @kind other */
+  --logo-rim:var(--gr-100);
+  --logo-lo:var(--gr-400);
+  --logo-hi:var(--gr-025);
+  --logo-ink:var(--gr-025);
+}
+[data-theme="clean"][data-mode="light"],[data-mode="light"]{
+  --logo-rim:var(--gr-900);
+  --logo-lo:var(--gr-900);
+  --logo-hi:var(--gr-300);
+  --logo-ink:var(--eg-900);
+}
+[data-theme="legacy"]{--logo-recipe:chrome; /* @kind other */}
+
+/* State ink for the glyph printed on the box label. The label is always paper-light, so these use the
+   light tunings in every mode. They mark state on the label only; the box itself is never tinted. */
+:root,[data-theme],[data-mode]{
+  --ill-ink-active:var(--hue-blue-l);
+  --ill-ink-success:var(--hue-jade-l);
+  --ill-ink-attention:var(--hue-orange-ink-l);
+}
+[data-theme="legacy"]{--ill-ink-attention:var(--hue-amber-l)}
+/* Material, set per theme and mode. Selector pattern matches tokens/color.css.
+   Legacy Matrix: glass = active/ephemeral, chrome = resolved/committed, both BUILT from
+   base fill + matte pass + grain + sheen over a dual-stack shadow.
+   Default: every material collapses to one flat raised fill + hairline. No grain, matte,
+   sheen, glass, chrome or vignette. Commit reads through settle + stamp instead. */
+:root{
+  --grain-size:160px; /* @kind other */
+  --beam-blue:var(--state-active); /* @kind other */
+  --beam-green:var(--state-success); /* @kind other */
+  --beam-trail:2px; /* @kind other */
+}
+
+/* --- Grain texture, per theme ------------------------------------------------------------- */
+:root,[data-theme="clean"]{
+  --grain-tex:none; /* @kind other */
+  --grain-tex-fine:none; /* @kind other */
+}
+[data-theme="legacy"]{
+  --grain-tex:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E"); /* @kind other */
+  --grain-tex-fine:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E"); /* @kind other */
+}
+
+/* --- Default (clean), dark ----------------------------------------------------------------- */
+:root,[data-theme="clean"],[data-mode="dark"],[data-theme="clean"][data-mode="dark"]{
+  --grain-blend:normal; /* @kind other */
+  --grain-page:0; /* @kind other */
+  --grain-surface:0; /* @kind other */
+  --grain-foreground:0; /* @kind other */
+  --matte-dark:none; /* @kind other */
+  --sheen:none; /* @kind other */
+
+  --glass-base:var(--bg-raised); /* @kind other */
+  --glass-cast:none; /* @kind other */
+  --glass-border:var(--line-hairline); /* @kind other */
+  --glass-border-strong:var(--line-strong); /* @kind other */
+  --glass-blur:0px; /* @kind other */
+  --glass-blur-strong:0px; /* @kind other */
+  --glass-saturate:1; /* @kind other */
+
+  --chrome-base:linear-gradient(var(--bg-raised),var(--bg-raised)); /* @kind other */
+  --chrome-base-broad:linear-gradient(var(--bg-raised),var(--bg-raised)); /* @kind other */
+  --chrome-border:var(--line-hairline); /* @kind other */
+  --chrome-sheen:none; /* @kind other */
+  --chrome-scrim:none; /* @kind other */
+  --chrome-scrim-soft:none; /* @kind other */
+  --chrome-text:var(--text-primary); /* @kind other */
+
+  --panel-base:var(--bg-raised); /* @kind other */
+  --panel-border:var(--line-hairline);
+  --panel-hover:var(--gr-750); /* @kind other */
+  --row-selected:var(--gr-750); /* one opaque step up from the raised card */
+}
+/* --- Default (clean), light ---------------------------------------------------------------- */
+[data-mode="light"],[data-theme="clean"][data-mode="light"]{
+  --grain-blend:normal; /* @kind other */
+  --grain-page:0; /* @kind other */
+  --grain-surface:0; /* @kind other */
+  --grain-foreground:0; /* @kind other */
+  --matte-dark:none; /* @kind other */
+  --sheen:none; /* @kind other */
+
+  --glass-base:var(--bg-raised); /* @kind other */
+  --glass-cast:none; /* @kind other */
+  --glass-border:var(--line-hairline); /* @kind other */
+  --glass-border-strong:var(--line-strong); /* @kind other */
+  --glass-blur:0px; /* @kind other */
+  --glass-blur-strong:0px; /* @kind other */
+  --glass-saturate:1; /* @kind other */
+
+  --chrome-base:linear-gradient(var(--bg-raised),var(--bg-raised)); /* @kind other */
+  --chrome-base-broad:linear-gradient(var(--bg-raised),var(--bg-raised)); /* @kind other */
+  --chrome-border:var(--line-hairline); /* @kind other */
+  --chrome-sheen:none; /* @kind other */
+  --chrome-scrim:none; /* @kind other */
+  --chrome-scrim-soft:none; /* @kind other */
+  --chrome-text:var(--text-primary); /* @kind other */
+
+  --panel-base:var(--bg-raised); /* @kind other */
+  --panel-border:var(--line-hairline);
+  --panel-hover:var(--eg-050); /* @kind other */
+  --row-selected:var(--eg-n100); /* opaque neutral step, never a wash */
+}
+
+/* --- Legacy Matrix, dark. Values unchanged. ------------------------------------------------ */
+[data-theme="legacy"],[data-theme="legacy"][data-mode="dark"]{
+  --grain-blend:overlay; /* @kind other */
+  --grain-page:0.030; /* @kind other */ /* Z-0, near-imperceptible */
+  --grain-surface:0.055; /* @kind other */ /* Z-1 */
+  --grain-foreground:0.075; /* @kind other */ /* Z-2 */
+
+  /* Matte pass: grounds the surface, kills the raw-blur look */
+  --matte-dark:linear-gradient(180deg,rgba(255,255,255,.035) 0%,rgba(255,255,255,.008) 34%,rgba(0,0,0,.10) 100%); /* @kind other */
+  /* Reflective sheen: soft directional catch of ambient light */
+  --sheen:linear-gradient(148deg,rgba(255,255,255,.11) 0%,rgba(255,255,255,.035) 18%,rgba(255,255,255,0) 46%,rgba(255,255,255,.018) 92%); /* @kind other */
+
+  /* Glass: active / in-motion / ephemeral */
+  --glass-base:rgba(38,41,47,.56); /* @kind other */
+  --glass-cast:linear-gradient(180deg,rgba(122,196,208,.055) 0%,rgba(96,150,190,.020) 55%,rgba(0,0,0,.10) 100%); /* @kind other */
+  --glass-border:rgba(206,222,228,.16); /* @kind other */
+  --glass-border-strong:rgba(206,222,228,.26); /* @kind other */
+  --glass-blur:18px; /* @kind other */
+  --glass-blur-strong:28px; /* @kind other */
+  --glass-saturate:1.35; /* @kind other */
+
+  /* Chrome: resolved / committed / executed. Rare by mandate. */
+  --chrome-base:linear-gradient(163deg,#55585F 0%,#8A8F97 9%,#33353A 27%,#6E737B 42%,#2C2E33 58%,#7E838B 74%,#383A40 88%,#62666D 100%); /* @kind color */
+  /* Broad variant for LARGE chrome surfaces */
+  --chrome-base-broad:linear-gradient(168deg,#787D85 0%,#A7ACB4 10%,#4E5158 30%,#8B9098 48%,#44464C 64%,#959AA2 80%,#53565C 92%,#7C818A 100%); /* @kind color */
+  --chrome-border:rgba(228,234,240,.30); /* @kind other */
+  --chrome-sheen:linear-gradient(148deg,rgba(255,255,255,.30) 0%,rgba(255,255,255,.06) 22%,rgba(255,255,255,0) 44%,rgba(255,255,255,.10) 100%); /* @kind other */
+  --chrome-scrim:linear-gradient(180deg,rgba(12,13,16,.42) 0%,rgba(12,13,16,.56) 100%); /* @kind other */
+  --chrome-scrim-soft:linear-gradient(180deg,rgba(12,13,16,.30) 0%,rgba(12,13,16,.52) 100%); /* @kind other */
+  --chrome-text:#F2F4F7; /* @kind other */
+
+  /* Solid panel: calm/dense review surfaces (Pillar 4) */
+  --panel-base:var(--gr-850); /* @kind other */
+  --panel-border:var(--line-hairline);
+  --panel-hover:var(--gr-800); /* @kind other */
+  --row-selected:var(--gr-800);
+}
+/* --- Legacy Matrix, light. Values unchanged. ----------------------------------------------- */
+[data-theme="legacy"][data-mode="light"]{
+  /* Grain persists in light mode: higher opacity, multiply instead of overlay. */
+  --grain-blend:multiply; /* @kind other */
+  --grain-page:0.040; /* @kind other */
+  --grain-surface:0.070; /* @kind other */
+  --grain-foreground:0.090; /* @kind other */
+
+  --matte-dark:linear-gradient(180deg,rgba(255,255,255,.75) 0%,rgba(255,255,255,.25) 40%,rgba(70,66,59,.045) 100%); /* @kind other */
+  --sheen:linear-gradient(148deg,rgba(255,255,255,.85) 0%,rgba(255,255,255,.30) 20%,rgba(255,255,255,0) 50%); /* @kind other */
+
+  /* One elevated surface material replaces both glass and chrome in light mode. */
+  --glass-base:rgba(253,251,246,.80); /* @kind other */
+  --glass-cast:linear-gradient(180deg,rgba(255,255,255,.6) 0%,rgba(70,66,59,.035) 100%); /* @kind other */
+  --glass-border:rgba(70,66,59,.16); /* @kind other */
+  --glass-border-strong:rgba(70,66,59,.26); /* @kind other */
+  --glass-blur:14px; /* @kind other */
+  --glass-blur-strong:20px; /* @kind other */
+  --glass-saturate:1.15; /* @kind other */
+
+  --chrome-base:linear-gradient(163deg,#FDFBF6 0%,#F1ECE1 40%,#FFFFFF 62%,#EDE7DA 100%); /* @kind other */
+  --chrome-base-broad:linear-gradient(168deg,#FFFEFB 0%,#F4F0E6 44%,#FFFFFF 66%,#F0EADD 100%); /* @kind other */
+  --chrome-border:rgba(70,66,59,.24); /* @kind other */
+  --chrome-sheen:linear-gradient(148deg,rgba(255,255,255,.9) 0%,rgba(255,255,255,.2) 26%,rgba(255,255,255,0) 52%); /* @kind other */
+  --chrome-scrim:linear-gradient(180deg,rgba(255,255,255,.55) 0%,rgba(255,255,255,.30) 100%); /* @kind other */
+  --chrome-scrim-soft:linear-gradient(180deg,rgba(255,255,255,.70) 0%,rgba(255,255,255,.50) 100%); /* @kind other */
+  --chrome-text:var(--eg-900); /* @kind other */
+
+  --panel-base:var(--bg-raised); /* @kind other */
+  --panel-border:var(--line-hairline);
+  --panel-hover:var(--eg-100); /* @kind other */
+  --row-selected:var(--eg-100);
+}
+/* Motion, set per theme. Every state must be legible from one still frame.
+   Anything listed here has a reduced-motion counterpart in foundations/base.css. */
+/* Theme swap: identical in both themes so the crossfade never changes speed mid-swap. */
+:root{
+  --dur-theme-swap:240ms; /* @kind other */
+  --ease-theme-swap:cubic-bezier(.2,.8,.2,1); /* @kind other */
+}
+/* Default: settle and fade only. No tilt, spotlight or particles. */
+:root,[data-theme="clean"]{
+  --dur-instant:160ms; /* @kind other */
+  --dur-fast:160ms; /* @kind other */
+  --dur-base:200ms; /* @kind other */
+  --dur-slow:240ms; /* @kind other */
+  --dur-demote:240ms; /* @kind other */
+  --dur-breathe:5200ms; /* @kind other */ /* LED pulse only: a state signal, not decoration */
+  --dur-beam:3400ms; /* @kind other */ /* unused while --beam-density is 0 */
+
+  --ease-standard:cubic-bezier(.2,.8,.2,1); /* @kind other */
+  --ease-material:cubic-bezier(.2,.8,.2,1); /* @kind other */
+  --ease-exit:cubic-bezier(.2,.8,.2,1); /* @kind other */
+  --ease-enter:cubic-bezier(.2,.8,.2,1); /* @kind other */
+
+  --hover-lift:0px; /* @kind other */
+  --press-scale:0.985; /* @kind other */
+  --tilt-max:0deg; /* @kind other */
+}
+/* Legacy Matrix. Values unchanged. */
+[data-theme="legacy"]{
+  --dur-instant:90ms; /* @kind other */
+  --dur-fast:140ms; /* @kind other */
+  --dur-base:220ms; /* @kind other */
+  --dur-slow:420ms; /* @kind other */
+  --dur-demote:640ms; /* @kind other */ /* center-stage module shrinking into the filmstrip */
+  --dur-breathe:5200ms; /* @kind other */ /* ambient presence pulse */
+  --dur-beam:3400ms; /* @kind other */ /* particle travel along a beam */
+
+  --ease-standard:cubic-bezier(.2,.8,.25,1); /* @kind other */
+  --ease-material:cubic-bezier(.65,0,.35,1); /* @kind other */ /* glass to chrome commit */
+  --ease-exit:cubic-bezier(.4,0,1,1); /* @kind other */
+  --ease-enter:cubic-bezier(0,0,.2,1); /* @kind other */
+
+  --hover-lift:-1px; /* @kind other */
+  --press-scale:0.985; /* @kind other */
+  --tilt-max:6deg; /* @kind other */ /* hub tile magnetism ceiling */
+}
+/* Tier 1: primitives. Shared by every theme and mode and never themed.
+   Semantic tokens (tokens/color.css) point at these; components never read them directly. */
+:root{
+  /* Graphite scale: warm-neutral, never blue-toned */
+  --gr-1000:#0B0C0E; --gr-950:#0F1012; --gr-900:#16171B; --gr-850:#1B1C20;
+  --gr-800:#212227; --gr-750:#26282C; --gr-700:#2E2F34; --gr-600:#3B3C41;
+  --gr-500:#4E4F54; --gr-400:#6B6C71; --gr-300:#8C8D90; --gr-200:#B2B2B3;
+  --gr-100:#D6D5D3; --gr-050:#EAE8E4; --gr-025:#EDECEA;
+
+  /* Eggshell scale: warm off-white, never clinical #FFFFFF as a page */
+  --eg-010:#FEFDFB; --eg-025:#FDFBF6;
+  --eg-050:#FAF7F1; --eg-n100:#F3F1EC; /* neutral sunken for Default light: eg-150 reads sand at rail size */ --eg-100:#F4F0E8; --eg-150:#EDE8DD; --eg-200:#E4DED1;
+  --eg-300:#D2CBBC; --eg-400:#B0A99A; --eg-500:#8A8477; --eg-600:#635E55;
+  --eg-700:#46423B; --eg-800:#2E2B26; --eg-900:#1C1A17;
+
+  /* State hues. Two tunings per hue: -d for dark fields, -l for light fields.
+     The light tuning is its own value, contrast-checked at dot size, never a dimmed -d. */
+  --hue-blue-d:#3E8BFF;    --hue-blue-d-soft:#8FBEFF;    --hue-blue-l:#0B5FD0;    --hue-blue-l-soft:#2C7BE8;
+  --hue-amber-d:#FFB224;   --hue-amber-d-soft:#FFD08A;   --hue-amber-l:#96590A;   --hue-amber-l-soft:#B8730F;
+  --hue-jade-d:#2FC49B;    --hue-jade-d-soft:#7FE3C6;    --hue-jade-l:#08745A;    --hue-jade-l-soft:#0C9375;
+  --hue-crimson-d:#EA5568; --hue-crimson-d-soft:#FF98A2; --hue-crimson-l:#A81E32; --hue-crimson-l-soft:#C93247;
+  --hue-indigo-d:#7E7BE8;  --hue-indigo-d-soft:#B3B1F5;  --hue-indigo-l:#4A46B5;  --hue-indigo-l-soft:#635FD1;
+  /* Orange: Default's attention hue, a dark clay orange sampled from the brand asterisk (#D67855).
+     Dark uses it as-is; light deepens it for the LED (-l) and again for ink and the waiting pill (-ink-l).
+     Tint and edge are solid mixes over the raised card. */
+  --hue-orange:#D67855; --hue-orange-l:#C2603C; --hue-orange-ink-l:#A34C2C;
+  --hue-orange-tint-l:#FAF0EA; --hue-orange-tint-d:#2F292B;
+  --hue-orange-edge-l:#DDA792; --hue-orange-edge-d:#855140;
+  --hue-white:#FFFFFF;
+
+  /* Kraft, from the tryeverstock.com hero crate. ILLUSTRATION ONLY: dithered art and the Label
+     component's edge. Never a state signal, never a fill behind data, never a stand-in for a state hue. */
+  --kraft-end:#6E5238; --kraft-front:#845F41; --kraft-top:#A8845C;
+  --tape:rgba(214,200,172,0.85);
+  --label-paper:rgba(232,228,218,0.9);
+  --kraft-seam:rgba(70,50,32,0.5);
+}
+/* Radius scale, set per theme. */
+/* Default: softer, iOS-clean. */
+:root,[data-theme="clean"]{
+  --radius-xs:6px;
+  --radius-sm:8px;
+  --radius-md:12px;
+  --radius-lg:16px;
+  --radius-xl:20px;
+  --radius-pill:999px;
+}
+/* Legacy Matrix: tight radii read precision-engineered. Glass and chrome live in the 4 to 8px
+   band. Nothing above 12px except pill-shaped elements (floating input, status pills). */
+[data-theme="legacy"]{
+  --radius-xs:3px;
+  --radius-sm:5px;
+  --radius-md:7px;
+  --radius-lg:10px;
+  --radius-xl:12px;
+  --radius-pill:999px;
+}
+/* Spacing scale: shared primitives, never themed. */
+:root{
+  --space-0:0px;
+  --space-1:2px;
+  --space-2:4px;
+  --space-3:6px;
+  --space-4:8px;
+  --space-5:12px;
+  --space-6:16px;
+  --space-7:20px;
+  --space-8:24px;
+  --space-9:32px;
+  --space-10:40px;
+  --space-11:56px;
+  --space-12:72px;
+  --space-13:96px;
+
+  /* The field grid pitch is identical in both themes */
+  --grid-pitch:56px; /* @kind spacing */
+  --grid-pitch-major:224px; /* @kind spacing */
+}
+/* Density, set per theme. Default runs one notch looser: padding one step up the scale. */
+:root,[data-theme="clean"]{
+  --pad-control-x:var(--space-6);
+  --pad-control-y:var(--space-4);
+  --pad-btn-x:var(--space-7);
+  --pad-btn-x-sm:var(--space-5);
+  --pad-btn-x-lg:var(--space-8);
+  --pad-panel:var(--space-7);
+  --pad-panel-lg:var(--space-9);
+  --gap-inline:var(--space-4);
+  --gap-stack:var(--space-6);
+  --gap-section:var(--space-10);
+
+  --control-h-sm:28px;
+  --control-h-md:36px;
+  --control-h-lg:44px;
+}
+/* Legacy Matrix: dense by design. Values unchanged. */
+[data-theme="legacy"]{
+  --pad-control-x:12px;
+  --pad-control-y:7px;
+  --pad-btn-x:14px;
+  --pad-btn-x-sm:10px;
+  --pad-btn-x-lg:20px;
+  --pad-panel:16px;
+  --pad-panel-lg:24px;
+  --gap-inline:8px;
+  --gap-stack:12px;
+  --gap-section:32px;
+
+  --control-h-sm:26px;
+  --control-h-md:32px;
+  --control-h-lg:40px;
+}
+/* Tier 3: behaviour. Set per theme (mode-independent). Mode-dependent behaviour values
+   (shadows, grain blend, glass tint) live in elevation.css and material.css, keyed theme x mode.
+   Default = data-theme="clean". Legacy Matrix = data-theme="legacy". */
+
+/* --- Default (clean): flat fill + hairline + one soft shadow. Settle and fade only. ---------- */
+:root,[data-theme="clean"]{
+  --surface-recipe:flat; /* @kind other */
+  --commit-signal:stamp; /* @kind other */ /* commit reads as a settle + jade stamp, never chrome */
+  --grain-opacity:0; /* @kind other */
+  --beam-density:0; /* @kind other */ /* beams off */
+  --grid-strength:.5; /* @kind other */ /* same pitch, roughly half the opacity */
+  --grid-ripple:1; /* @kind other */ /* one ripple of cells around a card when its Stamp lands */
+  --grid-breathe:1; /* @kind other */ /* grid breathes softly while an agent run is live */
+  --beam-transfer:1; /* @kind other */ /* one blue beam along grid lines while data moves between two visible cards */
+  --dither-palette:kraft; /* @kind other */ /* kraft tones + graphite shadow + label paper */
+
+  --fx-spotlight:0; /* @kind other */ /* cursor spotlight on hub tiles */
+  --fx-shine:0; /* @kind other */ /* hover material shine */
+  --fx-tile-glow:0px; /* @kind other */ /* ambient hover bloom radius */
+  --fx-accent-glow:0px; /* @kind other */ /* bloom under the selected tab */
+  --commit-stamp-display:inline-flex; /* @kind other */
+  --commit-animation:es-settle var(--dur-slow) var(--ease-standard) 1; /* @kind other */
+
+  --btn-image:none; /* @kind other */
+  --btn-image-danger:none; /* @kind other */
+  --btn-primary-edge:transparent;
+  --btn-primary-shadow:none; /* @kind shadow */
+  --btn-primary-hover-bg:color-mix(in oklab,var(--accent) 86%,var(--bg-page));
+  --btn-primary-hover-shadow:none; /* @kind shadow */
+  --btn-danger-edge:transparent;
+  --btn-danger-shadow:none; /* @kind shadow */
+  --btn-danger-hover-bg:color-mix(in oklab,var(--state-alert) 88%,var(--bg-page));
+  --seg-pressed-shadow:var(--elev-1); /* @kind shadow */
+  --commit-chip-shadow:none; /* @kind shadow */
+  --commit-frame-shadow:var(--elev-1); /* @kind shadow */
+
+  /* Component recipes. Glass (active) earns a blue hairline; chrome (committed) settles. */
+  --glass-active-edge:var(--state-active-edge);
+  --commit-led-display:inline-block; /* @kind other */
+  --chrome-shadow-1:var(--elev-settled); /* @kind shadow */
+  --chrome-shadow-2:var(--elev-settled); /* @kind shadow */
+  --chrome-shadow-3:var(--elev-settled); /* @kind shadow */
+  --btn-secondary-bg:transparent;
+  --btn-secondary-image:none; /* @kind other */
+  --btn-secondary-shadow:none; /* @kind shadow */
+  --btn-secondary-hover-bg:var(--bg-inset);
+  --btn-chrome-bg:var(--accent);
+  --btn-chrome-image:none; /* @kind other */
+  --btn-chrome-fg:var(--accent-fg);
+  --btn-chrome-border:transparent;
+  --oval-shadow:var(--elev-1); /* @kind shadow */
+  --oval-expanded-edge:var(--line-strong);
+  --oval-expanded-shadow:var(--elev-2); /* @kind shadow */
+  --oval-focus-icon:var(--text-primary);
+  --tile-lift:0 -1px; /* @kind other */
+  --fx-state-hover:0%; /* @kind other */ /* share of the state edge a hovered tile takes */
+  --sheen-image:none; /* @kind other */
+  --sheen-image-soft:none; /* @kind other */
+  --sheen-color:var(--text-primary);
+  --sheen-fill:currentColor; /* @kind other */
+  --choice-inset:0 0 0 0 transparent; /* @kind shadow */
+  --switch-knob-on:var(--accent-fg);
+  --lane-lead-shadow:var(--elev-inset); /* @kind shadow */
+  --scrim-blur:0px; /* @kind other */
+  --fcard-inuse-shadow:var(--elev-2); /* @kind shadow */ /* blue edge only, no glow */
+}
+
+/* --- Legacy Matrix: five-layer surface stack, grain, glass, chrome. Values unchanged. -------- */
+[data-theme="legacy"]{
+  --surface-recipe:layered; /* @kind other */
+  --commit-signal:chrome; /* @kind other */
+  --grain-opacity:1; /* @kind other */
+  --beam-density:1; /* @kind other */
+  --grid-strength:1; /* @kind other */
+  --grid-ripple:0; /* @kind other */
+  --grid-breathe:0; /* @kind other */
+  --beam-transfer:0; /* @kind other */
+  --dither-palette:graphite; /* @kind other */ /* graphite tones only, never blue */
+
+  --fx-spotlight:1; /* @kind other */
+  --fx-shine:1; /* @kind other */
+  --fx-tile-glow:26px; /* @kind other */
+  --fx-accent-glow:10px; /* @kind other */
+  --commit-stamp-display:none; /* @kind other */
+  --commit-animation:none; /* @kind other */
+
+  --btn-image:linear-gradient(180deg,rgba(255,255,255,.16),rgba(0,0,0,.10)); /* @kind other */
+  --btn-image-danger:linear-gradient(180deg,rgba(255,255,255,.16),rgba(0,0,0,.12)); /* @kind other */
+  --btn-primary-edge:color-mix(in oklab,var(--accent) 70%,#fff 30%);
+  --btn-primary-shadow:0 10px 22px -10px color-mix(in oklab,var(--accent) 70%,transparent),0 1px 2px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.30); /* @kind shadow */
+  --btn-primary-hover-bg:color-mix(in oklab,var(--accent) 88%,#fff);
+  --btn-primary-hover-shadow:0 14px 28px -10px color-mix(in oklab,var(--accent) 80%,transparent),0 1px 2px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.38); /* @kind shadow */
+  --btn-danger-edge:color-mix(in oklab,var(--state-alert) 70%,#fff 30%);
+  --btn-danger-shadow:0 10px 22px -10px color-mix(in oklab,var(--state-alert) 70%,transparent),0 1px 2px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.28); /* @kind shadow */
+  --btn-danger-hover-bg:color-mix(in oklab,var(--state-alert) 88%,#fff);
+  --seg-pressed-shadow:0 4px 10px -4px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.10); /* @kind shadow */
+  --commit-chip-shadow:0 6px 14px -9px rgba(0,0,0,.7),inset 0 1px 0 rgba(255,255,255,.20); /* @kind shadow */
+  --commit-frame-shadow:0 8px 16px -10px rgba(0,0,0,.7),0 1px 2px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.22); /* @kind shadow */
+
+  --glass-active-edge:var(--glass-border);
+  --commit-led-display:none; /* @kind other */
+  --chrome-shadow-1:var(--elev-1); /* @kind shadow */
+  --chrome-shadow-2:var(--elev-2); /* @kind shadow */
+  --chrome-shadow-3:var(--elev-3); /* @kind shadow */
+  --btn-secondary-bg:var(--panel-base);
+  --btn-secondary-image:var(--matte-dark); /* @kind other */
+  --btn-secondary-shadow:var(--elev-1); /* @kind shadow */
+  --btn-secondary-hover-bg:var(--panel-hover);
+  --btn-chrome-bg:transparent;
+  --btn-chrome-image:var(--chrome-base); /* @kind other */
+  --btn-chrome-fg:var(--chrome-text);
+  --btn-chrome-border:var(--chrome-border);
+  --oval-shadow:var(--elev-2); /* @kind shadow */
+  --oval-expanded-edge:var(--state-active-edge);
+  --oval-expanded-shadow:var(--elev-3),var(--glow-active); /* @kind shadow */
+  --oval-focus-icon:var(--state-active);
+  --tile-lift:none; /* @kind other */
+  --fx-state-hover:100%; /* @kind other */
+  --sheen-image:var(--sheen-text); /* @kind other */
+  --sheen-image-soft:var(--sheen-text-soft); /* @kind other */
+  --sheen-color:transparent;
+  --sheen-fill:transparent; /* @kind other */
+  --choice-inset:inset 0 1px 0 rgba(255,255,255,.35); /* @kind shadow */
+  --switch-knob-on:var(--hue-white);
+  --lane-lead-shadow:var(--elev-inset),var(--glow-active); /* @kind shadow */
+  --scrim-blur:6px; /* @kind other */
+  --fcard-inuse-shadow:var(--elev-2),var(--glow-active),0 0 18px -6px var(--state-active); /* @kind shadow */
+}
+:root{
+  --font-ui:"Space Grotesk","Helvetica Neue",Helvetica,Arial,sans-serif;
+  --font-display:"General Sans","Space Grotesk","Helvetica Neue",Arial,sans-serif;
+  --font-mono:"Geist Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+
+  /* Product UI runs dense, 13px is the body default, not 16px. */
+  --text-micro:10px;
+  --text-2xs:11px;
+  --text-xs:12px;
+  --text-sm:13px;
+  --text-md:15px;
+  --text-lg:18px;
+  --text-xl:22px;
+  --text-2xl:28px;
+  --text-3xl:36px;
+  --text-4xl:48px;
+
+  --leading-tight:1.08; /* @kind font */
+  --leading-snug:1.25; /* @kind font */
+  --leading-normal:1.45; /* @kind font */
+  --leading-relaxed:1.6; /* @kind font */
+
+  --weight-light:300; /* @kind font */
+  --weight-regular:400; /* @kind font */
+  --weight-medium:500; /* @kind font */
+  --weight-semibold:600; /* @kind font */
+  --weight-bold:700; /* @kind font */
+
+  --tracking-display:-0.022em; /* @kind font */
+  --tracking-title:-0.012em; /* @kind font */
+  --tracking-body:0em; /* @kind font */
+  --tracking-micro:0.10em; /* @kind font */ /* the ONLY uppercase role in the system */
+  --tracking-mono:-0.005em; /* @kind font */
+
+  /* Tabular figures are mandatory on every price, quantity, ID and lead time. */
+  --numeric-tabular:tabular-nums lining-nums; /* @kind other */
+}
+/* Body copy size, set per theme. Same faces in both. */
+:root,[data-theme="clean"]{--text-body:var(--text-md)}
+[data-theme="legacy"]{--text-body:var(--text-sm)}

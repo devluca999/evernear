@@ -9,8 +9,10 @@ import { makeProofFor, proofFor, proofKeys, recordedKeys } from "@/scenario/proo
 import { Custody } from "@/convex/near/custody";
 import { Gmail } from "@/convex/near/gmail";
 import { EscrowAdapter } from "@/convex/near/escrow";
-import type { ProofInput } from "@/convex/near/http";
-import { createEscrow } from "@/engine/escrow";
+import type { Fetch, ProofInput } from "@/convex/near/http";
+import { BASE_USDC } from "@/convex/near/agentapi";
+import { fakeTidepool, FAKE_BASE } from "./near/fakeTidepool";
+import { API_KEY, testOwner } from "./near/agentFixtures";
 import synthetic from "@/fixtures/synthetic/proofs.json";
 
 const KEY = "wk_" + "a".repeat(64);
@@ -35,15 +37,17 @@ describe("record mode: keys", () => {
       [{ codePath: "convex/near/custody.ts#register" }, "wallet_created"],
       [{ codePath: "convex/near/custody.ts#policy" }, "policy_set"],
       [{ codePath: "convex/near/custody.ts#payUsdc", kind: "payment_receipt" }, "payment_receipt"],
-      [{ codePath: "convex/near/custody.ts#payUsdc", kind: "escrow" }, "escrow_wallet"],
-      [{ codePath: "convex/near/custody.ts#payUsdc", kind: "release" }, null],
+      [{ codePath: "convex/near/custody.ts#payUsdc", kind: "approval_request" }, null],
+      [{ codePath: "convex/near/escrow.ts#lock", kind: "escrow" }, "escrow_wallet"],
       [{ codePath: "convex/near/inference.ts#read" }, "inference_attestation"],
       [{ codePath: "convex/near/approval.ts#submit", label: "Approval 1 of 2: Luca" }, "approval_luca"],
       [{ codePath: "convex/near/approval.ts#submit", label: "Approval 2 of 2: Jordy" }, "approval_jordy"],
       [{ codePath: "convex/near/gmail.ts#send", kind: "connector_receipt" }, "connector_receipt"],
       [{ codePath: "convex/near/gmail.ts#send", kind: "refusal" }, "refused_email"],
-      [{ codePath: "convex/near/escrow.ts#release", kind: "refusal" }, "refused_release"],
-      [{ codePath: "convex/near/payout.ts#claim" }, "intents_payout"],
+      [{ codePath: "convex/near/escrow.ts#policyRefusal", kind: "refusal" }, "refused_release"],
+      [{ codePath: "convex/near/escrow.ts#release", kind: "refusal" }, null],
+      [{ codePath: "convex/near/escrow.ts#release", kind: "payout" }, "intents_payout"],
+      [{ codePath: "convex/near/escrow.ts#reclaim", kind: "reclaim" }, null],
     ];
     for (const [p, k] of cases) expect(keyFor(proof(p))).toBe(k);
   });
@@ -56,8 +60,13 @@ describe("record mode: keys", () => {
     await new Custody({ fetch, sink: rec.sink }).register();
     await new Custody({ fetch, apiKey: KEY, sink: rec.sink }).payUsdc({ to: "ultra.testnet", cents: 100, memo: "m", label: "Routine reorder paid" });
     await new Gmail({ fetch, allowlist: ["a@b.example"], sink: rec.sink }).send({ to: "x@y.example", subject: "PO", body: "b" });
-    const e = createEscrow({ supplier: "s.testnet", owner: "o.testnet", lockedCents: 100, deadlineMs: 10 });
-    await new EscrowAdapter({ fetch, sink: rec.sink }).release({ escrow: e, escrowApiKey: KEY, to: "mallory.testnet", cents: 1, po: "1", nowMs: 1 });
+    const tp = fakeTidepool();
+    const { owner } = testOwner();
+    const treasuryId = await new EscrowAdapter({ fetch: tp.fetch, apiKey: API_KEY, baseUrl: FAKE_BASE, owner, sink: () => {} }).createTreasury();
+    const esc = new EscrowAdapter({ fetch: tp.fetch, apiKey: API_KEY, baseUrl: FAKE_BASE, owner, sink: rec.sink, treasuryId });
+    const quiet = new EscrowAdapter({ fetch: tp.fetch, apiKey: API_KEY, baseUrl: FAKE_BASE, owner, sink: () => {}, treasuryId });
+    const acct = await quiet.open({ po: "1", supplier: "0xabc", lockedCents: 100_000 });
+    await esc.policyRefusal({ agentId: acct.agentId, to: "0xdead", cents: 100_000, po: "1", ref: "r" });
     expect(rec.written).toEqual(["wallet_created", "payment_receipt", "refused_email", "refused_release"]);
     expect(readdirSync(dir).sort()).toEqual(["index.ts", "payment_receipt.json", "refused_email.json", "refused_release.json", "wallet_created.json"]);
     const pay = JSON.parse(readFileSync(join(dir, "payment_receipt.json"), "utf8"));
@@ -74,7 +83,7 @@ describe("record mode: keys", () => {
   it("refuses to record a synthetic or a mainnet proof", () => {
     const rec = createRecorder({ dir, enabled: true, secrets: [] });
     expect(() => rec.sink(proof({ synthetic: true }))).toThrow("synthetic");
-    expect(() => rec.sink(proof({ network: "mainnet", codePath: "convex/near/payout.ts#claim" }))).toThrow("mainnet");
+    expect(() => rec.sink(proof({ network: "mainnet", codePath: "convex/near/escrow.ts#release", kind: "payout" }))).toThrow("mainnet");
   });
   it("matches the committed empty index", () => {
     expect(readFileSync("fixtures/recorded/index.ts", "utf8")).toBe(indexSource(recordedKeys.length ? recordedKeys : []));
@@ -125,7 +134,20 @@ const fullEnv: Env = {
   OUTLAYER_API_KEY: KEY, OUTLAYER_NEAR_ACCOUNT: "astro.testnet", OUTLAYER_PAYMENT_KEY: PAY, OUTLAYER_OWNER_ACCOUNT: "astro.testnet",
   NEARAI_API_KEY: NEARAI, REHEARSE_ULTRA_ACCOUNT: "ultra.testnet", REHEARSE_HAOYUN_ACCOUNT: "haoyun.testnet", REHEARSE_HAOYUN_EMAIL: "sales@demo.example",
   TELEGRAM_BOT_TOKEN: BOT, REHEARSE_POLL_MS: "0",
+  AGENT_API_KEY: API_KEY, AGENT_OWNER_ACCOUNT_ID: "set-in-test", AGENT_OWNER_PUBLIC_KEY: "set-in-test", AGENT_OWNER_PRIVATE_KEY_PKCS8: "set-in-test",
+  AGENT_TREASURY_ID: "set-in-test", HAOYUN_BASE_ADDRESS: "0x2003975A521c6fa45238dbc402c9e4adcb8863e0",
 };
+
+/** Tidepool requests go to the fake Agent API, everything else to the OutLayer and NEAR AI routes. */
+async function withTidepool(other: Fetch) {
+  const tp = fakeTidepool();
+  const { owner, pkcs8Base64 } = testOwner();
+  const treasuryId = await new EscrowAdapter({ fetch: tp.fetch, apiKey: API_KEY, baseUrl: FAKE_BASE, owner, sink: () => {} }).createTreasury();
+  tp.credit(treasuryId, BASE_USDC, 100_000_000n);
+  const env: Env = { ...fullEnv, AGENT_OWNER_ACCOUNT_ID: owner.accountId, AGENT_OWNER_PUBLIC_KEY: owner.publicKey, AGENT_OWNER_PRIVATE_KEY_PKCS8: pkcs8Base64, AGENT_TREASURY_ID: treasuryId };
+  const fetch: Fetch = (u, i) => (u.startsWith(FAKE_BASE) ? tp.fetch(u, i) : other(u, i));
+  return { tp, env, fetch, pkcs8Base64 };
+}
 
 describe("rehearsal", () => {
   it("refuses to run without its env, naming each missing variable, before any call", async () => {
@@ -159,10 +181,11 @@ describe("rehearsal", () => {
     });
     const logs: string[] = [];
     const { results, written } = await rehearse({ env: { ...fullEnv, RECORD: "1" }, fetch, ask: async () => null, log: (s) => logs.push(s), dir });
-    expect(written).toEqual(["wallet_created", "payment_receipt", "inference_attestation", "refused_email", "refused_release"]);
-    const skippedTitles = results.filter((r) => r.result.status === "skipped").map((r) => r.title);
-    expect(skippedTitles).toEqual(expect.arrayContaining([expect.stringContaining("owner policy"), expect.stringContaining("Gmail"), expect.stringContaining("mainnet")]));
-    expect(logs.join("\n")).toContain("needs FINALE_ENABLED=1 and Luca's explicit yes");
+    expect(written).toEqual(["wallet_created", "payment_receipt", "inference_attestation", "refused_email"]);
+    const skipped = results.filter((r) => r.result.status === "skipped");
+    expect(skipped.map((r) => r.title)).toEqual(expect.arrayContaining([expect.stringContaining("owner policy"), expect.stringContaining("Gmail"), expect.stringContaining("commit the PO total")]));
+    // Nothing is committed before both approvals.
+    expect(skipped.find((r) => r.title.includes("commit the PO total"))!.result).toEqual({ status: "skipped", reason: "no approvals: nothing is committed before both approvals" });
     expect(sent.every((s) => s.url.startsWith("https://testnet-api.outlayer.ai/") || s.url.startsWith("https://cloud-api.near.ai/"))).toBe(true);
     const all = readdirSync(dir).filter((f) => f.endsWith(".json")).map((f) => readFileSync(join(dir, f), "utf8")).join("\n");
     for (const s of [KEY, PAY, NEARAI, BOT, "f".repeat(64)]) expect(all).not.toContain(s);
@@ -170,7 +193,7 @@ describe("rehearsal", () => {
   });
   it("submits both approvals when the approvers paste their signed votes", async () => {
     let votes = 0;
-    const { fetch } = mockFetch({
+    const outlayer = mockFetch({
       "POST /register": () => ({ api_key: "wk_" + "f".repeat(64), wallet_id: "w9", near_account_id: "cd".repeat(32) }),
       "GET /wallet/v1/policy": () => ({ rules: { addresses: { mode: "whitelist" } } }),
       "PUT /wallet/v1/api-key": () => ({ wallet_id: "w2", near_account_id: "ee".repeat(32) }),
@@ -178,12 +201,21 @@ describe("rehearsal", () => {
       "POST /wallet/v1/call": () => ({ request_id: "r1", status: "pending_approval" }),
       "GET /wallet/v1/pending_approvals": () => ({ approvals: [{ approval_id: "ap1", type: "call", op: {}, request_hash: "H", required: 2, approved: 0 }] }),
       "POST /wallet/v1/approve/ap1": () => ({ approval_id: "ap1", status: votes++ ? "approved" : "pending", approved: votes, required: 2 }),
-      "GET /wallet/v1/requests/r1": () => ({ status: "success", tx_hash: "LOCKTX" }),
+      "GET /wallet/v1/requests/r1": () => ({ status: "success", tx_hash: "APPROVEDTX" }),
     });
+    const { tp, env, fetch, pkcs8Base64 } = await withTidepool(outlayer.fetch);
     const vote = JSON.stringify({ signature: "sig", public_key: "ed25519:PK", account_id: "luca.testnet", nonce: "n" });
     const ask = async (q: string) => (q.startsWith("Paste") ? vote : "");
-    const { written } = await rehearse({ env: { ...fullEnv, RECORD: "1" }, fetch, ask, log: () => {}, dir });
-    expect(written).toEqual(expect.arrayContaining(["policy_set", "approval_luca", "approval_jordy", "escrow_wallet"]));
-    expect(JSON.parse(readFileSync(join(dir, "escrow_wallet.json"), "utf8"))).toMatchObject({ hash: "LOCKTX", synthetic: false, replay: true });
+    const { written } = await rehearse({ env: { ...env, RECORD: "1" }, fetch, ask, log: () => {}, dir });
+    expect(written).toEqual(expect.arrayContaining(["policy_set", "approval_luca", "approval_jordy", "escrow_wallet", "refused_release", "intents_payout"]));
+    // 1:1,000: $38.00 committed, $34.20 to Haoyun on Base, the held $3.80 back to Astro.
+    expect(tp.payouts).toEqual([expect.objectContaining({ chain: "base", recipient: env.HAOYUN_BASE_ADDRESS!.toLowerCase(), amount: 34_200_000n })]);
+    expect(JSON.parse(readFileSync(join(dir, "refused_release.json"), "utf8"))).toMatchObject({ kind: "refusal", response: { code: "policy_destination_denied", layer: "policy" } });
+    const payout = JSON.parse(readFileSync(join(dir, "intents_payout.json"), "utf8"));
+    expect(payout).toMatchObject({ kind: "payout", network: "testnet", synthetic: false, replay: true });
+    expect(payout.explorerUrl).toMatch(/^https:\/\/sepolia\.basescan\.org\/tx\/0x/);
+    const all = readdirSync(dir).filter((f) => f.endsWith(".json")).map((f) => readFileSync(join(dir, f), "utf8")).join("\n");
+    for (const secret of [API_KEY, pkcs8Base64]) expect(all).not.toContain(secret);
+    expect(all).not.toMatch(/ngt_[A-Za-z0-9_-]{20,}/);
   });
 });

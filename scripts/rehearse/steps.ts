@@ -1,13 +1,14 @@
-// The rehearsal: the scene steps in order, against OutLayer TESTNET and NEAR AI Cloud,
-// through the same adapters the app uses. With RECORD=1 every scene proof is written to
+// The rehearsal: the scene steps in order, against OutLayer TESTNET, NEAR AI Cloud and the
+// Tidepool Agent API testnet (the per-PO escrow), through the same adapters the app uses. With RECORD=1 every scene proof is written to
 // fixtures/recorded/ by the recorder. Everything here takes an injected fetch and prompt
 // so it is tested with mocks (tests/rehearse.test.ts); scripts/rehearse.ts wires the real ones.
 import { Custody, policyHandoffUrl } from "../../convex/near/custody";
 import { Approvals, approvalMessage } from "../../convex/near/approval";
 import { EscrowAdapter } from "../../convex/near/escrow";
+import { agentApiBase, ownerFromPkcs8, TIDEPOOL_BASE } from "../../convex/near/agentapi";
 import { Gmail } from "../../convex/near/gmail";
 import { Inference } from "../../convex/near/inference";
-import { httpJson, NEARAI_BASE, OUTLAYER_TESTNET, TESTNET_EXPLORER, type Fetch, type ProofSink } from "../../convex/near/http";
+import { NEARAI_BASE, OUTLAYER_TESTNET, type Fetch, type ProofSink } from "../../convex/near/http";
 import { createEscrow } from "../../engine/escrow";
 import { PO, routineReorder } from "../../seed/astro";
 import { quotes } from "../../scenarios/suppliers";
@@ -25,12 +26,18 @@ export const REQUIRED_ENV = [
   "REHEARSE_ULTRA_ACCOUNT", // a testnet account standing in for Ultra Motion (registered on usdc.fakes.testnet)
   "REHEARSE_HAOYUN_ACCOUNT", // a testnet account standing in for Haoyun (registered on usdc.fakes.testnet)
   "REHEARSE_HAOYUN_EMAIL", // a real mailbox on the demo domain standing in for Haoyun's sales address
+  "AGENT_API_KEY", // Evernear's Tidepool key (naa_)
+  "AGENT_OWNER_ACCOUNT_ID", // Astro's dedicated testnet owner (implicit account)
+  "AGENT_OWNER_PUBLIC_KEY",
+  "AGENT_OWNER_PRIVATE_KEY_PKCS8", // signs each PO account's policy
+  "AGENT_TREASURY_ID", // Astro's treasury agent: funds each PO account, takes the held part back
+  "HAOYUN_BASE_ADDRESS", // Haoyun's Base Sepolia address, the only payout destination
 ] as const;
 
 /** Every value that must never be printed or written. */
-export const SECRET_ENV = ["OUTLAYER_API_KEY", "OUTLAYER_PAYMENT_KEY", "NEARAI_API_KEY", "TELEGRAM_BOT_TOKEN", "TELEGRAM_WEBHOOK_SECRET", "INBOUND_EMAIL_SECRET"];
+export const SECRET_ENV = ["OUTLAYER_API_KEY", "OUTLAYER_PAYMENT_KEY", "NEARAI_API_KEY", "TELEGRAM_BOT_TOKEN", "TELEGRAM_WEBHOOK_SECRET", "INBOUND_EMAIL_SECRET", "AGENT_API_KEY", "AGENT_OWNER_PRIVATE_KEY_PKCS8", "HAOYUN_BASE_PRIVATE_KEY"];
 
-const ALLOWED_HOSTS = [new URL(OUTLAYER_TESTNET).host, new URL(NEARAI_BASE).host];
+const ALLOWED_HOSTS = [new URL(OUTLAYER_TESTNET).host, new URL(NEARAI_BASE).host, new URL(TIDEPOOL_BASE).host];
 
 export class RehearsalRefused extends Error {}
 
@@ -45,7 +52,7 @@ export function assertTestnet(env: Env) {
     if (!v || !/^https?:\/\//.test(v)) continue;
     let host: string;
     try { host = new URL(v).host; } catch { continue; }
-    if (host === "api.outlayer.ai" || host.includes("mainnet")) throw new RehearsalRefused(`${k} points at a mainnet host (${host}). The rehearsal only talks to ${OUTLAYER_TESTNET}.`);
+    if (host === "api.outlayer.ai" || host === "api.agentsonintents.com" || host.includes("mainnet")) throw new RehearsalRefused(`${k} points at a mainnet host (${host}). The rehearsal only talks to testnet hosts.`);
   }
 }
 
@@ -70,7 +77,7 @@ export interface Ctx {
   /** Divides every amount, so a wallet with little fake USDC can rehearse. Default 1. */
   scale: number;
   now: () => number;
-  state: { escrowAccount?: string; escrowApiKey?: string; lockRequestId?: string };
+  state: { escrowAccount?: string; escrowApiKey?: string; lockRequestId?: string; approved?: boolean; po?: { agentId: string; account: string; ref: string; treasury: string } };
   /** Values the recorder must scrub. A derived key is added the moment it exists. */
   secrets: string[];
 }
@@ -83,6 +90,12 @@ const skipped = (reason: string): StepResult => ({ status: "skipped", reason });
 const amount = (c: Ctx, cents: number) => Math.max(1, Math.round(cents / c.scale));
 const custody = (c: Ctx, sink: ProofSink = c.rec.sink, apiKey = c.env.OUTLAYER_API_KEY) => new Custody({ fetch: c.fetch, apiKey, sink });
 const allowlist = (c: Ctx) => [c.env.REHEARSE_HAOYUN_EMAIL!];
+/** The per-PO escrow on the Tidepool Agent API, with Astro's owner key. Amounts are story cents; it runs them at 1:1,000. */
+const escrow = (c: Ctx, sink: ProofSink = c.rec.sink) => new EscrowAdapter({
+  fetch: c.fetch, apiKey: c.env.AGENT_API_KEY, baseUrl: agentApiBase(c.env.AGENT_API_BASE_URL), sink, treasuryId: c.env.AGENT_TREASURY_ID,
+  owner: ownerFromPkcs8({ accountId: c.env.AGENT_OWNER_ACCOUNT_ID!, publicKey: c.env.AGENT_OWNER_PUBLIC_KEY!, pkcs8Base64: c.env.AGENT_OWNER_PRIVATE_KEY_PKCS8! }),
+});
+const HAOYUN_PAID = 3_420_000; // 1,800 of 2,000 motors at $19.00
 
 async function waitFor(c: Ctx, instructions: string[]): Promise<boolean> {
   for (const l of instructions) c.log(l);
@@ -143,25 +156,24 @@ export const steps: Step[] = [
     },
   },
   {
-    keys: ["approval_luca", "approval_jordy"], title: "Scene 4 and 6: lock the PO total, which needs 2 approvals",
+    keys: ["approval_luca", "approval_jordy"], title: "Scene 4: the PO needs 2 approvals before any money is committed",
     run: async (c) => {
-      // The lock request goes first: an OutLayer approval exists only for a pending request.
+      // The approval gate stays on OutLayer custody: an approval exists only for a pending request, so
+      // Astro's wallet raises one for the PO total and the two approvers sign it on their phones.
+      // Only after both approvals does the commit step below move money on the Agent API.
       const parentKey = c.env.OUTLAYER_API_KEY!;
-      const esc = new EscrowAdapter({ fetch: c.fetch, parentApiKey: parentKey, sink: () => {} });
-      const sub = await esc.open(PO.number);
+      const sub = await custody(c, () => {}).createSubWallet(`po-${PO.number}`);
       c.state.escrowAccount = sub.near_account_id;
       c.state.escrowApiKey = sub.apiKey;
       c.secrets.push(sub.apiKey);
-      await httpJson({ fetch: c.fetch, base: OUTLAYER_TESTNET, method: "POST", path: "/wallet/v1/storage-deposit", headers: { Authorization: `Bearer ${parentKey}` }, body: { token: "usdc.fakes.testnet", account_id: sub.near_account_id } });
-      const lockSink: ProofSink[] = [];
-      const lock = await new EscrowAdapter({ fetch: c.fetch, parentApiKey: parentKey, sink: (p) => { lockSink.forEach((s) => s(p)); } })
-        .lock({ po: PO.number, escrowAccount: sub.near_account_id, cents: amount(c, PO.revisedTotalCents) });
+      await custody(c, () => {}).registerStorage(sub.near_account_id);
+      const lock = await custody(c, () => {}).payUsdc({ to: sub.near_account_id, cents: amount(c, PO.revisedTotalCents), memo: `PO ${PO.number} approval`, label: `Approval request for PO ${PO.number}`, kind: "approval_request" });
       c.state.lockRequestId = lock.request_id;
-      if (lock.status !== "pending_approval") return skipped(`the lock did not ask for approval (status ${lock.status}); check the policy's approval threshold`);
+      if (lock.status !== "pending_approval") return skipped(`the request did not ask for approval (status ${lock.status}); check the policy's approval threshold`);
 
       const approvals = new Approvals({ fetch: c.fetch, apiKey: parentKey, sink: c.rec.sink });
       const pending = (await approvals.pending())[0];
-      if (!pending) return skipped("no pending approval found for the lock");
+      if (!pending) return skipped("no pending approval found for the request");
       const pub = c.env.OUTLAYER_WALLET_PUBKEY ?? "<wallet public key from GET /wallet/v1/address>";
       for (const who of ["Luca", "Jordy"]) {
         c.log(`${who}: on your own phone, sign this NEP-413 message with your approver full access key (recipient: the wallet contract id):`);
@@ -172,20 +184,25 @@ export const steps: Step[] = [
         try { vote = JSON.parse(a); } catch { return skipped(`${who}'s approval was not JSON`); }
         await approvals.submit({ approvalId: pending.approval_id, approver: who, ...vote });
       }
+      const r = await poll(c, c.state.lockRequestId, parentKey);
+      if (!r || r.status !== "success") return skipped(`approval request ended as ${r?.status ?? "still pending"}`);
+      c.state.approved = true;
       return done();
     },
   },
   {
-    keys: ["escrow_wallet"], title: "Scene 6: funds locked in the PO wallet",
+    keys: ["escrow_wallet"], title: "Scene 6: commit the PO total into its own Agent API account (Tidepool testnet, 1:1,000)",
     run: async (c) => {
-      if (!c.state.lockRequestId) return skipped("no lock request (the approval step was skipped)");
-      const r = await poll(c, c.state.lockRequestId, c.env.OUTLAYER_API_KEY!);
-      if (!r || r.status !== "success") return skipped(`lock request ended as ${r?.status ?? "still pending"}`);
-      await c.rec.as("escrow_wallet")({
-        kind: "escrow", label: `Locked for PO ${PO.number}`, call: "POST /wallet/v1/call ft_transfer", codePath: "convex/near/escrow.ts#lock", network: "testnet",
-        hash: r.tx_hash ?? "none", explorerUrl: r.tx_hash ? TESTNET_EXPLORER + r.tx_hash : undefined,
-        response: { ...r, wallet: c.state.escrowAccount, exits: [c.env.REHEARSE_HAOYUN_ACCOUNT, c.env.OUTLAYER_NEAR_ACCOUNT] }, replay: false, synthetic: false,
-      });
+      if (!c.state.approved) return skipped("no approvals: nothing is committed before both approvals");
+      const e = escrow(c, () => {});
+      const treasury = await e.treasuryAccount();
+      const acct = await escrow(c).open({ po: PO.number, supplier: c.env.HAOYUN_BASE_ADDRESS!.toLowerCase(), lockedCents: PO.revisedTotalCents, slot: c.env.REHEARSE_PO_AGENT_ID || undefined });
+      const f = await escrow(c).fund({ cents: PO.revisedTotalCents });
+      if (!f.ok) return skipped(`treasury could not be funded (${f.reason}); the faucet allows one drip per hour`);
+      const ref = `rehearse-${PO.number}-${c.now()}`;
+      const r = await escrow(c).lock({ po: PO.number, ref, agentId: acct.agentId, account: acct.account, cents: PO.revisedTotalCents });
+      if (!r.ok) return skipped(`commit refused (${r.code})`);
+      c.state.po = { agentId: acct.agentId, account: acct.account, ref, treasury };
       return done();
     },
   },
@@ -216,17 +233,27 @@ export const steps: Step[] = [
     run: async () => skipped("the dock check worker is not deployed yet (worker/dock-check); record it once it runs on OutLayer testnet"),
   },
   {
-    keys: ["refused_release"], title: "Scene 8: release to a wrong address is refused",
+    keys: ["refused_release"], title: "Scene 8: a withdraw to a wrong address is refused by the PO account's policy, live",
     run: async (c) => {
-      const e = createEscrow({ supplier: c.env.REHEARSE_HAOYUN_ACCOUNT!, owner: c.env.OUTLAYER_NEAR_ACCOUNT!, lockedCents: amount(c, PO.revisedTotalCents), deadlineMs: c.now() + 86_400_000 });
-      await new EscrowAdapter({ fetch: c.fetch, parentApiKey: c.env.OUTLAYER_API_KEY, sink: c.rec.sink })
-        .release({ escrow: e, escrowApiKey: c.state.escrowApiKey ?? "unused", to: "mallory.testnet", cents: amount(c, 3_420_000), po: PO.number, nowMs: c.now() });
+      const po = c.state.po;
+      if (!po) return skipped("nothing committed (the commit step was skipped)");
+      const r = await escrow(c).policyRefusal({ agentId: po.agentId, to: "0x000000000000000000000000000000000000dead", cents: HAOYUN_PAID, po: PO.number, ref: po.ref });
+      if (r.ok) throw new Error("the PO account paid an off-list address: its policy is wrong");
       return done();
     },
   },
   {
-    keys: ["intents_payout"], title: "Scene 8: final payout through NEAR Intents (mainnet)",
-    run: async () => skipped("mainnet: needs FINALE_ENABLED=1 and Luca's explicit yes in the session. Never run from the rehearsal."),
+    keys: ["intents_payout"], title: "Scene 8: pay Haoyun $34.20 on Base Sepolia, return the held $3.80 to Astro (1:1,000)",
+    run: async (c) => {
+      const po = c.state.po;
+      if (!po) return skipped("nothing committed (the commit step was skipped)");
+      const start = createEscrow({ supplier: c.env.HAOYUN_BASE_ADDRESS!.toLowerCase(), owner: po.treasury, lockedCents: PO.revisedTotalCents, deadlineMs: c.now() + 86_400_000 });
+      const paid = await escrow(c).release({ escrow: start, agentId: po.agentId, to: c.env.HAOYUN_BASE_ADDRESS!.toLowerCase(), cents: HAOYUN_PAID, po: PO.number, ref: po.ref, nowMs: c.now() });
+      if (!paid.ok) return skipped(`payout refused (${paid.reason})`);
+      const back = await escrow(c, () => {}).reclaim({ escrow: paid.escrow, agentId: po.agentId, po: PO.number, ref: po.ref, nowMs: c.now() });
+      if (!back.ok) return skipped(`held part not returned (${back.reason})`);
+      return done();
+    },
   },
 ];
 

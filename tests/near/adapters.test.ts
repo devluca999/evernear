@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { mockFetch, sinkRecorder } from "./mockFetch";
 import { Custody, usdcUnits, ownerPolicy } from "@/convex/near/custody";
 import { Approvals, approvalMessage } from "@/convex/near/approval";
-import { EscrowAdapter, escrowPolicy } from "@/convex/near/escrow";
 import { Gmail } from "@/convex/near/gmail";
 import { Inference, isConfidential } from "@/convex/near/inference";
 import { secp256k1 } from "@noble/curves/secp256k1";
@@ -10,7 +9,6 @@ import { ethAddressOf, signed } from "./ecdsaFixtures";
 import type { Fetch, ProofSink } from "@/convex/near/http";
 import { Payout, finaleAmounts } from "@/convex/near/payout";
 import { MainnetRefused, outlayerBase, sha256Hex } from "@/convex/near/http";
-import { createEscrow } from "@/engine/escrow";
 import { cents } from "@/engine/money";
 import { bom10MA, suppliers } from "@/seed/astro";
 
@@ -70,51 +68,6 @@ describe("approvals", () => {
     await new Approvals({ fetch, sink }).submit({ approvalId: "ap1", approver: "Luca", signature: "sig", public_key: "ed25519:PK", account_id: "luca.testnet", nonce: "n" });
     expect(sent[0].headers.Authorization).toBeUndefined();
     expect(proofs[0].label).toBe("Approval 1 of 2: Luca");
-  });
-});
-
-describe("escrow", () => {
-  const haoyun = "haoyun-precision.testnet", astro = "astro-robotics.testnet";
-  const esc = () => createEscrow({ supplier: haoyun, owner: astro, lockedCents: cents(38000), deadlineMs: 1000 });
-  it("whitelists exactly the supplier and Astro", () => {
-    expect(escrowPolicy({ walletId: "w", supplier: haoyun, owner: astro, lockedCents: cents(38000) }).rules.addresses.list).toEqual([haoyun, astro]);
-  });
-  it("registers the new PO wallet on the USDC contract before locking funds into it", async () => {
-    const { fetch, sent } = mockFetch({
-      "POST /wallet/v1/storage-deposit": () => ({ request_id: "s", status: "success", tx_hash: "S" }),
-      "POST /wallet/v1/call": () => ({ request_id: "r", status: "success", tx_hash: "T" }),
-    });
-    await new EscrowAdapter({ fetch, parentApiKey: KEY, sink: () => {} }).lock({ po: "1042", escrowAccount: "ee".repeat(32), cents: cents(38000) });
-    expect(sent.map((s) => new URL(s.url).pathname)).toEqual(["/wallet/v1/storage-deposit", "/wallet/v1/call"]);
-    expect(JSON.parse(sent[0].body)).toEqual({ token: "usdc.fakes.testnet", account_id: "ee".repeat(32) });
-    expect(sent.every((s) => s.headers.Authorization === `Bearer ${KEY}`)).toBe(true);
-  });
-  it("refuses a wrong address before any network call", async () => {
-    const { fetch, sent } = mockFetch({});
-    const { proofs, sink } = sinkRecorder();
-    const r = await new EscrowAdapter({ fetch, parentApiKey: KEY, sink }).release({ escrow: esc(), escrowApiKey: "wk_sub", to: "mallory.testnet", cents: cents(34200), po: "1042", nowMs: 1 });
-    expect(r).toEqual({ ok: false, reason: "address_not_allowed" });
-    expect(sent).toHaveLength(0);
-    expect(proofs[0].kind).toBe("refusal");
-  });
-  it("releases $34,200 from the PO wallet and returns the held $3,800 to Astro", async () => {
-    const { fetch, sent } = mockFetch({ "POST /wallet/v1/call": () => ({ request_id: "r", status: "success", tx_hash: "T" }) });
-    const a = new EscrowAdapter({ fetch, parentApiKey: KEY, sink: () => {} });
-    const r = await a.release({ escrow: esc(), escrowApiKey: "wk_sub", to: haoyun, cents: cents(34200), po: "1042", nowMs: 1 });
-    if (!r.ok) throw new Error("release refused");
-    await a.reclaim({ escrow: r.escrow, escrowApiKey: "wk_sub", po: "1042", nowMs: 2 });
-    expect(sent.map((s) => JSON.parse(s.body).args)).toEqual([
-      { receiver_id: haoyun, amount: "34200000000", memo: "PO 1042 release" },
-      { receiver_id: astro, amount: "3800000000", memo: "PO 1042 held part returned" },
-    ]);
-    expect(sent.every((s) => s.headers.Authorization === "Bearer wk_sub")).toBe(true);
-  });
-  it("refunds Astro in full after the deadline", async () => {
-    const { fetch, sent } = mockFetch({ "POST /wallet/v1/call": () => ({ request_id: "r", status: "success" }) });
-    const a = new EscrowAdapter({ fetch, parentApiKey: KEY, sink: () => {} });
-    expect((await a.refundIfDue({ escrow: esc(), escrowApiKey: "wk_sub", po: "1042", nowMs: 500 })).ok).toBe(false);
-    expect((await a.refundIfDue({ escrow: esc(), escrowApiKey: "wk_sub", po: "1042", nowMs: 1001 })).ok).toBe(true);
-    expect(JSON.parse(sent[0].body).args).toMatchObject({ receiver_id: astro, amount: "38000000000" });
   });
 });
 

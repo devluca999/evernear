@@ -10,6 +10,11 @@ export function formatUsd(c: number): string {
   return `${sign}$${whole}.${frac}`;
 }
 
+/** Testnet runs at 1:1,000 of the story amounts: the faucet drips 100 test USDC an hour,
+ *  so $38,000 is committed as $38.00. The screen keeps the story amounts and labels the scale. */
+export const TESTNET_SCALE = 1_000;
+export const scaleTestnet = (c: number): number => Math.round(c / TESTNET_SCALE);
+
 /** Mainnet finale runs at 1:10,000 of the story amounts. */
 export const FINALE_SCALE = 10_000;
 export const scaleFinale = (c: number): number => Math.round(c / FINALE_SCALE);

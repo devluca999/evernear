@@ -21,19 +21,17 @@ export function keyFor(p: ProofInput): ProofKey | null {
   switch (`${file.replace(/^.*\//, "")}#${fn}`) {
     case "custody.ts#register": return "wallet_created";
     case "custody.ts#policy": return "policy_set";
-    case "custody.ts#payUsdc":
-      if (p.kind === "payment_receipt") return "payment_receipt";
-      if (p.kind === "escrow") return "escrow_wallet";
-      return null; // release, reclaim and refund are not scene proofs of their own
+    case "custody.ts#payUsdc": return p.kind === "payment_receipt" ? "payment_receipt" : null;
     case "inference.ts#read": return "inference_attestation";
     case "approval.ts#submit":
       if (/luca/i.test(p.label)) return "approval_luca";
       if (/jordy/i.test(p.label)) return "approval_jordy";
       return null;
     case "gmail.ts#send": return p.kind === "refusal" ? "refused_email" : p.kind === "connector_receipt" ? "connector_receipt" : null;
-    case "escrow.ts#release": return p.kind === "refusal" ? "refused_release" : null;
+    case "escrow.ts#lock": return p.kind === "escrow" ? "escrow_wallet" : null;
+    case "escrow.ts#policyRefusal": return p.kind === "refusal" ? "refused_release" : null;
+    case "escrow.ts#release": return p.kind === "payout" ? "intents_payout" : null; // the engine's own refusal is not a scene proof
     case "dockcheck.ts#verify": return "dock_attestation";
-    case "payout.ts#claim": return "intents_payout";
     default: return null;
   }
 }
@@ -41,7 +39,7 @@ export function keyFor(p: ProofInput): ProofKey | null {
 /** Wider than http.ts `redact`: also camelCase names and auth headers. */
 const SECRET_FIELD = /(api_?key|check_?key|payment_?key|secret|bot_?token|authorization|private_?key|signing_?key|seed_?phrase)$/i;
 /** An OutLayer wallet key, or a payment key `owner:nonce:secret`. */
-const SECRET_SHAPES = [/wk_[0-9a-f]{16,}/gi, /\b[\w.-]+:\d+:[A-Za-z0-9_-]{16,}/g];
+const SECRET_SHAPES = [/wk_[0-9a-f]{16,}/gi, /\b(naa|ngt)_[A-Za-z0-9_-]{16,}/g, /\b[\w.-]+:\d+:[A-Za-z0-9_-]{16,}/g];
 
 export function scrub<T>(v: T, secrets: string[]): T {
   const known = secrets.filter((s) => s && s.length >= 6);

@@ -31,14 +31,19 @@ export default defineSchema({
     photo: v.optional(v.string()), reading: v.optional(v.string()), restockId: v.optional(v.id("restocks")),
     externalId: v.optional(v.string()), receivedAt: v.number(),
   }).index("by_channel", ["channel", "receivedAt"]).index("by_external", ["channel", "externalId"]),
-  // Per-PO escrow state (engine/escrow.ts Escrow). The escrow wallet key is never stored here:
-  // convex/escrows.ts derives it at run time from OUTLAYER_API_KEY and the PO seed.
+  // Per-PO escrow state (engine/escrow.ts Escrow), committed in one Agent API account per PO
+  // (convex/near/deadline.ts). No key is stored here: grant tokens are derived at run time from
+  // AGENT_API_KEY and only their sha256 is kept. Amounts are story cents; the account runs at 1:`scale`.
   escrows: defineTable({
-    restockId: v.optional(v.id("restocks")), po: v.string(), supplier: v.string(), owner: v.string(),
+    restockId: v.optional(v.id("restocks")), po: v.string(), ref: v.string(), supplier: v.string(), owner: v.string(),
     lockedCents: v.number(), releasedCents: v.number(), reclaimedCents: v.number(), deadlineMs: v.number(), closed: v.boolean(),
-    escrowAccount: v.string(), refundJobId: v.optional(v.id("_scheduled_functions")),
+    escrowAccount: v.string(), agentId: v.string(), grantHash: v.string(), scale: v.number(),
+    refundJobId: v.optional(v.id("_scheduled_functions")),
     outcome: v.optional(v.union(v.literal("released"), v.literal("reclaimed"), v.literal("refunded"))),
   }).index("by_po", ["po"]),
+  // The pool of reused PO accounts (Tidepool never deletes agents). Busy while an escrow is open.
+  poAccounts: defineTable({ agentId: v.string(), account: v.string(), grantHash: v.string(), busy: v.boolean() })
+    .index("by_busy", ["busy"]).index("by_agent", ["agentId"]),
   approvals: defineTable({ restockId: v.id("restocks"), approver: v.string(), signedAt: v.number(), proofId: v.optional(v.id("proofs")) }).index("by_restock", ["restockId"]),
   proofs: defineTable({
     restockId: v.optional(v.id("restocks")), scene: v.number(), kind: v.string(), label: v.string(), call: v.string(),

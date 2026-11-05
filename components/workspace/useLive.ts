@@ -22,7 +22,14 @@ export function liveKeyOf(p: { codePath: string; kind: string }): string | null 
 }
 
 export function useLive() {
-  const client = useMemo(() => (URL ? new ConvexClient(URL) : null), []);
+  // Created in the browser only, after the page loads (never during the prerender).
+  const [client, setClient] = useState<ConvexClient | null>(null);
+  useEffect(() => {
+    if (!URL) return;
+    const c = new ConvexClient(URL);
+    queueMicrotask(() => setClient(c));
+    return () => { void c.close(); };
+  }, []);
   const [on, setOn] = useState(false);
   const [runId, setRunId] = useState<Id<"liveRuns"> | null>(null);
   const [done, setDone] = useState<LiveStep[]>([]);
@@ -31,7 +38,6 @@ export function useLive() {
   const [pending, setPending] = useState<LiveStep | null>(null);
   const starting = useRef<Promise<Id<"liveRuns"> | null> | null>(null);
 
-  useEffect(() => () => { void client?.close(); }, [client]);
   useEffect(() => {
     if (!client || !runId) return;
     return client.onUpdate(api.live.getRun, { runId }, (r) => {

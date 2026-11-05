@@ -1,4 +1,5 @@
 import type { Proof } from "@/scenario/types";
+import { Chip, Pill } from "./ui";
 import s from "./workspace.module.css";
 
 export function Drawer({ proof, open, onToggle, lastProof }: { proof: Proof | null; open: boolean; onToggle: () => void; lastProof: Proof | null }) {
@@ -11,8 +12,8 @@ export function Drawer({ proof, open, onToggle, lastProof }: { proof: Proof | nu
         <div className={s.drawerBody}>
           <div className={s.drawerRow}>
             <span className={s.micro}>CALL</span><code className={s.mono}>{p.call}</code>
-            {p.synthetic ? <span className={s.tagSynthetic}>synthetic</span> : p.replay ? <span className={s.tag}>replay</span> : null}
-            <span className={s.tag}>{p.network}</span>
+            {p.synthetic ? <Pill tone="idle">synthetic</Pill> : p.replay ? <Pill tone="success" led>replay</Pill> : null}
+            <Chip>{p.network}</Chip>
           </div>
           <div className={s.drawerRow}><span className={s.micro}>CODE PATH</span><code className={s.mono}>{p.codePath}</code></div>
           <div className={s.drawerRow}><span className={s.micro}>HASH</span><code className={s.mono}>{p.hash}</code>

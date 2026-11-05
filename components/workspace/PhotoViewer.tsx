@@ -2,6 +2,7 @@
 import { useEffect, useRef } from "react";
 import { CHECKPOINTS, PHOTO_CAPTION, stamp } from "@/scenario/shipment";
 import { Photo } from "./photos/Photo";
+import { Pill } from "./ui";
 import s from "./workspace.module.css";
 
 export function PhotoViewer({ checkpointId, index, onIndex, onClose, onProof }: {
@@ -28,7 +29,7 @@ export function PhotoViewer({ checkpointId, index, onIndex, onClose, onProof }: 
       <div className={s.viewer} role="dialog" aria-modal="true" aria-label={`${c.title}: ${PHOTO_CAPTION[id]}`} onClick={(e) => e.stopPropagation()}>
         <div className={s.viewerPhoto}>
           <Photo id={id} label={PHOTO_CAPTION[id]} />
-          <span className={`${s.tagSynthetic} ${s.viewerTag}`}>synthetic photo</span>
+          <span className={s.viewerTag}><Pill tone="idle">synthetic photo</Pill></span>
         </div>
         <aside className={s.viewerSide}>
           <span className={s.micro}>{c.source.toUpperCase()}</span>

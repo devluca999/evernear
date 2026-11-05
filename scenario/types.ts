@@ -17,6 +17,8 @@ export interface Message {
   /** The agent's reading of an inbound email. */
   reading?: string;
   refersTo?: PanelId;
+  /** A chat card returned with the message. */
+  card?: "approval";
 }
 
 export interface Proof {

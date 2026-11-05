@@ -1,0 +1,143 @@
+/* V2 Default primitives: the LED lamp, the dot sequence, solid pills, the PO label,
+   the stamp and the tick ruler. Every value reads tokens; light mode has its own values. */
+
+/* ---------- LED: a small lamp under glass ---------- */
+.led {
+  --tone: var(--state-idle);
+  --size: 7px;
+  position: relative;
+  display: inline-block; flex: none; vertical-align: middle;
+  width: var(--size); height: var(--size); border-radius: 50%;
+  margin-right: 8px;
+  background:
+    radial-gradient(circle at 40% 34%, var(--led-glint) 0 9%, transparent 26%),
+    radial-gradient(circle at 50% 50%, var(--tone) 0 58%, color-mix(in oklab, var(--tone) 62%, var(--led-shade)) 100%);
+  box-shadow: 0 0 0 .5px color-mix(in oklab, var(--tone) 40%, var(--led-shade)), 0 0 4px 0 color-mix(in oklab, var(--tone) 55%, transparent);
+}
+.led_active { --tone: var(--state-active); animation: led-breathe var(--dur-breathe, 2.6s) ease-in-out infinite; }
+.led_attention { --tone: var(--state-attention); }
+.led_success { --tone: var(--state-success); }
+.led_proposed { --tone: var(--state-proposed); }
+.led_alert {
+  --tone: var(--state-alert);
+  border-radius: var(--led-alert-radius, 1.5px);
+  transform: rotate(var(--led-alert-turn, 45deg)) scale(var(--led-alert-scale, .86));
+  animation: led-breathe var(--dur-breathe, 2.6s) ease-in-out infinite;
+}
+.led_idle { background: var(--led-unlit-bg); box-shadow: var(--led-unlit-ring); }
+@keyframes led-breathe { 50% { box-shadow: 0 0 0 .5px color-mix(in oklab, var(--tone) 40%, var(--led-shade)), 0 0 7px 1px color-mix(in oklab, var(--tone) 60%, transparent); } }
+
+/* Light: no outward glow. A tight contrast ring and a small wash halo, tuned per hue. */
+:global([data-mode="light"]) .led {
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--tone) 55%, #000 25%), 0 0 0 3px color-mix(in oklab, var(--tone) 16%, transparent), 0 1px 1px rgba(28, 26, 23, .18);
+}
+:global([data-mode="light"]) .led_success { --tone: color-mix(in oklab, var(--state-success) 88%, #000); }
+:global([data-mode="light"]) .led_attention { --tone: var(--state-attention); }
+:global([data-mode="light"]) .led_idle { box-shadow: var(--led-unlit-ring), 0 0 0 1px rgba(28, 26, 23, .12); }
+:global([data-mode="light"]) .led_active, :global([data-mode="light"]) .led_alert { animation-name: led-breathe-light; }
+@keyframes led-breathe-light { 50% { box-shadow: 0 0 0 1px color-mix(in oklab, var(--tone) 55%, #000 25%), 0 0 0 4px color-mix(in oklab, var(--tone) 24%, transparent); } }
+
+/* ---------- The journey: a row of LED dots, dashed connectors, terminal arrows ---------- */
+.journey { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; }
+.journeyArrow {
+  all: unset; cursor: pointer; flex: none; width: 24px; height: 24px; display: grid; place-items: center;
+  border-radius: var(--radius-xs, 6px); color: var(--text-muted);
+}
+.journeyArrow:hover { color: var(--text-primary); background: var(--accent-wash); }
+.journeyArrow:focus-visible { outline: 2px solid var(--line-focus); outline-offset: 1px; }
+.steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); flex: 1; min-width: 0; }
+.step { position: relative; display: flex; justify-content: center; }
+.step + .step::before {
+  content: ""; position: absolute; top: 12px; right: calc(50% + 10px); width: calc(100% - 20px);
+  border-top: 1px dashed var(--steps-link);
+}
+:global([data-mode="light"]) .step + .step::before { border-top-color: rgba(70, 66, 59, .32); }
+.stepBtn {
+  all: unset; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 4px 6px;
+  border-radius: var(--radius-xs, 6px); min-width: 0;
+}
+.stepBtn:focus-visible { outline: 2px solid var(--line-focus); outline-offset: 1px; }
+.stepDot { height: 17px; display: grid; place-items: center; }
+.stepDot .led { margin: 0; transition: transform var(--dur-fast, 160ms) var(--ease-standard, cubic-bezier(.2, .8, .2, 1)); }
+.stepBtn:hover .led { transform: scale(1.25); }
+.step[data-state="active"] .led { --size: 11px; }
+.step[data-state="stalled"] .led { --size: 11px; }
+.stepLabel { font-size: 12px; color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.step[data-state="done"] .stepLabel { color: var(--text-secondary); }
+.step[data-state="active"] .stepLabel, .step[data-state="stalled"] .stepLabel { color: var(--text-primary); font-weight: 600; }
+.step[data-state="alert"] .led { --size: 9px; }
+
+/* A compact dot row for small sequences (routine reorder). */
+.dotRow { list-style: none; margin: 10px 0 0; padding: 0; display: flex; align-items: center; gap: 0; }
+.dotRow li { display: flex; align-items: center; }
+.dotRow li + li::before { content: ""; width: 14px; border-top: 1px dashed var(--steps-link); margin-right: 4px; }
+:global([data-mode="light"]) .dotRow li + li::before { border-top-color: rgba(70, 66, 59, .32); }
+.dotRow .led { margin-right: 4px; }
+
+/* ---------- Pills: solid fill, solid text, material layers ---------- */
+.pill {
+  display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 9px; border-radius: var(--radius-pill, 999px);
+  font-size: 11.5px; font-weight: 500; white-space: nowrap; color: var(--pill-on);
+  background:
+    linear-gradient(180deg, var(--pill-sheen), transparent 45%, transparent 60%, var(--pill-shade)),
+    var(--pill-bg, var(--pill-idle-bg));
+  box-shadow: inset 0 1px 0 var(--pill-highlight), 0 0 0 .5px var(--pill-rim), var(--pill-drop);
+}
+.pill .led { margin: 0; --size: 6px; }
+.pill_idle { --pill-bg: var(--pill-idle-bg); color: var(--pill-idle-fg); }
+.pill_success { --pill-bg: var(--pill-success-bg); }
+.pill_attention { --pill-bg: var(--badge-attention-bg); color: var(--badge-attention-fg); }
+.pill_active { --pill-bg: var(--pill-active-bg); }
+.pill_alert { --pill-bg: var(--pill-alert-bg); }
+.pill_proposed { --pill-bg: var(--pill-proposed-bg); color: var(--pill-proposed-fg); }
+/* Neutral, stateless chips may be outlined. */
+.chip {
+  display: inline-flex; align-items: center; height: 22px; padding: 0 9px; border-radius: var(--radius-pill, 999px);
+  border: 1px solid var(--line-strong); font-size: 11.5px; color: var(--text-secondary); white-space: nowrap;
+}
+
+/* ---------- Label: the identity card for an order, borrowed from a shipping label ---------- */
+.label {
+  position: relative; background: var(--bg-raised); border: 1px solid var(--line-hairline); border-radius: var(--radius-md, 12px);
+  box-shadow: var(--elev-1); padding: 14px 16px 12px; display: flex; flex-direction: column; gap: 12px; overflow: hidden;
+}
+.labelHead { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.labelTitle { display: flex; align-items: center; font-family: var(--font-display); font-weight: 600; letter-spacing: var(--tracking-display, -.022em); font-size: 17px; }
+.labelFields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 16px; margin: 0; }
+.labelFields dt { font-size: 10px; font-weight: 500; letter-spacing: var(--tracking-micro, .10em); color: var(--text-muted); }
+.labelFields dd { margin: 3px 0 0; font-family: var(--font-mono); font-variant-numeric: tabular-nums lining-nums; font-size: 13px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.barcode { height: 26px; display: flex; align-items: stretch; gap: 0; opacity: .82; }
+.barcode i { display: block; background: var(--text-primary); }
+.barcodeRow { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; border-top: 1px dashed var(--line-strong); padding-top: 10px; }
+.barcodeText { font-family: var(--font-mono); font-size: 10.5px; color: var(--text-muted); letter-spacing: .08em; }
+
+/* ---------- Stamp: Default's commit mark. Past-tense word plus a mono time. ---------- */
+.stamp {
+  display: inline-flex; align-items: center; gap: 8px; height: 26px; padding: 0 10px 0 8px;
+  border: 1px solid var(--state-success-edge); border-radius: var(--radius-xs, 6px);
+  background: var(--state-success-wash); color: var(--text-primary); font-size: 12.5px; font-weight: 600;
+  animation: stamp-settle var(--dur-slow, 240ms) var(--ease-standard, cubic-bezier(.2, .8, .2, 1)) both;
+}
+.stamp .led { margin: 0; }
+.stampTime { font-family: var(--font-mono); font-weight: 400; font-size: 11.5px; color: var(--text-secondary); }
+@keyframes stamp-settle { from { opacity: 0; transform: scale(1.06); } to { opacity: 1; transform: scale(1); } }
+
+/* ---------- Ruler: a tick scale with LED markers. No fill, no bar. ---------- */
+.ruler { position: relative; height: 72px; margin: 4px 8px 0; }
+.rulerTicks { position: absolute; left: 0; right: 0; top: 40px; height: 10px; border-top: 1px solid var(--line-strong); }
+.rulerTick { position: absolute; top: 0; width: 1px; height: 4px; background: var(--line-strong); }
+.rulerTick[data-major="true"] { height: 8px; background: var(--text-faint); }
+.rulerNum { position: absolute; top: 54px; transform: translateX(-50%); font-family: var(--font-mono); font-size: 10px; color: var(--text-faint); }
+/* The limit: a dashed line with its micro-label above everything, so marks never cover it. */
+.rulerLimit { position: absolute; top: 12px; height: 36px; width: 0; border-left: 1px dashed var(--text-secondary); }
+.rulerLimitText { position: absolute; top: -12px; left: 0; transform: translateX(-50%); font-size: 10px; font-weight: 500; letter-spacing: var(--tracking-micro, .10em); color: var(--text-muted); white-space: nowrap; }
+.rulerMark { position: absolute; top: 35px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; }
+.rulerMark .led { margin: 0; --size: 10px; }
+.rulerMarkText { position: absolute; top: -18px; font-family: var(--font-mono); font-size: 11px; color: var(--text-primary); white-space: nowrap; }
+.rulerMark[data-side="left"] .rulerMarkText { right: 8px; }
+.rulerMark[data-side="right"] .rulerMarkText { left: 8px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .led_active, .led_alert, .stamp { animation: none; }
+  .stepDot .led { transition: none; }
+}

@@ -8,7 +8,7 @@ interface Scene { id: number; title: string; durationMs: number; layout: PanelId
 
 let n = 0;
 const msg = (m: Omit<Message, "id">): Event => ({ type: "message", message: { id: `m${++n}`, ...m } });
-const bot = (text: string, refersTo?: PanelId): Event => msg({ channel: "telegram", direction: "out", from: "Stockbot", text, refersTo });
+const bot = (text: string, refersTo?: PanelId, card?: Message["card"]): Event => msg({ channel: "telegram", direction: "out", from: "Stockbot", text, refersTo, card });
 const buyer = (text: string, photo?: string): Event => msg({ channel: "telegram", direction: "in", from: "Luca", text, photo });
 const stage = (to: Stage): Event => ({ type: "stage", to });
 const routine = (to: Stage): Event => ({ type: "routine", to });
@@ -53,7 +53,7 @@ export const scenes: Scene[] = [
   { id: 4, title: "Approval", durationMs: 10000, layout: ["rules"], beats: [
     [300, stage("approval")],
     [800, { type: "phone", open: true }],
-    [1200, bot("PO 1042: 2,000 motors from Haoyun, a new supplier, over the $10K cap. 2 approvals needed.", "rules")],
+    [1200, bot("PO 1042: 2,000 motors from Haoyun, a new supplier, over the $10K cap. 2 approvals needed.", "rules", "approval")],
     [3000, { type: "approval", by: "Luca" }],
     [3100, proof("approval_luca")],
     [6000, bot("Jordy, please sign PO 1042.", "rules")],

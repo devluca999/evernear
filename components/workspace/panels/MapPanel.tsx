@@ -2,6 +2,7 @@ import type { WorkspaceState } from "@/scenario/types";
 import { MAP } from "../map/generated";
 import { cumulative, pointAt, polyline, type Pt } from "../map/route";
 import { Panel } from "../Panel";
+import { Led } from "../Led";
 import { Tracking } from "../Tracking";
 import s from "../workspace.module.css";
 
@@ -76,7 +77,7 @@ export function MapPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }) 
       </svg>
       {st.shipment.docs.length > 0 && (
         <ul className={s.docs}>
-          {st.shipment.docs.map((d) => <li key={d.name}><span className={`${s.docIcon} ${DOC_TONE[d.state]}`} aria-hidden />{d.name}</li>)}
+          {st.shipment.docs.map((d) => <li key={d.name}><Led tone={d.state === "done" ? "success" : d.state === "working" ? "attention" : "alert"} />{d.name}</li>)}
           <li className={s.faint}><span className={s.fig}>{MAP.airKm.toLocaleString("en-US")}</span> km by air, SZX to ORD</li>
         </ul>
       )}

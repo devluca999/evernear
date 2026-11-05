@@ -22,13 +22,13 @@ export function DemandPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean 
         <div><dt>MOTORS ON HAND</dt><dd className={s.fig}>{d.motorsOnHand}</dd></div>
         <div><dt>MOTORS NEEDED</dt><dd className={s.fig}>{need}</dd></div>
       </dl>
-      <svg className={s.spark} viewBox={`0 0 ${w} ${h}`} role="img" aria-label="Motor stock projection falling toward zero">
+      <svg className={s.spark} viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" role="img" aria-label="Motor stock projection falling toward zero">
         <line x1="0" x2={w} y1={reorderY} y2={reorderY} className={s.sparkRef} />
         <polyline points={poly} className={short ? s.sparkAttention : s.sparkLine} fill="none" />
       </svg>
       <ul className={s.list}>
         {seed.customers.map((c, i) => (
-          <li key={c}><Led tone={i < Math.ceil(d.ordered / 5) ? "active" : "idle"} />{c}</li>
+          <li key={c}><Led tone={i < Math.ceil(d.ordered / 5) ? "success" : "idle"} />{c}</li>
         ))}
       </ul>
     </Panel>

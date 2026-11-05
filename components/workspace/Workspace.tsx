@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { stateAt, sceneStartMs } from "@/scenario/runner";
+import { stateAt, sceneStartMs, stageStartMs } from "@/scenario/runner";
 import { scenes, totalDurationMs } from "@/scenario/scenes";
 import { products } from "@/seed/astro";
 import type { PanelId, WorkspaceState } from "@/scenario/types";
@@ -15,6 +15,7 @@ import { BomPanel } from "./panels/BomPanel";
 import { RulesPanel } from "./panels/RulesPanel";
 import { ActionsContext, type WorkspaceActions } from "./actions";
 import { PhotoViewer } from "./PhotoViewer";
+import { Chip, Pill } from "./ui";
 import { CHECKPOINTS } from "@/scenario/shipment";
 import s from "./workspace.module.css";
 
@@ -90,13 +91,15 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
 
   return (
     <ActionsContext.Provider value={actions}>
-    <div className={s.root} data-theme="clean" data-mode={mode}>
+    <div className={s.root} data-theme="clean" data-mode={mode} data-working={playing && st.stage !== "closed"}>
       <header className={s.top}>
         <div className={s.brand}>
           <span className={s.wordmark}>Evernear</span>
           <span className={s.faint}>for Astro Robotics</span>
         </div>
-        <Rail stage={st.stage} stalled={stalled} />
+        <Rail stage={st.stage} stalled={stalled}
+          onJump={(stage) => { setT(stageStartMs(stage)); setPinnedProof(null); setViewer(null); }}
+          onPrev={() => jump(Math.max(0, st.scene - 1))} onNext={() => jump(Math.min(9, st.scene + 1))} />
       </header>
 
       <main className={s.stageArea}>
@@ -131,9 +134,9 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
           ))}
         </ol>
         <div className={s.products} aria-label="Products">
-          {products.map((p) => <span key={p.id} className={s.product} data-current={p.playable} title={p.playable ? "Played in this demo" : "Not played in this demo"}>{p.name}</span>)}
+          {products.map((p) => p.playable ? <Pill key={p.id} tone="idle">{p.name}</Pill> : <span key={p.id} title="Not played in this demo"><Chip>{p.name}</Chip></span>)}
         </div>
-        {st.proofs.some((p) => p.synthetic) && <p className={s.syntheticNote}><span className={s.tagSynthetic}>synthetic</span> Proofs are placeholders until real testnet recordings replace them.</p>}
+        {st.proofs.some((p) => p.synthetic) && <p className={s.syntheticNote}><Pill tone="idle">synthetic</Pill><span>Proofs are placeholders until real testnet recordings replace them.</span></p>}
         <div className={s.camera} aria-label="Presenter camera">CAMERA</div>
       </aside>
 

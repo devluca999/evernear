@@ -1,8 +1,8 @@
-import s from "./workspace.module.css";
+import p from "./premium.module.css";
 
-export type Tone = "active" | "attention" | "success" | "alert" | "idle";
+export type Tone = "active" | "attention" | "success" | "alert" | "idle" | "proposed";
 
-/** A status lamp. Colour is state only. Active and alert breathe; all are legible without motion. */
-export function Led({ tone, label }: { tone: Tone; label?: string }) {
-  return <span className={`${s.led} ${s[`led_${tone}`]}`} role={label ? "img" : undefined} aria-label={label} aria-hidden={label ? undefined : true} />;
+/** StatusDot: the one LED implementation. A small lamp under glass; active and alert breathe. */
+export function Led({ tone, label, className }: { tone: Tone; label?: string; className?: string }) {
+  return <span className={`${p.led} ${p[`led_${tone}`]} ${className ?? ""}`} data-tone={tone} role={label ? "img" : undefined} aria-label={label} aria-hidden={label ? undefined : true} />;
 }

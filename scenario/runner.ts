@@ -132,3 +132,10 @@ export function sceneStartMs(id: number): number {
 }
 
 export const usd = cents;
+
+/** When a stage first begins in the script (Low begins at 0). */
+export function stageStartMs(stage: import("./stages").Stage): number {
+  if (stage === "low") return 0;
+  const b = timeline.find((x) => x.ev.type === "stage" && x.ev.to === stage);
+  return b ? b.atMs : 0;
+}

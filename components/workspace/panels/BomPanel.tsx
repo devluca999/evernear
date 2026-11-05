@@ -4,6 +4,7 @@ import { formatUsdShort, formatInt } from "@/engine/money";
 import { Panel } from "../Panel";
 import { Led } from "../Led";
 import { mismatchText } from "../format";
+import { Pill, Stamp } from "../ui";
 import { ExplodedView, MotorCloseUp } from "../figures/ExplodedView";
 import s from "../workspace.module.css";
 
@@ -13,7 +14,7 @@ export function BomPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }) 
   const attested = st.proofs.some((p) => p.id === "inference_attestation");
   const results = ORDER.map((id) => st.fitment.find((f) => f.supplierId === id)).filter((f) => f !== undefined);
   return (
-    <Panel id="bom" title="Order and BOM" pulse={pulse} meta={attested ? <span className={s.badge}>Read privately in an attested enclave</span> : null}>
+    <Panel id="bom" title="Order and BOM" pulse={pulse} meta={attested ? <Pill tone="success" led>Read privately in an attested enclave</Pill> : null}>
       <div className={s.bomGrid}>
         <figure className={s.figure}>
           <div className={s.figPair}>
@@ -24,7 +25,7 @@ export function BomPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }) 
         </figure>
         {st.dock ? (
           <div className={s.dockCard}>
-            <span className={s.micro}>DOCK CHECK · PO 1042</span>
+            <div className={s.dockHead}><span className={s.micro}>DOCK CHECK · PO 1042</span><Stamp word="Counted" time="Day 9, 08:42" /></div>
             <p className={s.big}><span className={s.fig}>{formatInt(st.dock.receivedQty)}</span> of <span className={s.fig}>{formatInt(st.dock.orderedQty)}</span> arrived</p>
             <dl className={s.stats}>
               <div><dt>RELEASE</dt><dd className={s.fig}>{formatUsdShort(st.dock.releaseCents)}</dd></div>
@@ -45,9 +46,9 @@ export function BomPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }) 
                   </div>
                   {f.pass && <p className={s.ok}>Fits every spec. Passes policy.</p>}
                   {f.supplierId === "huaxin" && <p className={s.sub}><span className={s.fig}>{f.linesOffered}</span> of <span className={s.fig}>14</span> BOM lines offered, <span className={s.fig}>{lines}</span> fail</p>}
-                  {f.mismatches.map((m) => <p key={m.line + m.spec} className={s.fail}>{mismatchText(m)}</p>)}
+                  {f.mismatches.map((m) => <p key={m.line + m.spec} className={s.fail}><Led tone="alert" />{mismatchText(m)}</p>)}
                   {f.policyFailures.length > 0 && f.mismatches.length === 0 && (
-                    <p className={s.fail}>{[f.policyFailures.includes("not_approved") && "Not approved", f.policyFailures.includes("over_price_cap") && `${f.priceCapMultiple}x price cap`].filter(Boolean).join(", ")}</p>
+                    <p className={s.fail}><Led tone="alert" />{[f.policyFailures.includes("not_approved") && "Not approved", f.policyFailures.includes("over_price_cap") && `${f.priceCapMultiple}x price cap`].filter(Boolean).join(", ")}</p>
                   )}
                 </li>
               );

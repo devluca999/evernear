@@ -2,6 +2,7 @@ import type { Message } from "@/scenario/types";
 import { PHOTO_CAPTION, type PhotoId } from "@/scenario/shipment";
 import { useActions } from "./actions";
 import { Photo } from "./photos/Photo";
+import { Led } from "./Led";
 import s from "./workspace.module.css";
 
 /** Generic phone frame mirroring the Stockbot chat on Telegram. Pull up only. */
@@ -22,6 +23,18 @@ export function Phone({ messages, open, onToggle }: { messages: Message[]; open:
                 </button>
               )}
               {m.text}
+              {m.card === "approval" && (
+                <span className={s.chatCard} role="group" aria-label="Approval card">
+                  <span className={s.chatCardHead}><Led tone="attention" />Approval 1 of 2</span>
+                  <span className={s.chatFields}>
+                    <span><span className={s.micro}>PO</span><span className={s.fig}>1042</span></span>
+                    <span><span className={s.micro}>QTY</span><span className={s.fig}>2,000</span></span>
+                    <span><span className={s.micro}>TOTAL</span><span className={s.fig}>$38,000</span></span>
+                  </span>
+                  <span className={s.chatYes}>YES approves PO 1042: 2,000 actuator motors from Haoyun Precision for $38,000, paid into escrow.</span>
+                  <span className={s.chips}><span className={s.chipYes}>YES</span><span className={s.chipNo}>NO</span></span>
+                </span>
+              )}
             </li>
           ))}
         </ol>

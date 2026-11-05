@@ -13,3 +13,6 @@ worker/**/target/
 # env files: only the example is committed
 .env*
 !.env.example
+
+# agent worktrees
+.claude/worktrees/

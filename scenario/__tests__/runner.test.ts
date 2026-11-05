@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { scenes, timeline, totalDurationMs } from "../scenes";
 import { stateAt, sceneStartMs } from "../runner";
 import { cents } from "../../engine/money";
+import { recordedKeys } from "../proofs";
 
 const end = stateAt(totalDurationMs);
 
@@ -55,7 +56,7 @@ describe("scenario runner", () => {
   });
   it("labels every synthetic proof as synthetic", () => {
     expect(end.proofs.length).toBeGreaterThan(5);
-    for (const p of end.proofs) expect(p.synthetic).toBe(true);
+    for (const p of end.proofs) expect(p.synthetic).toBe(!recordedKeys.includes(p.id));
   });
   it("opens the drawer about 3 s per proof moment", () => {
     const b = timeline.find((x) => x.ev.type === "proof")!;

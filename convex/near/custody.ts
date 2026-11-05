@@ -28,6 +28,9 @@ export function ownerPolicy(i: { walletId: string; whitelist: string[]; perTxUsd
 
 export const usdcUnits = (cents: number) => String(cents * 10_000);
 
+/** A sub-agent wallet key: wk_ + hex(sha256("<seed>:0:<parent wk_>")). Derivable at run time, so never stored. */
+export const subWalletKey = async (seed: string, parentApiKey: string) => "wk_" + (await sha256Hex(`${seed}:0:${parentApiKey}`));
+
 export class Custody {
   constructor(private o: { fetch: Fetch; apiKey?: string; sink: ProofSink; idem?: () => string }) {}
   private base = outlayerBase();
@@ -79,7 +82,7 @@ export class Custody {
   /** A sub-agent wallet: wk_ + hex(sha256("<seed>:0:<parent wk_>")). */
   async createSubWallet(seed: string): Promise<{ apiKey: string; wallet_id: string; near_account_id: string }> {
     if (!this.o.apiKey) throw new Error("OUTLAYER_API_KEY not configured");
-    const apiKey = "wk_" + (await sha256Hex(`${seed}:0:${this.o.apiKey}`));
+    const apiKey = await subWalletKey(seed, this.o.apiKey);
     const key_hash = await sha256Hex(apiKey);
     const r = await httpJson<{ wallet_id: string; near_account_id: string }>({ fetch: this.o.fetch, base: this.base, method: "PUT", path: "/wallet/v1/api-key", headers: this.auth(), body: { seed, key_hash } });
     return { apiKey, ...r.json };

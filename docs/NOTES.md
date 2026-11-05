@@ -361,6 +361,7 @@ Checked against [BUILD.md](BUILD.md) section 5 (architecture) and section 8 (acc
 - BUILD.md acceptance: no release by the deadline refunds Astro.
 - Sources: OutLayer policies have `time_restrictions` (allowed hours and days), not an expiry that moves funds; payment-check expiry blocks API claims but needs an explicit reclaim ([full docs](https://app.outlayer.ai/llms-full.txt), [payment-checks](https://skills.outlayer.ai/agent-custody/references/payment-checks.md)).
 - Safest build option: a Convex scheduled function at the deadline that transfers the escrow balance back to Astro (Astro is on the escrow whitelist) and records the proof; test it with convex-test fake timers. Say in the README that the refund is triggered by Evernear's scheduler, not by the chain.
+- Built in `convex/escrows.ts`: `locked` stores the escrow in the `escrows` table and schedules `refundAtDeadline` with `ctx.scheduler.runAt(deadline + 1 ms)`; a release cancels the job, and the job is a no-op once anything was released (the held part goes back through reclaim). The escrow wallet key is never stored: it is derived at run time from `OUTLAYER_API_KEY` (a Convex env variable) and the PO seed, the same way OutLayer derives sub-agent keys. Consequence: the Convex deployment holds Astro's parent `wk_` key, which can act as every PO wallet.
 
 ### 10.8 Private inference and the no-leak check
 

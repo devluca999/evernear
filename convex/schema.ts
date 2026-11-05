@@ -31,6 +31,14 @@ export default defineSchema({
     photo: v.optional(v.string()), reading: v.optional(v.string()), restockId: v.optional(v.id("restocks")),
     externalId: v.optional(v.string()), receivedAt: v.number(),
   }).index("by_channel", ["channel", "receivedAt"]).index("by_external", ["channel", "externalId"]),
+  // Per-PO escrow state (engine/escrow.ts Escrow). The escrow wallet key is never stored here:
+  // convex/escrows.ts derives it at run time from OUTLAYER_API_KEY and the PO seed.
+  escrows: defineTable({
+    restockId: v.optional(v.id("restocks")), po: v.string(), supplier: v.string(), owner: v.string(),
+    lockedCents: v.number(), releasedCents: v.number(), reclaimedCents: v.number(), deadlineMs: v.number(), closed: v.boolean(),
+    escrowAccount: v.string(), refundJobId: v.optional(v.id("_scheduled_functions")),
+    outcome: v.optional(v.union(v.literal("released"), v.literal("reclaimed"), v.literal("refunded"))),
+  }).index("by_po", ["po"]),
   approvals: defineTable({ restockId: v.id("restocks"), approver: v.string(), signedAt: v.number(), proofId: v.optional(v.id("proofs")) }).index("by_restock", ["restockId"]),
   proofs: defineTable({
     restockId: v.optional(v.id("restocks")), scene: v.number(), kind: v.string(), label: v.string(), call: v.string(),

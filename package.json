@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "check:ip": "node scripts/check-ip.mjs",
-    "demo": "node scripts/demo.mjs"
+    "demo": "node scripts/demo.mjs",
+    "rehearse": "tsx scripts/rehearse.ts"
   },
   "dependencies": {
     "convex": "^1.49.0",

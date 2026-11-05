@@ -13,5 +13,5 @@ Each batch: goal, status (todo, doing, done, blocked), commits, what was verifie
 | 4 | NEAR adapters | done (mocks; live testnet rehearsal pending keys) | batch 4 commit | 21 adapter tests: testnet host guard, ft_transfer units, sub-wallet key derivation, approval message, escrow exits before any call, Gmail allowlist, attestation binding, mainnet gate, no-leak |
 | 5 | Channels and simulators | done (local Convex) | batch 5 commit | 8 tests via convex-test: Telegram secret and DM-only, phone sync under 1 s and deduped, inbound email secret and reading, negotiation depends on the agent counter, demand reaches 14 for 6 |
 | 6 | Attested dock check worker | partly done: Rust source and release gate written; wasm build blocked (no Rust toolchain), deploy needs Luca | batch 6 commit | 7 TS tests: engine matches shared vectors; release refused for wrong build, no approved build, forged output, wrong amount, other input. Rust tests written, not yet run |
-| 7 | Anatomy figures | todo | | |
+| 7 | Anatomy figures | done (first pass) | batch 7 commit | 3 tests: four motors marked, close-up rating, no fixed colours; screenshots in dark and light. Not yet run: the kit audit and 4x detail sweep |
 | 8 | README and checks | todo | | |

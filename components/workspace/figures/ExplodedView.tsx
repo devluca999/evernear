@@ -1,15 +1,16 @@
-// Placeholder until the Anatomy figure lands (batch 7).
+// The 10MA exploded view and the actuator motor close-up, drawn with the Anatomy kit
+// (vendor/anatomy, MIT) by scripts/build-figures.mjs. Static SVG, no geometry shipped.
+import { EXPLODED_10MA_SVG, MOTOR_SVG } from "./generated";
 import s from "../workspace.module.css";
 
 export function ExplodedView({ highlight }: { highlight: string }) {
   return (
-    <svg className={s.figSvg} viewBox="0 0 200 160" role="img" aria-label={`10MA exploded view, ${highlight} highlighted`}>
-      <rect x="70" y="10" width="60" height="34" rx="10" className={s.figPart} />
-      <rect x="62" y="56" width="76" height="56" rx="6" className={s.figPart} />
-      <rect x="20" y="62" width="30" height="12" rx="3" className={s.figHot} />
-      <rect x="150" y="62" width="30" height="12" rx="3" className={s.figHot} />
-      <circle cx="80" cy="134" r="14" className={s.figPart} />
-      <circle cx="120" cy="134" r="14" className={s.figPart} />
-    </svg>
+    <div className={`iso ${s.isoFig}`} data-highlight={highlight === "Actuator motor" ? "motor" : undefined}
+      aria-label={`10MA exploded view, ${highlight} highlighted`} role="img"
+      dangerouslySetInnerHTML={{ __html: EXPLODED_10MA_SVG }} />
   );
+}
+
+export function MotorCloseUp() {
+  return <div className={`iso ${s.isoFig} ${s.isoMotor}`} data-highlight="motor" role="img" aria-label="Actuator motor: 6 mm shaft, NEMA 17 flange, 48 V, Molex encoder connector" dangerouslySetInnerHTML={{ __html: MOTOR_SVG }} />;
 }

@@ -4,7 +4,7 @@ import { formatUsdShort, formatInt } from "@/engine/money";
 import { Panel } from "../Panel";
 import { Led } from "../Led";
 import { mismatchText } from "../format";
-import { ExplodedView } from "../figures/ExplodedView";
+import { ExplodedView, MotorCloseUp } from "../figures/ExplodedView";
 import s from "../workspace.module.css";
 
 const ORDER = ["kansai", "rheinwerk", "huaxin", "haoyun"];
@@ -16,7 +16,10 @@ export function BomPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }) 
     <Panel id="bom" title="Order and BOM" pulse={pulse} meta={attested ? <span className={s.badge}>Read privately in an attested enclave</span> : null}>
       <div className={s.bomGrid}>
         <figure className={s.figure}>
-          <ExplodedView highlight="Actuator motor" />
+          <div className={s.figPair}>
+            <ExplodedView highlight="Actuator motor" />
+            <MotorCloseUp />
+          </div>
           <figcaption className={s.micro}>10MA · {bom10MA.length} BOM LINES</figcaption>
         </figure>
         {st.dock ? (

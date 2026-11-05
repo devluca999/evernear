@@ -20,7 +20,7 @@ Status, Nov 5 2026: everything is on `main` at https://github.com/devluca999/eve
 8. **Telegram bot**: token from @BotFather as `TELEGRAM_BOT_TOKEN`, a random `TELEGRAM_WEBHOOK_SECRET`, your chat id as `TELEGRAM_BUYER_CHAT_ID`, all in the Convex env.
 9. **Inbound email** provider, `INBOUND_EMAIL_SECRET` and `DEMO_EMAIL_DOMAIN` in the Convex env.
 10. **Gmail on OutLayer**: a dedicated demo Gmail at app.outlayer.ai/connect/gmail (testnet), policy `recipients` set to the supplier mailboxes.
-11. **Rust** with `wasm32-wasip2` to build `worker/dock-check`, then `outlayer login testnet` to deploy it; its sha256 goes in `DOCK_CHECK_WASM_SHA256`.
+11. **Rust**: installed (rustc 1.99.1, wasm32-wasip2). `cargo test` passes (2 tests, shared vectors) and the release build is `1ba889c6...cb990`, 136 KB, now in `.env.local` as `DOCK_CHECK_WASM_SHA256`. Left: `outlayer login testnet` and deploy, then use the hash OutLayer reports.
 12. **Funded mainnet wallet** for the finale, later, and only with your explicit yes.
 
 Then: `RECORD=1 npm run rehearse` writes real proofs to `fixtures/recorded/`, which replace the synthetic ones on screen.
@@ -44,5 +44,4 @@ Full detail: `docs/NOTES.md` section 10.
 
 - Live testnet calls and real proofs (keys, section 2).
 - Panels replay the scenario; they are not yet driven by live Convex queries.
-- Rust worker not built (no toolchain).
 - Figures: in the exploded view the robot's arms read small and far from the body.

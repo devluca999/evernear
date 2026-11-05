@@ -17,9 +17,11 @@ import { ActionsContext, type WorkspaceActions } from "./actions";
 import { PhotoViewer } from "./PhotoViewer";
 import { Chip, Pill } from "./ui";
 import { CHECKPOINTS } from "@/scenario/shipment";
-import { composeLayout, togglePin, PANEL_ORDER, PANEL_NAMES } from "@/scenario/layout";
+import { composeLayout, togglePin, PANEL_ORDER } from "@/scenario/layout";
 import { stepClock, waitingAt } from "@/scenario/gates";
 import { PinContext } from "./Panel";
+import { Sidebar } from "./Sidebar";
+import { StatsBar } from "./StatsBar";
 import s from "./workspace.module.css";
 
 const PANELS: Record<PanelId, (p: { st: WorkspaceState; pulse: boolean }) => React.ReactNode> = {
@@ -42,6 +44,7 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
   const [viewer, setViewer] = useState<{ checkpointId: string; index: number } | null>(null);
   const [pinnedProof, setPinnedProof] = useState<string | null>(null);
   const [pinnedPanels, setPinnedPanels] = useState<PanelId[]>([]);
+  const [navOpen, setNavOpen] = useState(true);
   const pins = useMemo(() => ({
     pinned: pinnedPanels,
     toggle: (id: PanelId) => setPinnedPanels((cur) => {
@@ -127,6 +130,9 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
           onPrev={() => jump(Math.max(0, st.scene - 1))} onNext={() => jump(Math.min(9, st.scene + 1))} />
       </header>
 
+      <Sidebar open={navOpen} onToggle={() => setNavOpen((o) => !o)} pinned={pinnedPanels} onPick={pins.toggle}
+        onClear={() => { setPinnedPanels([]); try { localStorage.removeItem(PIN_KEY); } catch { /* ignore */ } }} />
+      <StatsBar st={st} />
       <main className={s.stageArea}>
         <div className={s.panels} data-count={layout.length}>
           {layout.map((id) => {
@@ -160,15 +166,6 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
           <button className={s.btn} onClick={() => { if (t >= totalDurationMs) setT(0); setPlaying((p) => !p); }}>{playing ? "Pause" : "Play"}</button>
           <button className={s.btnQuiet} aria-pressed={waitForMe} onClick={() => setWaitForMe((w) => !w)} title="When on, the demo stops at each human moment until you click">{waitForMe ? "Waits for me" : "Plays through"}</button>
           <button className={s.btnQuiet} onClick={() => setMode((m) => (m === "dark" ? "light" : "dark"))}>{mode === "dark" ? "Light" : "Dark"}</button>
-        </div>
-        <div className={s.pinTray} role="group" aria-label="Pin panels">
-          <span className={s.micro}>PIN PANELS</span>
-          <div className={s.pinRow}>
-            {PANEL_ORDER.map((id) => (
-              <button key={id} type="button" className={s.pinChip} aria-pressed={pinnedPanels.includes(id)} onClick={() => pins.toggle(id)}>{PANEL_NAMES[id]}</button>
-            ))}
-          </div>
-          {pinnedPanels.length > 0 && <button type="button" className={s.pinClear} onClick={() => { setPinnedPanels([]); try { localStorage.removeItem(PIN_KEY); } catch { /* ignore */ } }}>Clear pins</button>}
         </div>
         <ol className={s.sceneList} aria-label="Scenes">
           {scenes.map((x) => (

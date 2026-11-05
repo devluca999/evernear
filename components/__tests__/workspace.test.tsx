@@ -33,6 +33,23 @@ describe("workspace", () => {
     fireEvent.click(screen.getByRole("button", { name: "Waits for me" }));
     expect(screen.queryByRole("group", { name: "Waiting for you" })).toBeNull();
   });
+  it("tracks the scenario numbers on top: stock, shortfall and where the money is", () => {
+    at(sceneStartMs(8) + 9000);
+    const bar = screen.getByLabelText("Scenario numbers");
+    const val = (label: string) => within(bar).getByText(label).nextElementSibling!.textContent;
+    expect(val("ROBOTS ORDERED")).toBe("14");
+    expect(val("PO 1042")).toBe("$38,000");
+    expect(val("PAID TO SUPPLIER")).toBe("$34,200");
+    expect(val("BACK TO ASTRO")).toBe("$3,800");
+    expect(val("COMMITTED")).toBe("$0");
+  });
+  it("collapses the sidebar to icons and keeps every component reachable", () => {
+    at(0);
+    const nav = screen.getByRole("navigation", { name: "Workspace components" });
+    fireEvent.click(within(nav).getByRole("button", { name: "Collapse sidebar" }));
+    expect(nav.getAttribute("data-open")).toBe("false");
+    expect(within(nav).getAllByRole("button", { pressed: false }).length).toBeGreaterThanOrEqual(5);
+  });
   it("shows the everNEAR wordmark", () => {
     at(0);
     expect(screen.getByLabelText("everNEAR").textContent).toBe("everNEAR");
@@ -41,7 +58,7 @@ describe("workspace", () => {
     at(sceneStartMs(6) + 2000);
     const panels = () => [...document.querySelectorAll("[data-panel]")].map((e) => e.getAttribute("data-panel"));
     expect(panels()).not.toContain("demand");
-    fireEvent.click(within(screen.getByRole("group", { name: "Pin panels" })).getByRole("button", { name: "Demand" }));
+    fireEvent.click(within(screen.getByRole("navigation", { name: "Workspace components" })).getByRole("button", { name: "Demand" }));
     expect(panels()[0]).toBe("demand");
     fireEvent.click(screen.getByRole("button", { name: "Pin Shipment" }));
     fireEvent.keyDown(window, { key: "ArrowRight" });

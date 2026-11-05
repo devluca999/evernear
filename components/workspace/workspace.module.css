@@ -7,8 +7,9 @@
   overflow: hidden;
   box-sizing: border-box;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr) 360px;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-areas: "top top top" "nav stats side" "nav stage side";
   gap: var(--space-5, 16px);
   padding: var(--space-5, 16px);
   background: var(--bg-page);
@@ -44,7 +45,7 @@
 @keyframes grid-breathe { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
 
 .top {
-  grid-column: 1 / -1;
+  grid-area: top;
   display: flex;
   align-items: center;
   gap: var(--space-7, 24px);
@@ -83,7 +84,7 @@
 .rail_stalled .railBar { background: var(--state-attention); }
 
 /* Stage area holds the panels; the drawer and phone pull up from its bottom edge. */
-.stageArea { position: relative; overflow: hidden; min-height: 0; }
+.stageArea { grid-area: stage; position: relative; overflow: hidden; min-height: 0; }
 .panels { display: grid; gap: var(--space-7, 24px); height: 100%; align-items: center; align-content: center; padding: 8px 0 52px; box-sizing: border-box; }
 .panels[data-count="1"] { grid-template-columns: minmax(0, 760px); justify-content: center; }
 .panels[data-count="2"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -304,7 +305,7 @@
 .photoBox { font-family: var(--font-mono); border: 2px solid var(--state-attention); padding: 2px 6px; align-self: flex-start; }
 
 /* Side column: scene card, controls, and the presenter camera corner nothing may cover. */
-.side { display: flex; flex-direction: column; gap: var(--space-4, 12px); min-height: 0; }
+.side { grid-area: side; display: flex; flex-direction: column; gap: var(--space-4, 12px); min-height: 0; }
 .sceneCard { padding: var(--space-4, 12px) var(--space-5, 16px); }
 .sceneTitle { margin: 4px 0 0; font-family: var(--font-display); font-size: 22px; font-weight: 600; letter-spacing: var(--tracking-display, -0.022em); }
 .controls { display: flex; gap: 8px; }
@@ -342,7 +343,8 @@
 }
 
 @media (max-width: 1100px) {
-  .root { grid-template-columns: minmax(0, 1fr); height: auto; overflow: visible; }
+  .root { grid-template-columns: minmax(0, 1fr); grid-template-areas: "top" "nav" "stats" "stage" "side"; height: auto; overflow: visible; }
+  .nav[data-open="true"] { width: auto; }
   .panel { max-height: none; }
   .panels[data-count="2"], .panels[data-count="3"], .panels[data-count="4"], .panels[data-count="5"] { grid-template-columns: minmax(0, 1fr); }
   .camera { width: 100%; max-width: 360px; }
@@ -431,3 +433,24 @@
 .replyBtn { all: unset; cursor: pointer; text-align: center; padding: 8px 12px; border-radius: 999px; background: var(--text-primary); color: var(--bg-raised); font-weight: 600; font-size: 13px; }
 .replyBtn:focus-visible, .chipAction:focus-visible { outline: 2px solid var(--line-focus); outline-offset: 2px; }
 .chipAction { cursor: pointer; border: 0; font: inherit; }
+
+/* Sidebar: opens components onto the workspace. Collapses to icons. */
+.nav { grid-area: nav; display: flex; flex-direction: column; gap: 8px; width: 176px; min-height: 0; padding: 8px; box-sizing: border-box; border: 1px solid var(--line-hairline); border-radius: var(--radius-md, 8px); background: var(--bg-raised); }
+.nav[data-open="false"] { width: 48px; align-items: center; }
+.navToggle { all: unset; cursor: pointer; display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: var(--radius-sm, 6px); color: var(--text-muted); align-self: flex-end; }
+.nav[data-open="false"] .navToggle { align-self: center; }
+.navToggle:hover { color: var(--text-primary); background: var(--bg-sunken); }
+.navList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.navItem { all: unset; cursor: pointer; box-sizing: border-box; display: flex; align-items: center; gap: 10px; width: 100%; height: 34px; padding: 0 8px; border-radius: var(--radius-sm, 6px); color: var(--text-secondary); font-size: 13px; }
+.navItem:hover { color: var(--text-primary); background: var(--bg-sunken); }
+.navItem[aria-pressed="true"] { color: var(--text-primary); background: var(--bg-sunken); box-shadow: inset 2px 0 0 var(--text-primary); }
+.nav[data-open="false"] .navLabel { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.nav[data-open="false"] .navItem { width: 32px; justify-content: center; padding: 0; }
+.navItem:focus-visible, .navToggle:focus-visible { outline: 2px solid var(--line-focus); outline-offset: 2px; }
+
+/* Stats bar: the numbers the scenario tracks. Colour only for state. */
+.stats { grid-area: stats; display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 1px; margin: 0; border: 1px solid var(--line-hairline); border-radius: var(--radius-md, 8px); overflow: hidden; background: var(--line-hairline); }
+.stat { display: grid; gap: 4px; padding: 10px 14px; background: var(--bg-raised); }
+.stat dt { margin: 0; color: var(--text-muted); }
+.statValue { margin: 0; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 18px; }
+.stat[data-alert="true"] .statValue { color: var(--state-alert, var(--text-primary)); }

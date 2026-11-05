@@ -10,6 +10,7 @@ Evernear is an agent that sources a scarce part, checks it fits, negotiates, loc
 | --- | --- | --- |
 | Demo | Nothing | `npm ci && DEMO_MODE=1 npm run demo`, then open `http://localhost:3000` (`?scene=7` jumps to a scene, `?mode=light` for light) |
 | Testnet | OutLayer testnet key, NEAR AI key, Convex | copy `.env.example` to `.env.local`, fill it in, `npx convex dev`, `npm run dev` |
+| Rehearsal | Testnet keys plus the `REHEARSE_*` accounts in [steps.ts](scripts/rehearse/steps.ts) | `RECORD=1 npm run rehearse` runs the scenes on testnet and writes real proofs to `fixtures/recorded/`; refuses missing keys and any mainnet host, skips the payout ([test](tests/record.test.ts) "rehearsal") |
 | Finale | Testnet plus a funded mainnet wallet, and `FINALE_ENABLED=1` | recorded once for the video; refused otherwise ([guard](convex/near/payout.ts), [test](tests/near/adapters.test.ts)) |
 
 Checks: `npm run typecheck && npm run lint && npm test && npm run check:ip`.
@@ -45,9 +46,11 @@ Astro Robotics, a robot maker in Chicago, cannot get the actuator motor for its 
 | Off-list email is refused | [adapters.test.ts](tests/near/adapters.test.ts) "gmail connector" |
 | 1,800 of 2,000 releases exactly $34,200 and holds $3,800 | [engine.test.ts](engine/__tests__/engine.test.ts) "short shipment", [dockcheck.test.ts](tests/dockcheck.test.ts) |
 | A release to any address but Haoyun's or Astro's is refused | [engine.test.ts](engine/__tests__/engine.test.ts) "three exits", [adapters.test.ts](tests/near/adapters.test.ts) "escrow" |
-| No release by the deadline refunds Astro | [engine.test.ts](engine/__tests__/engine.test.ts), [adapters.test.ts](tests/near/adapters.test.ts) |
+| No release by the deadline refunds Astro, triggered by Evernear's Convex scheduler at the deadline, not by the chain ([escrows.ts](convex/escrows.ts)); a release before the deadline cancels it | [engine.test.ts](engine/__tests__/engine.test.ts), [adapters.test.ts](tests/near/adapters.test.ts), [escrows.test.ts](tests/escrows.test.ts) "deadline refund" |
 | A release not from the approved dock-check build is refused | [dockcheck.test.ts](tests/dockcheck.test.ts) |
 | A Telegram message shows on the virtual phone within 1 s | [channels.test.ts](tests/channels.test.ts) "Telegram Stockbot" |
+| A recorded proof in `fixtures/recorded/` replaces its synthetic placeholder and shows as "replay" with its real hash; the synthetic label stays on every proof with no recording ([proofs.ts](scenario/proofs.ts)) | [record.test.ts](tests/record.test.ts) "proofFor prefers a real recording" |
+| Recorded proofs never contain an API key, payment key, check key or bot token ([recorder.ts](scripts/rehearse/recorder.ts)) | [record.test.ts](tests/record.test.ts) "secrets never reach disk" |
 | `DEMO_MODE=1 npm run demo` runs from a clean clone with no keys | `node scripts/demo.mjs --check` ([demo.mjs](scripts/demo.mjs)) |
 
 The adapter tests run against a recording mock of `fetch`. They prove the requests we send and how we handle the answers; they do not prove the live services behave as documented. That is what the testnet rehearsal is for.

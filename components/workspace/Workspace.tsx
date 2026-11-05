@@ -143,7 +143,7 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
       {st.endCard && (
         <div className={s.endCard} role="dialog" aria-label="End card">
           <p className={s.endLine}><span className={s.fig}>0</span> wires. <span className={s.fig}>0</span> days waiting. <span className={s.fig}>1</span> human decision.</p>
-          <p className={s.mono}>github.com/Everstock-Inc/evernear</p>
+          <p className={s.mono}>github.com/devluca999/evernear</p>
         </div>
       )}
     </div>

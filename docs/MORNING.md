@@ -1,10 +1,10 @@
 # Morning
 
-Status, Nov 5 2026: everything is on `main` at https://github.com/Everstock-Inc/evernear (private, CI green). 129 tests pass; typecheck, lint, check:ip and `next build` are green. `DEMO_MODE=1 npm run demo` works from a fresh clone with no keys. No live testnet call has run yet: that is the next step and needs your keys.
+Status, Nov 5 2026: everything is on `main` at https://github.com/devluca999/evernear (private, CI green). 129 tests pass; typecheck, lint, check:ip and `next build` are green. `DEMO_MODE=1 npm run demo` works from a fresh clone with no keys. No live testnet call has run yet: that is the next step and needs your keys.
 
 ## 1. Links
 
-- Repo: https://github.com/Everstock-Inc/evernear (private).
+- Repo: https://github.com/devluca999/evernear (private).
 - Local demo: `DEMO_MODE=1 npm run demo`, then http://localhost:3000 (`?scene=7` jumps to a scene, `?mode=light` for light).
 - Vercel: blocked. The only team the connector sees is uhome corp, on Hobby, and Hobby cannot link a private repo owned by an organisation (`repo_owned_by_org`). The offered fix is Pro, which costs money, so it is parked (item 2).
 

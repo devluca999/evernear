@@ -1,0 +1,210 @@
+import { describe, expect, it } from "vitest";
+import { mockFetch, sinkRecorder } from "./mockFetch";
+import { Custody, usdcUnits, ownerPolicy } from "@/convex/near/custody";
+import { Approvals, approvalMessage } from "@/convex/near/approval";
+import { EscrowAdapter, escrowPolicy } from "@/convex/near/escrow";
+import { Gmail } from "@/convex/near/gmail";
+import { Inference, isConfidential } from "@/convex/near/inference";
+import { Payout, finaleAmounts } from "@/convex/near/payout";
+import { MainnetRefused, outlayerBase, sha256Hex } from "@/convex/near/http";
+import { createEscrow } from "@/engine/escrow";
+import { cents } from "@/engine/money";
+import { bom10MA, suppliers } from "@/seed/astro";
+
+const KEY = "wk_" + "a".repeat(64);
+const onlyTestnet = (sent: { url: string }[]) => sent.every((s) => s.url.startsWith("https://testnet-api.outlayer.ai/") || s.url.startsWith("https://cloud-api.near.ai/"));
+
+describe("network guard", () => {
+  it("uses the testnet host by default and refuses mainnet without the finale gate", () => {
+    expect(outlayerBase()).toBe("https://testnet-api.outlayer.ai");
+    expect(() => outlayerBase({ mainnet: true })).toThrow(MainnetRefused);
+  });
+});
+
+describe("custody", () => {
+  it("registers, records a proof and never stores the api key", async () => {
+    const { fetch, sent } = mockFetch({ "POST /register": () => ({ api_key: KEY, wallet_id: "w1", near_account_id: "ab".repeat(32) }) });
+    const { proofs, sink } = sinkRecorder();
+    const r = await new Custody({ fetch, sink }).register();
+    expect(r.wallet_id).toBe("w1");
+    expect(proofs).toHaveLength(1);
+    expect(JSON.stringify(proofs[0].response)).not.toContain(KEY);
+    expect(onlyTestnet(sent)).toBe(true);
+  });
+  it("pays USDC as ft_transfer in 6 decimal units with an idempotency key", async () => {
+    const { fetch, sent } = mockFetch({ "POST /wallet/v1/call": () => ({ request_id: "r1", status: "success", tx_hash: "TX1" }) });
+    const { proofs, sink } = sinkRecorder();
+    await new Custody({ fetch, apiKey: KEY, sink, idem: () => "idem-1" }).payUsdc({ to: "ultra-motion.testnet", cents: cents(5562), memo: "routine", label: "Routine reorder paid" });
+    const body = JSON.parse(sent[0].body);
+    expect(body).toMatchObject({ receiver_id: "usdc.fakes.testnet", method_name: "ft_transfer", deposit: "1", args: { receiver_id: "ultra-motion.testnet", amount: "5562000000" } });
+    expect(sent[0].headers["X-Idempotency-Key"]).toBe("idem-1");
+    expect(sent[0].headers.Authorization).toBe(`Bearer ${KEY}`);
+    expect(proofs[0]).toMatchObject({ hash: "TX1", explorerUrl: "https://testnet.nearblocks.io/txns/TX1", synthetic: false });
+  });
+  it("derives the sub-agent key the documented way", async () => {
+    const { fetch, sent } = mockFetch({ "PUT /wallet/v1/api-key": () => ({ wallet_id: "w2", near_account_id: "cd".repeat(32) }) });
+    const r = await new Custody({ fetch, apiKey: KEY, sink: () => {} }).createSubWallet("po-1042");
+    expect(r.apiKey).toBe("wk_" + (await sha256Hex(`po-1042:0:${KEY}`)));
+    expect(JSON.parse(sent[0].body)).toEqual({ seed: "po-1042", key_hash: await sha256Hex(r.apiKey) });
+  });
+  it("builds an owner policy with a whitelist and a per-transaction cap", () => {
+    const p = ownerPolicy({ walletId: "w1", whitelist: ["a.testnet"], perTxUsdc: 10000, approvers: [{ id: "luca" }, { id: "jordy" }], threshold: 2 });
+    expect(p.rules.addresses).toEqual({ mode: "whitelist", list: ["a.testnet"] });
+    expect(p.rules.limits.per_transaction["usdc.fakes.testnet"]).toBe("10000000000");
+    expect(p.approval.threshold).toEqual({ required: 2 });
+    expect(usdcUnits(cents(38000))).toBe("38000000000");
+  });
+  it("says plainly when no key is configured", async () => {
+    await expect(new Custody({ fetch: mockFetch({}).fetch, sink: () => {} }).address()).rejects.toThrow("not configured");
+  });
+});
+
+describe("approvals", () => {
+  it("signs the documented message and records each vote", async () => {
+    expect(approvalMessage("ap1", "ed25519:PK", "H")).toBe("approve:ap1:ed25519:PK:H");
+    const { fetch, sent } = mockFetch({ "POST /wallet/v1/approve/ap1": () => ({ approval_id: "ap1", status: "pending", approved: 1, required: 2 }) });
+    const { proofs, sink } = sinkRecorder();
+    await new Approvals({ fetch, sink }).submit({ approvalId: "ap1", approver: "Luca", signature: "sig", public_key: "ed25519:PK", account_id: "luca.testnet", nonce: "n" });
+    expect(sent[0].headers.Authorization).toBeUndefined();
+    expect(proofs[0].label).toBe("Approval 1 of 2: Luca");
+  });
+});
+
+describe("escrow", () => {
+  const haoyun = "haoyun-precision.testnet", astro = "astro-robotics.testnet";
+  const esc = () => createEscrow({ supplier: haoyun, owner: astro, lockedCents: cents(38000), deadlineMs: 1000 });
+  it("whitelists exactly the supplier and Astro", () => {
+    expect(escrowPolicy({ walletId: "w", supplier: haoyun, owner: astro, lockedCents: cents(38000) }).rules.addresses.list).toEqual([haoyun, astro]);
+  });
+  it("refuses a wrong address before any network call", async () => {
+    const { fetch, sent } = mockFetch({});
+    const { proofs, sink } = sinkRecorder();
+    const r = await new EscrowAdapter({ fetch, parentApiKey: KEY, sink }).release({ escrow: esc(), escrowApiKey: "wk_sub", to: "mallory.testnet", cents: cents(34200), po: "1042", nowMs: 1 });
+    expect(r).toEqual({ ok: false, reason: "address_not_allowed" });
+    expect(sent).toHaveLength(0);
+    expect(proofs[0].kind).toBe("refusal");
+  });
+  it("releases $34,200 from the PO wallet and returns the held $3,800 to Astro", async () => {
+    const { fetch, sent } = mockFetch({ "POST /wallet/v1/call": () => ({ request_id: "r", status: "success", tx_hash: "T" }) });
+    const a = new EscrowAdapter({ fetch, parentApiKey: KEY, sink: () => {} });
+    const r = await a.release({ escrow: esc(), escrowApiKey: "wk_sub", to: haoyun, cents: cents(34200), po: "1042", nowMs: 1 });
+    if (!r.ok) throw new Error("release refused");
+    await a.reclaim({ escrow: r.escrow, escrowApiKey: "wk_sub", po: "1042", nowMs: 2 });
+    expect(sent.map((s) => JSON.parse(s.body).args)).toEqual([
+      { receiver_id: haoyun, amount: "34200000000", memo: "PO 1042 release" },
+      { receiver_id: astro, amount: "3800000000", memo: "PO 1042 held part returned" },
+    ]);
+    expect(sent.every((s) => s.headers.Authorization === "Bearer wk_sub")).toBe(true);
+  });
+  it("refunds Astro in full after the deadline", async () => {
+    const { fetch, sent } = mockFetch({ "POST /wallet/v1/call": () => ({ request_id: "r", status: "success" }) });
+    const a = new EscrowAdapter({ fetch, parentApiKey: KEY, sink: () => {} });
+    expect((await a.refundIfDue({ escrow: esc(), escrowApiKey: "wk_sub", po: "1042", nowMs: 500 })).ok).toBe(false);
+    expect((await a.refundIfDue({ escrow: esc(), escrowApiKey: "wk_sub", po: "1042", nowMs: 1001 })).ok).toBe(true);
+    expect(JSON.parse(sent[0].body).args).toMatchObject({ receiver_id: astro, amount: "38000000000" });
+  });
+});
+
+describe("gmail connector", () => {
+  const allowlist = ["sales@haoyun-precision.example"];
+  it("refuses an off-list address without calling the connector", async () => {
+    const { fetch, sent } = mockFetch({});
+    const { proofs, sink } = sinkRecorder();
+    const r = await new Gmail({ fetch, paymentKey: "o:1:k", ownerAccount: "astro.testnet", allowlist, sink }).send({ to: "deals@unknown-broker.example", subject: "PO 1042", body: "x" });
+    expect(r.ok).toBe(false);
+    expect(sent).toHaveLength(0);
+    expect(proofs[0].label).toBe("Email to an off list address refused");
+  });
+  it("sends through the testnet connector with the payment key", async () => {
+    const { fetch, sent } = mockFetch({ "POST /call/connectors.outlayer.testnet/gmail": () => ({ call_id: "c1", status: "completed", output: { success: true } }) });
+    const { proofs, sink } = sinkRecorder();
+    const r = await new Gmail({ fetch, paymentKey: "o:1:k", ownerAccount: "astro.testnet", allowlist, sink }).send({ to: allowlist[0], subject: "PO 1042", body: "USD 19.00" });
+    expect(r.ok).toBe(true);
+    expect(sent[0].headers["X-Payment-Key"]).toBe("o:1:k");
+    expect(JSON.parse(sent[0].body)).toMatchObject({ input: { operation: "send", to: allowlist[0] }, secrets_ref: { profile: "gmail" } });
+    expect(proofs[0].kind).toBe("connector_receipt");
+  });
+  it("records the connector's own policy refusal", async () => {
+    const { fetch } = mockFetch({ "POST /call/": () => ({ call_id: "c2", status: "completed", output: { success: false, error: "policy_denied: recipient" } }) });
+    const { proofs, sink } = sinkRecorder();
+    const r = await new Gmail({ fetch, paymentKey: "o:1:k", ownerAccount: "a", allowlist, sink }).send({ to: allowlist[0], subject: "PO", body: "b" });
+    expect(r.ok).toBe(false);
+    expect(proofs[0].kind).toBe("refusal");
+  });
+});
+
+describe("private inference", () => {
+  const model = "Qwen/Qwen3-VL-30B-A3B-Instruct";
+  function routes(sig: (reqSha: string, resSha: string) => unknown, withAtt = true) {
+    let reqBody = "";
+    const resBody = { id: "chatcmpl-1", choices: [{ message: { content: JSON.stringify({ po: "1042", quantity: 1800 }) } }] };
+    return mockFetch({
+      "GET /v1/models": () => ({ data: [{ id: "openai/gpt", owned_by: "openai" }, { id: model, owned_by: "nearai" }] }),
+      "GET /v1/attestation/report": () => ({ model_attestations: withAtt ? [{ signing_address: "0xABC" }] : [] }),
+      "POST /v1/chat/completions": (req) => { reqBody = req.body; return resBody; },
+      "GET /v1/signature/chatcmpl-1": async () => sig(await sha256Hex(reqBody), await sha256Hex(JSON.stringify(resBody))),
+    });
+  }
+  it("only picks confidential TEE models", () => {
+    expect(isConfidential({ id: "x", owned_by: "openai" })).toBe(false);
+    expect(isConfidential({ id: model, owned_by: "nearai" })).toBe(true);
+  });
+  it("refuses to send a document when the model has no attestation", async () => {
+    const { fetch, sent } = routes(() => ({}), false);
+    await expect(new Inference({ fetch, apiKey: "k", sink: () => {} }).read({ kind: "packing_slip", text: "Qty 1800", fields: ["quantity"], label: "Slip" })).rejects.toThrow("no model attestation");
+    expect(sent.some((s) => s.url.includes("/chat/completions"))).toBe(false);
+  });
+  it("binds the reply to the model, request and response when the signature matches", async () => {
+    const { fetch } = routes((a, b) => ({ text: `${model}:${a}:${b}`, signature: "0xsig", signing_address: "0xabc", signature_kind: "provider_tee" }));
+    const { proofs, sink } = sinkRecorder();
+    const r = await new Inference({ fetch, apiKey: "k", sink }).read<{ quantity: number }>({ kind: "packing_slip", text: "Qty 1800", fields: ["po", "quantity"], label: "Packing slip read privately" });
+    expect(r.fields.quantity).toBe(1800);
+    expect(r.record.bound).toBe(true);
+    expect(proofs[0].kind).toBe("attestation");
+  });
+  it("marks the read unbound when the signature does not match", async () => {
+    const { fetch } = routes(() => ({ text: "other", signature: "0x", signing_address: "0xabc", signature_kind: "provider_tee" }));
+    const r = await new Inference({ fetch, apiKey: "k", sink: () => {} }).read({ kind: "offer", text: "x", fields: ["unit price"], label: "Offer" });
+    expect(r.record.bound).toBe(false);
+  });
+});
+
+describe("finale payout", () => {
+  it("is scaled 1:10,000", () => {
+    expect(finaleAmounts(cents(38000), cents(34200))).toEqual({ lockedCents: 380, paidCents: 342, reclaimCents: 38 });
+  });
+  it("refuses without FINALE_ENABLED and Luca's yes, with no network call", async () => {
+    const { fetch, sent } = mockFetch({});
+    for (const gate of [{ finaleEnabled: false, lucaSaidYes: true }, { finaleEnabled: true, lucaSaidYes: false }]) {
+      await expect(new Payout({ fetch, apiKey: "k", sink: () => {}, gate }).createCheck({ cents: 380, memo: "PO 1042", idem: "i" })).rejects.toThrow(MainnetRefused);
+    }
+    expect(sent).toHaveLength(0);
+  });
+});
+
+describe("no leak", () => {
+  it("sends no plain-text BOM specs or supplier list anywhere except private inference", async () => {
+    const { fetch, sent } = mockFetch({
+      "POST /wallet/v1/call": () => ({ request_id: "r", status: "success", tx_hash: "T" }),
+      "POST /call/": () => ({ call_id: "c", status: "completed", output: { success: true } }),
+      "GET /v1/models": () => ({ data: [{ id: "m", owned_by: "nearai" }] }),
+      "GET /v1/attestation/report": () => ({ model_attestations: [{ signing_address: "0x1" }] }),
+      "POST /v1/chat/completions": () => ({ id: "c1", choices: [{ message: { content: "{}" } }] }),
+      "GET /v1/signature/": () => ({}),
+    });
+    const sink = () => {};
+    const bomText = bom10MA.map((l) => `${l.part}: ${Object.values(l.specs).join(", ")}`).join("\n");
+    await new Inference({ fetch, apiKey: "k", sink }).read({ kind: "offer", text: bomText, fields: ["fitment"], label: "Fitment read" });
+    await new Custody({ fetch, apiKey: KEY, sink }).payUsdc({ to: "haoyun-precision.testnet", cents: 100, memo: "PO 1042 escrow", label: "lock" });
+    await new Gmail({ fetch, paymentKey: "o:1:k", ownerAccount: "a", allowlist: ["sales@haoyun-precision.example"], sink }).send({ to: "sales@haoyun-precision.example", subject: "PO 1042", body: "We can accept USD 19.00 per unit for 2,000 units." });
+
+    const outside = sent.filter((s) => !s.url.startsWith("https://cloud-api.near.ai/"));
+    expect(outside.length).toBeGreaterThan(0);
+    const secrets = [...new Set(bom10MA.flatMap((l) => [l.part, ...Object.values(l.specs)]))].filter((x) => x.length > 3);
+    const others = suppliers.filter((s) => s.id !== "haoyun").map((s) => s.name);
+    for (const s of outside) {
+      for (const word of [...secrets, ...others]) expect(s.body, `${s.url} leaks ${word}`).not.toContain(word);
+    }
+    expect(sent.some((s) => s.url.startsWith("https://cloud-api.near.ai/") && s.body.includes("NEMA 17"))).toBe(true);
+  });
+});

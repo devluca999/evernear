@@ -6,12 +6,12 @@ Status, Nov 5 2026: everything is on `main` at https://github.com/devluca999/eve
 
 - Repo: https://github.com/devluca999/evernear (private).
 - Local demo: `DEMO_MODE=1 npm run demo`, then http://localhost:3000 (`?scene=7` jumps to a scene, `?mode=light` for light).
-- Vercel: project `evernear` in the uhome corp team, linked to this repo, `DEMO_MODE=1`, no secrets. Every push to `main` deploys.
+- Demo: https://evernear-psi.vercel.app (public; Vercel project `evernear` in the uhome corp team, `DEMO_MODE=1`, no secrets; every push to `main` deploys). `evernear.vercel.app` is someone else's app.
 
 ## 2. Keys and accounts needed, in order
 
 1. **OutLayer testnet wallet**: `node scripts/rehearse-testnet.mjs`. It writes `OUTLAYER_API_KEY`, `OUTLAYER_WALLET_ID`, `OUTLAYER_NEAR_ACCOUNT` and `OUTLAYER_PAYMENT_KEY` to `.env.local` and never prints a key. Then set the owner policy at app.outlayer.ai/wallet (testnet toggle). The trial's 7 days start at registration.
-2. **Vercel**: done. Check the deployment's protection setting before sharing the link.
+2. **Vercel**: done. Commits in this repo are authored as `devluca999` (GitHub no-reply), so Hobby accepts them. If the demo should not be public yet, turn on protection for production in the project settings.
 3. **NEAR testnet accounts** for you and Jordy, with keys in a wallet that signs NEP-413 on a phone. Put yours in `OUTLAYER_OWNER_ACCOUNT`.
 4. **Supplier stand-ins**: two testnet accounts for Ultra Motion and Haoyun, plus a demo mailbox (`REHEARSE_*` in `.env.example`).
 5. **usdc.fakes.testnet tokens**: how to get them is not documented. Ask OutLayer.

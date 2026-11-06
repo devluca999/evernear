@@ -13,16 +13,12 @@ const ORDER = ["kansai", "rheinwerk", "huaxin", "haoyun"];
 export function BomPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }) {
   const attested = st.proofs.some((p) => p.id === "inference_attestation");
   const results = ORDER.map((id) => st.fitment.find((f) => f.supplierId === id)).filter((f) => f !== undefined);
+  // Once there is something to report (fitment verdicts or the dock count), it leads and the drawing shrinks.
+  const compact = !!st.dock || results.length > 0;
+  const winner = results.find((f) => f.pass);
   return (
     <Panel id="bom" title="Order and BOM" pulse={pulse} meta={attested ? <Pill tone="success" led>Read privately in an attested enclave</Pill> : null}>
       <div className={s.bomGrid}>
-        <figure className={s.figure}>
-          <div className={s.figPair}>
-            <ExplodedView highlight="Actuator motor" />
-            <MotorCloseUp />
-          </div>
-          <figcaption className={s.micro}>10MA · {bom10MA.length} BOM LINES</figcaption>
-        </figure>
         {st.dock ? (
           <div className={s.dockCard}>
             <div className={s.dockHead}><span className={s.micro}>DOCK CHECK · PO 1042</span><Stamp word="Counted" time="Day 9, 08:42" /></div>
@@ -33,6 +29,14 @@ export function BomPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }) 
             </dl>
           </div>
         ) : (
+          <>
+          {results.length === ORDER.length && winner && (
+            <div className={s.headline}>
+              <span className={s.micro}>FITMENT · ACTUATOR MOTOR</span>
+              <p className={s.headlineText}>{suppliers.find((x) => x.id === winner.supplierId)!.name} fits every spec</p>
+              <p className={s.sub}><span className={s.fig}>{results.length - 1}</span> of <span className={s.fig}>{results.length}</span> alternatives fail on a spec or on policy.</p>
+            </div>
+          )}
           <ul className={s.cards}>
             {results.map((f) => {
               const sup = suppliers.find((x) => x.id === f.supplierId)!;
@@ -55,7 +59,15 @@ export function BomPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }) 
             })}
             {results.length === 0 && <li className={s.empty}>Scanning alternatives against the BOM</li>}
           </ul>
+          </>
         )}
+        <figure className={s.figure} data-compact={compact}>
+          <div className={s.figPair}>
+            <ExplodedView highlight="Actuator motor" />
+            <MotorCloseUp />
+          </div>
+          <figcaption className={s.micro}>10MA · {bom10MA.length} BOM LINES</figcaption>
+        </figure>
       </div>
     </Panel>
   );

@@ -34,30 +34,44 @@ export function RulesPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }
 
   return (
     <Panel id="rules" title="Rules and approvals" pulse={pulse}>
-      {st.wallet && st.scene <= 1 && (
-        <div className={s.card}>
-          <span className={s.micro}>{"ASTRO'S WALLET"}</span>
-          <p className={s.mono}>{st.wallet.owner}</p>
-          <p className={s.sub}><Led tone="success" />Keys on your devices. Evernear holds a capped key only.</p>
+      {st.escrow && (
+        <div className={s.headline}>
+          <span className={s.micro}>PO {PO.number}</span>
+          <p className={s.headlineText}>
+            {paid
+              ? <><span className={s.fig}>{formatUsdShort(st.escrow.releasedCents)}</span> paid to Haoyun · <span className={s.fig}>{formatUsdShort(st.escrow.lockedCents - st.escrow.releasedCents)}</span> {st.escrow.reclaimedCents ? "back to Astro" : "held"}</>
+              : <><span className={s.fig}>{formatUsdShort(st.escrow.lockedCents)}</span> committed to Haoyun&apos;s PO account</>}
+          </p>
+          <p className={s.sub}>{paid ? "Paid for what arrived. The rest returns to Astro." : "Visible to Haoyun. It can only pay Haoyun or go back to Astro."}</p>
         </div>
       )}
-      {st.scene === 2 && (
-        <div className={s.card}>
-          <span className={s.micro}>ROUTINE REORDER · ULTRA MOTION</span>
-          <p className={s.sub}><span className={s.fig}>300</span> motors, <span className={s.fig}>{formatUsdShort(st.routine.totalCents)}</span>, under the cap, no approval needed</p>
-          <ol className={p.dotRow} aria-label="Routine reorder steps">
-            {RAIL.map((r) => {
-              const rs = railState(st.routine.stage, r.stage);
-              return <li key={r.stage} title={r.label}><Led tone={rs === "done" ? "success" : rs === "active" ? "active" : "idle"} label={`${r.label}: ${rs}`} /></li>;
-            })}
-          </ol>
-        </div>
+      {st.refused.filter((r) => r.kind === "wrong_address_release").map((r) => {
+        const to = r.detail.split(":")[0];
+        const short = to.length > 14 ? `${to.slice(0, 6)}…${to.slice(-4)}` : to;
+        // A refusal here is the guard working: said as such, then reduced to a quiet line.
+        return st.t - r.atMs < RECENT_MS
+          ? <p key={r.atMs} className={s.refusal}><Led tone="success" />Blocked as designed: a release to {short} is not one of the three exits</p>
+          : <p key={r.atMs} className={s.quietNote}>1 wrong address release blocked</p>;
+      })}
+      {st.escrow && (
+        <PoLabel po={PO.number} tone={poTone(st)} title={`PO ${PO.number} escrow`} code={`PO${PO.number} ${haoyun.receiveAddress.slice(0, 10).toUpperCase()}`}
+          stamp={paid ? <Stamp word="Paid" time="Day 9" /> : <Stamp word="Committed" time="Day 0" />}
+          fields={[
+            { label: "From", value: `${haoyun.name}, ${haoyun.city}` },
+            { label: "PO", value: PO.number },
+            { label: "Fits", value: "10MA actuator motor" },
+            { label: "Qty", value: st.dock ? `${formatInt(st.dock.receivedQty)} of ${formatInt(PO.quantity)}` : formatInt(PO.quantity) },
+            { label: paid ? "Paid" : "Committed", value: formatUsdShort(paid ? st.escrow.releasedCents : st.escrow.lockedCents) },
+            { label: "Approved by", value: st.approvals.map((a) => a.by).join(", ") },
+          ]} />
       )}
-      <RulesEditor />
-      <ul className={s.rules}>
-        {rows.map((r, i) => <li key={i}><Led tone={r.tone} />{r.text}</li>)}
-      </ul>
-      {showOrder && (
+      {st.escrow && (
+        <p className={s.quietNote}>
+          Testnet at 1:{formatInt(TESTNET_SCALE)}: <span className={s.fig}>{formatUsd(scaleTestnet(st.escrow.lockedCents))}</span> moves for real.
+          A commitment, not a lock: Tidepool enforces the rules, and Astro can change them.
+        </p>
+      )}
+      {showOrder && !st.escrow && (
         <>
           <div className={s.orderLine}>
             <div><span className={s.micro}>ORDER TOTAL · PO {PO.number}</span><p className={s.big}><span className={s.fig}>{formatUsdShort(PO.revisedTotalCents)}</span></p></div>
@@ -83,39 +97,32 @@ export function RulesPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }
           </div>
         </>
       )}
-      {st.escrow && (
-        <PoLabel po={PO.number} tone={poTone(st)} title={`PO ${PO.number} escrow`} code={`PO${PO.number} ${haoyun.receiveAddress.slice(0, 10).toUpperCase()}`}
-          stamp={paid ? <Stamp word="Paid" time="Day 9" /> : <Stamp word="Committed" time="Day 0" />}
-          fields={[
-            { label: "From", value: `${haoyun.name}, ${haoyun.city}` },
-            { label: "PO", value: PO.number },
-            { label: "Fits", value: "10MA actuator motor" },
-            { label: "Qty", value: st.dock ? `${formatInt(st.dock.receivedQty)} of ${formatInt(PO.quantity)}` : formatInt(PO.quantity) },
-            { label: paid ? "Paid" : "Committed", value: formatUsdShort(paid ? st.escrow.releasedCents : st.escrow.lockedCents) },
-            { label: "Approved by", value: st.approvals.map((a) => a.by).join(", ") },
-          ]} />
+      {st.wallet && st.scene <= 1 && (
+        <div className={s.card}>
+          <span className={s.micro}>{"ASTRO'S WALLET"}</span>
+          <p className={s.mono}>{st.wallet.owner}</p>
+          <p className={s.sub}><Led tone="success" />Keys on your devices. Evernear holds a capped key only.</p>
+        </div>
       )}
-      {st.escrow && (
-        <p className={s.sub}>
-          {paid
-            ? <><span className={s.fig}>{formatUsdShort(st.escrow.releasedCents)}</span> paid to Haoyun. <span className={s.fig}>{formatUsdShort(st.escrow.lockedCents - st.escrow.releasedCents)}</span> {st.escrow.reclaimedCents ? "returned to Astro" : "held"}.</>
-            : <><span className={s.fig}>{formatUsdShort(st.escrow.lockedCents)}</span> committed. Visible to Haoyun. Pays Haoyun or Astro only.</>}
-        </p>
+      {st.scene === 2 && (
+        <div className={s.card}>
+          <span className={s.micro}>ROUTINE REORDER · ULTRA MOTION</span>
+          <p className={s.sub}><span className={s.fig}>300</span> motors, <span className={s.fig}>{formatUsdShort(st.routine.totalCents)}</span>, under the cap, no approval needed</p>
+          <ol className={p.dotRow} aria-label="Routine reorder steps">
+            {RAIL.map((r) => {
+              const rs = railState(st.routine.stage, r.stage);
+              return <li key={r.stage} title={r.label}><Led tone={rs === "done" ? "success" : rs === "active" ? "active" : "idle"} label={`${r.label}: ${rs}`} /></li>;
+            })}
+          </ol>
+        </div>
       )}
-      {st.escrow && (
-        <p className={s.sub}>
-          Testnet at 1:{formatInt(TESTNET_SCALE)}: <span className={s.fig}>{formatUsd(scaleTestnet(st.escrow.lockedCents))}</span> moves for real.
-          A commitment, not a lock: Tidepool enforces the rules, and Astro can change them.
-        </p>
-      )}
-      {st.refused.filter((r) => r.kind === "wrong_address_release").map((r) => {
-        const to = r.detail.split(":")[0];
-        const short = to.length > 14 ? `${to.slice(0, 6)}…${to.slice(-4)}` : to;
-        // A refusal here is the guard working: said as such, then reduced to a quiet line.
-        return st.t - r.atMs < RECENT_MS
-          ? <p key={r.atMs} className={s.refusal}><Led tone="success" />Blocked as designed: a release to {short} is not one of the three exits</p>
-          : <p key={r.atMs} className={s.quietNote}>1 wrong address release blocked</p>;
-      })}
+      <section className={s.rulesRef} aria-label="Company rules">
+        <span className={s.micro}>COMPANY RULES</span>
+        <ul className={s.rules}>
+        {rows.map((r, i) => <li key={i}><Led tone={r.tone} />{r.text}</li>)}
+      </ul>
+      <RulesEditor />
+      </section>
     </Panel>
   );
 }

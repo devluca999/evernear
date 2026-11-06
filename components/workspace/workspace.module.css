@@ -450,12 +450,17 @@
 .nav[data-open="false"] .navItem { width: 40px; justify-content: center; padding: 0; }
 .navItem:focus-visible, .navToggle:focus-visible { outline: 2px solid var(--line-focus); outline-offset: 2px; }
 
-/* Stats bar: the numbers the scenario tracks. Colour only for state. */
-.stats { grid-area: stats; display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 1px; margin: 0; border: 1px solid var(--line-hairline); border-radius: var(--radius-md, 8px); overflow: hidden; background: var(--line-hairline); }
-.stat { display: grid; gap: 4px; padding: 10px 14px; background: var(--bg-raised); }
-.stat dt { margin: 0; color: var(--text-muted); }
-.statValue { margin: 0; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 18px; }
-.stat[data-alert="true"] .statValue { color: var(--state-alert, var(--text-primary)); }
+/* Stats bar: the numbers the scenario tracks, in two groups. Colour only for state. */
+.statsBar { grid-area: stats; display: grid; grid-template-columns: 3fr 4fr; gap: var(--space-4, 12px); margin: 0; }
+.statGroup { display: grid; gap: 6px; padding: 8px 4px 10px; border: 1px solid var(--line-hairline); border-radius: var(--radius-md, 8px); background: var(--bg-raised); }
+.statGroupName { padding: 0 12px; font-size: 10px; letter-spacing: var(--tracking-micro, 0.10em); color: var(--text-faint); }
+.statRow { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
+.statCell { display: grid; gap: 4px; padding: 0 12px; border-left: 1px solid var(--line-hairline); }
+.statCell:first-child { border-left: none; }
+.statCell dt { margin: 0; color: var(--text-muted); }
+.statValue { margin: 0; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 18px; color: var(--text-primary); }
+.statCell[data-empty="true"] .statValue { color: var(--text-faint); }
+.statCell[data-alert="true"] .statValue { color: var(--state-alert, var(--text-primary)); }
 
 /* Products and BOM. */
 .prodTabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
@@ -520,10 +525,11 @@
 .ruleInput input { all: unset; width: 100%; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 14px; color: var(--text-primary); }
 
 /* The board: 3 columns by 2 rows of spots once you place a card (scenario/board.ts). */
-.panels[data-grid="true"] { grid-template-columns: repeat(3, minmax(0, 1fr)); align-content: stretch; align-items: stretch; position: relative; }
+.panels[data-grid="true"] { align-content: stretch; align-items: start; position: relative; }
 .cardSlot { display: contents; }
 .panels[data-grid="true"] .cardSlot { display: block; min-height: 0; min-width: 0; position: relative; z-index: 1; }
-.panels[data-grid="true"] .cardSlot > .panel { height: 100%; max-height: none; box-sizing: border-box; }
+.panels[data-grid="true"] .cardSlot { align-self: start; max-height: 100%; display: flex; }
+.panels[data-grid="true"] .cardSlot > .panel { width: 100%; max-height: 100%; box-sizing: border-box; }
 .cardSlot[data-moving="true"] { z-index: 6; opacity: 0.92; pointer-events: none; }
 .cardSlot[data-moving="true"] > .panel { box-shadow: var(--elev-3); }
 .spot { border: 1px dashed var(--line-strong); border-radius: var(--radius-lg, 12px); z-index: 0; }
@@ -532,3 +538,16 @@
 .gripBtn:disabled { cursor: default; opacity: 0.4; }
 .panelHead[data-draggable="true"] { cursor: grab; user-select: none; }
 .panelHead[data-draggable="true"] button { cursor: pointer; }
+
+/* Information hierarchy: the outcome first, reference material last. */
+.headline { display: grid; gap: 4px; padding-bottom: var(--space-4, 12px); border-bottom: 1px solid var(--line-hairline); margin-bottom: var(--space-4, 12px); }
+.headlineText { margin: 0; font-family: var(--font-display); font-size: 20px; font-weight: 600; line-height: 1.3; letter-spacing: var(--tracking-display, -0.022em); }
+.rulesRef { display: grid; gap: 8px; margin-top: var(--space-5, 16px); padding-top: var(--space-4, 12px); border-top: 1px solid var(--line-hairline); }
+.rulesRef .rules { margin: 0; }
+.figure[data-compact="true"] { flex-direction: row; justify-content: center; }
+.figure[data-compact="true"] .figPair { max-width: 360px; }
+.figure[data-compact="true"] :global(.iso-svg) { max-height: 120px; }
+.sceneLine { margin: 6px 0 0; font-size: 14px; line-height: 1.45; color: var(--text-secondary); }
+.sceneList .sceneBtn { color: var(--text-muted); }
+.sceneList .sceneBtn[data-current="true"] { color: var(--text-primary); font-weight: 600; }
+.planHead { display: flex; align-items: center; justify-content: space-between; gap: 12px; }

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { stateAt, sceneStartMs, stageStartMs } from "@/scenario/runner";
 import { scenes, timeline, totalDurationMs } from "@/scenario/scenes";
-import { products, suppliers } from "@/seed/astro";
+import { suppliers } from "@/seed/astro";
 import type { Beat, PanelId, WorkspaceState } from "@/scenario/types";
 import { Rail } from "./Rail";
 import { Drawer } from "./Drawer";
@@ -16,7 +16,7 @@ import { RulesPanel } from "./panels/RulesPanel";
 import { ProductsPanel } from "./panels/ProductsPanel";
 import { ActionsContext, type WorkspaceActions } from "./actions";
 import { PhotoViewer } from "./PhotoViewer";
-import { Chip, Pill } from "./ui";
+import { Pill } from "./ui";
 import { CHECKPOINTS } from "@/scenario/shipment";
 import { PANEL_ORDER } from "@/scenario/layout";
 import { arrange, closeCard, COLS, emptyBoard, loadBoard, lockCard, openCard, placeCard, rowsUsed, SPOTS, type Board } from "@/scenario/board";
@@ -40,6 +40,19 @@ const save = (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.str
 const HAOYUN = suppliers.find((x) => x.id === "haoyun")!.receiveAddress;
 
 const TIME_CARD: Record<number, string> = { 7: "Day 9 · Chicago dock" };
+/** One line per scene: what the viewer is looking at, in plain words. */
+const SCENE_LINE: Record<number, string> = {
+  0: "Astro sets up its own wallet and the rules the agent must follow.",
+  1: "14 robots are ordered and there are motors for 6. The usual supplier is out.",
+  2: "A small reorder under the cap pays itself. No person needed.",
+  3: "Four alternatives are checked against the 10MA's specs, privately.",
+  4: "A new supplier over the cap needs two signatures.",
+  5: "Haoyun asks for 8% more. Your limit is 3%.",
+  6: "The PO total moves into its own account, which can only pay Haoyun or Astro.",
+  7: "The shipment is counted at the dock: 1,800 of 2,000 arrived.",
+  8: "Haoyun is paid for what arrived. The rest goes back to Astro.",
+  9: "",
+};
 
 export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: number; autoplay?: boolean }) {
   const [t, setT] = useState(initialMs);
@@ -163,6 +176,8 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
   const ownBoard = board.some(Boolean);
   const gridMode = ownBoard || drag !== null;
   const rows = drag ? 2 : rowsUsed(placed);
+  // Only the columns that hold a card take width, so two cards share the whole row; dragging shows all three.
+  const cols = drag ? COLS : Math.max(1, ...placed.map((p) => (p.spot % COLS) + 1));
   const boardCtx = {
     isMine: (id: PanelId) => board.includes(id),
     isLocked: (id: PanelId) => locked.includes(id),
@@ -234,7 +249,7 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
             <p className={s.mono}>github.com/devluca999/evernear</p>
           </div>
         ) : (
-          <div className={s.panels} data-count={placed.length} data-grid={gridMode} style={gridMode ? { gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))` } : undefined}>
+          <div className={s.panels} data-count={placed.length} data-grid={gridMode} style={gridMode ? { gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`, gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` } : undefined}>
             {drag && Array.from({ length: SPOTS }, (_, spot) => (
               <div key={`spot-${spot}`} className={s.spot} data-spot={spot} data-over={drag.over === spot}
                 style={{ gridColumn: (spot % COLS) + 1, gridRow: Math.floor(spot / COLS) + 1 }} aria-hidden="true" />
@@ -262,6 +277,7 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
         <div className={s.sceneCard}>
           <span className={s.micro}>SCENE {st.scene}</span>
           <p className={s.sceneTitle}>{TIME_CARD[st.scene] ?? scene.title}</p>
+          {SCENE_LINE[st.scene] && <p className={s.sceneLine}>{SCENE_LINE[st.scene]}</p>}
           {waiting && (
             <div className={s.waiting} role="group" aria-label="Waiting for you">
               <span className={s.micro}>WAITING FOR {waiting.who.toUpperCase()}</span>
@@ -297,9 +313,6 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
             <li key={x.id}><button className={s.sceneBtn} data-current={x.id === st.scene} onClick={() => jump(x.id)}><span className={s.fig}>{x.id}</span>{x.title}</button></li>
           ))}
         </ol>
-        <div className={s.products} aria-label="Products">
-          {products.map((p) => p.playable ? <Pill key={p.id} tone="idle">{p.name}</Pill> : <span key={p.id} title="Not played in this demo"><Chip>{p.name}</Chip></span>)}
-        </div>
         {st.proofs.some((p) => p.synthetic) && <p className={s.syntheticNote}><Pill tone="idle">synthetic</Pill><span>Proofs are placeholders until real testnet recordings replace them.</span></p>}
       </aside>
 

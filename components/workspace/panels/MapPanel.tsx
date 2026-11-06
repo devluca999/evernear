@@ -81,11 +81,12 @@ const lanePath = (id: string) => LANE_GEO[id].segments.map((seg) => polyline(seg
 
 export function MapPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }) {
   const [pick, setPick] = useState<string | null>(null);
+  const [planOpen, setPlanOpen] = useState(false);
   const [today] = useState(() => isoDay(Date.now()));
   const [shipDay, setShipDay] = useState<string | undefined>(undefined);
   const plan = pick ? eta(pick, today, shipDay) : null;
   const offer = pick ? offers.find((o) => o.supplierId === pick && o.part === MOTOR_PART) : undefined;
-  const choose = (id: string) => { if (moved.current) return; setPick((cur) => (cur === id ? null : id)); setShipDay(undefined); };
+  const choose = (id: string) => { if (moved.current) return; setPlanOpen(true); setPick((cur) => (cur === id ? null : id)); setShipDay(undefined); };
   // Drag to pan; Ctrl or pinch and the wheel to zoom; buttons to zoom and reset.
   const W = MAP.width, H = MAP.height;
   const [view, setView] = useState<View>(() => fullView(W, H));
@@ -152,8 +153,15 @@ export function MapPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }) 
           <button type="button" className={s.mapBtn} aria-label="Show the whole map" onClick={() => setView(clampView(fullView(W, H), W, H))}><LocateFixed size={14} strokeWidth={2} aria-hidden="true" /></button>
         </div>
       </div>
+      {!planOpen && (
+        <button type="button" className={s.btnQuiet} onClick={() => setPlanOpen(true)}>Plan an order</button>
+      )}
+      {planOpen && (
       <div className={s.plan} role="group" aria-label="Plan an order">
-        <span className={s.micro}>PLAN AN ORDER · {MOTOR_PART.toUpperCase()}</span>
+        <div className={s.planHead}>
+          <span className={s.micro}>PLAN AN ORDER · {MOTOR_PART.toUpperCase()}</span>
+          <button type="button" className={s.pinClear} onClick={() => { setPlanOpen(false); setPick(null); }}>Close</button>
+        </div>
         <div className={s.planChips}>
           {suppliers.map((v) => (
             <button key={v.id} type="button" className={s.planChip} aria-pressed={pick === v.id} onClick={() => choose(v.id)}>
@@ -176,6 +184,7 @@ export function MapPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }) 
           </div>
         )}
       </div>
+      )}
       {st.shipment.docs.length > 0 && (
         <ul className={s.docs}>
           {st.shipment.docs.map((d) => <li key={d.name}><Led tone={d.state === "done" ? "success" : d.state === "working" ? "attention" : "alert"} />{d.name}</li>)}

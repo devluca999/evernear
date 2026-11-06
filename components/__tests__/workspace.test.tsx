@@ -126,6 +126,19 @@ describe("workspace", () => {
     fireEvent.click(within(screen.getByRole("status", { name: "Stopped by your rules" })).getByRole("button", { name: "Reset to Astro's rules" }));
     expect(screen.queryByRole("status", { name: "Stopped by your rules" })).toBeNull();
   });
+  it("leads with the outcome: Rules shows what was paid before the company rules", () => {
+    at(sceneStartMs(8) + 9000);
+    const rules = screen.getByLabelText("Rules and approvals");
+    const text = rules.textContent!;
+    expect(text.indexOf("$34,200 paid to Haoyun")).toBeGreaterThan(-1);
+    expect(text.indexOf("$34,200 paid to Haoyun")).toBeLessThan(text.indexOf("COMPANY RULES"));
+  });
+  it("groups the numbers into stock and money, and says what each scene is about", () => {
+    at(sceneStartMs(5) + 1000);
+    expect(screen.getByRole("group", { name: "Stock" })).toBeTruthy();
+    expect(within(screen.getByRole("group", { name: "Money" })).getByText("not placed")).toBeTruthy();
+    expect(screen.getByText("Haoyun asks for 8% more. Your limit is 3%.")).toBeTruthy();
+  });
   it("never renders more than 3 panels when nothing is pinned", () => {
     for (const id of [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]) {
       const { container, unmount } = at(sceneStartMs(id) + 2000);

@@ -16,6 +16,7 @@ describe("map: supplier headquarters and the order planner", () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(Date.UTC(2026, 10, 5, 12));
     const { container } = render(<MapPanel st={stateAt(0)} pulse={false} />);
+    fireEvent.click(screen.getByRole("button", { name: "Plan an order" }));
     const plan = screen.getByRole("group", { name: "Plan an order" });
     fireEvent.click(within(plan).getByRole("button", { name: /Haoyun Precision/ }));
     expect(container.querySelector("path[class*=lane]")).toBeTruthy();

@@ -61,7 +61,7 @@ The adapter tests run against a recording mock of `fetch`, and the escrow tests 
 
 ## What is simulated
 
-Only Astro and the people around it: Astro Robotics itself ([seed/astro.ts](seed/astro.ts)), its customers ([scenarios/demand.ts](scenarios/demand.ts)) its suppliers ([scenarios/suppliers.ts](scenarios/suppliers.ts)), and the shipment's checkpoints and photos ([scenario/shipment.ts](scenario/shipment.ts), [test](components/__tests__/tracking.test.tsx)). The photos are drawn stand-ins labelled "synthetic photo", except the dock delivery, a credited stock photo labelled "stock photo". Supplier replies go through the real inbound email path ([convex/channels/email.ts](convex/channels/email.ts)). The negotiation is not canned: Haoyun's simulator sends the +2.5% revision only if the agent's counter stayed within the 3% limit ([test](tests/channels.test.ts)).
+Only Astro and the people around it: Astro Robotics itself ([seed/astro.ts](seed/astro.ts)), its customers ([scenarios/demand.ts](scenarios/demand.ts)) its suppliers ([scenarios/suppliers.ts](scenarios/suppliers.ts)), and the shipment's checkpoints and photos ([scenario/shipment.ts](scenario/shipment.ts), [test](components/__tests__/tracking.test.tsx)). The photos are credited stock photos labelled "stock photo", and the packing slip and air waybill label are drawn from the scenario's numbers, labelled "sample document". Supplier replies go through the real inbound email path ([convex/channels/email.ts](convex/channels/email.ts)). The negotiation is not canned: Haoyun's simulator sends the +2.5% revision only if the agent's counter stayed within the 3% limit ([test](tests/channels.test.ts)).
 
 ## The reference engine
 
@@ -83,7 +83,7 @@ In this demo Evernear's Convex deployment holds Astro's dedicated testnet owner 
 
 Map outlines from [Natural Earth](https://www.naturalearthdata.com/) 1:50m via [world-atlas](https://github.com/topojson/world-atlas) (public domain), projected with [d3-geo](https://github.com/d3/d3-geo) at build time by [scripts/build-map.mjs](scripts/build-map.mjs) ([test](components/__tests__/map.test.ts)).
 
-Dock photo "Cartons near Warehouse Gates" from [Pexels](https://www.pexels.com/photo/cartons-near-warehouse-gates-12585837/) under the Pexels licence, labelled "stock photo" on screen ([shipment.ts](scenario/shipment.ts), [test](components/__tests__/tracking.test.tsx)).
+Photos "Cartons near Warehouse Gates" ([Pexels](https://www.pexels.com/photo/cartons-near-warehouse-gates-12585837/)) and "Photo of Warehouse" ([Pexels](https://www.pexels.com/photo/photo-of-warehouse-4481326/)) under the Pexels licence, labelled "stock photo" on screen; the packing slip and the air waybill label are drawn sample documents ([shipment.ts](scenario/shipment.ts), [test](components/__tests__/tracking.test.tsx)).
 
 Figures drawn with [Anatomy](https://github.com/wheresryan22/anatomy) by Ryan, MIT ([vendor/anatomy](vendor/anatomy/LICENSE)).
 

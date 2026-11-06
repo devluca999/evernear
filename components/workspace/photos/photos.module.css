@@ -1,21 +1,5 @@
-/* Synthetic photos: a neutral, monochrome rendering from theme tokens. The only hue is the
-   orange box someone drew around the short count, because that is the thing that needs you. */
+/* Route photos: stock images and drawn documents. */
 .photo { display: block; width: 100%; height: auto; background: var(--bg-sunken); }
-.wall { fill: var(--bg-raised); }
-.floor { fill: var(--bg-sunken); }
-.door { fill: var(--bg-page); stroke: var(--line-strong); }
-.edge, .rule { stroke: var(--line-strong); stroke-width: 1; }
-.box { fill: var(--bg-raised); stroke: var(--line-strong); stroke-width: 1; }
-.pallet { fill: var(--text-faint); }
-.tag, .paper { fill: var(--eg-050, #FAF7F1); stroke: var(--line-strong); }
-.ink { fill: var(--eg-900, #1C1A17); }
-.paper ~ text, .labelHead, .mono, .big, .qty { fill: var(--eg-900, #1C1A17); }
-.labelHead { font: 600 12px var(--font-ui); letter-spacing: .08em; }
-.mono { font: 11px var(--font-mono); }
-.big { font: 600 24px var(--font-mono); }
-.qty { font: 600 13px var(--font-mono); }
-.mark { fill: none; stroke: var(--state-attention); stroke-width: 2.5; }
-.stencil { font: 600 11px var(--font-mono); letter-spacing: .1em; fill: var(--text-muted); }
 .stock { aspect-ratio: 4 / 3; object-fit: cover; }
 
 /* The packing slip: printed form on a carton top. Ink is neutral; paper and kraft are illustration. */

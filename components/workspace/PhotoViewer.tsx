@@ -35,7 +35,7 @@ export function PhotoViewer({ checkpointId, index, onIndex, onClose, onProof }: 
           <span className={s.micro}>{c.source.toUpperCase()}</span>
           <h3 className={s.viewerTitle}>{c.title}</h3>
           <p className={s.sub}>{PHOTO_CAPTION[id]}</p>
-          {(() => { const src = PHOTO_SOURCE[id]; return src.kind === "stock" ? <p className={s.faint}>Stock photo from <a className={s.link} href={src.url} target="_blank" rel="noreferrer">{src.credit}</a>, not Astro&apos;s dock.</p> : null; })()}
+          {(() => { const src = PHOTO_SOURCE[id]; return src.kind === "stock" ? <p className={s.faint}>Stock photo from <a className={s.link} href={src.url} target="_blank" rel="noreferrer">{src.credit}</a>, not the actual shipment.</p> : null; })()}
           <dl className={s.viewerMeta}>
             <div><dt>ACKNOWLEDGED</dt><dd className={s.fig}>{stamp(c)}</dd></div>
             <div><dt>BY</dt><dd>{c.ackBy}</dd></div>

@@ -60,3 +60,15 @@ describe("tracking checkpoints", () => {
     }
   });
 });
+
+describe("route photos are realistic and honestly labelled", () => {
+  it("every photo is a credited stock photo or a document drawn from the scenario, never unlabelled", async () => {
+    const { PHOTO_SOURCE, photoTag } = await import("@/scenario/shipment");
+    for (const [id, src] of Object.entries(PHOTO_SOURCE)) {
+      if (src.kind === "stock") expect(src.url).toMatch(/^https:\/\/www\.pexels\.com\/photo\//);
+      expect(["stock photo", "sample document"]).toContain(photoTag(id as keyof typeof PHOTO_SOURCE));
+    }
+    expect(PHOTO_SOURCE.pallets_origin).toMatchObject({ kind: "stock", src: "/photos/origin-pallets.jpg" });
+    expect(PHOTO_SOURCE.awb_label).toEqual({ kind: "document" });
+  });
+});

@@ -3,7 +3,7 @@
 import type { WorkspaceState } from "@/scenario/types";
 import { demand, PO } from "@/seed/astro";
 import { formatInt, formatUsdShort } from "@/engine/money";
-import s from "./workspace.module.css";
+import s from "./shell.module.css";
 
 interface Stat { label: string; value: string; alert?: boolean; empty?: boolean }
 
@@ -12,7 +12,7 @@ export function stats(st: WorkspaceState): { stock: Stat[]; money: Stat[] } {
   const needed = st.demand.ordered * demand.motorsPerRobot;
   const short = Math.max(0, needed - onHand);
   const e = st.escrow;
-  const held = e ? e.lockedCents - e.releasedCents - e.reclaimedCents : 0;
+  const placed = st.scene >= 3 && st.fitment.some((f) => f.pass);
   const usd = (c: number) => ({ value: formatUsdShort(c), empty: c === 0 });
   return {
     stock: [
@@ -21,8 +21,8 @@ export function stats(st: WorkspaceState): { stock: Stat[]; money: Stat[] } {
       { label: "Motors short", value: formatInt(short), alert: short > 0, empty: short === 0 },
     ],
     money: [
-      { label: `PO ${PO.number}`, ...(e ? { value: formatUsdShort(e.lockedCents) } : { value: "not placed", empty: true }) },
-      { label: "Committed", ...usd(held) },
+      { label: "PO", ...(placed || e ? { value: PO.number } : { value: "None", empty: true }) },
+      { label: "Committed", ...usd(e?.lockedCents ?? 0) },
       { label: "Paid to supplier", ...usd(e?.releasedCents ?? 0) },
       { label: "Back to Astro", ...usd(e?.reclaimedCents ?? 0) },
     ],
@@ -31,26 +31,25 @@ export function stats(st: WorkspaceState): { stock: Stat[]; money: Stat[] } {
 
 function Group({ name, items }: { name: string; items: Stat[] }) {
   return (
-    <div className={s.statGroup} role="group" aria-label={name}>
-      <span className={s.statGroupName}>{name.toUpperCase()}</span>
-      <div className={s.statRow}>
-        {items.map((x) => (
-          <div key={x.label} className={s.statCell} data-alert={x.alert ? "true" : undefined} data-empty={x.empty ? "true" : undefined}>
-            <dt className={s.micro}>{x.label.toUpperCase()}</dt>
-            <dd className={s.statValue}>{x.value}</dd>
-          </div>
-        ))}
-      </div>
-    </div>
+    <dl className={s.statGroup} aria-label={name}>
+      <span className={s.statName}>{name}</span>
+      {items.map((x) => (
+        <div key={x.label} className={s.stat} data-alert={x.alert ? "true" : undefined} data-empty={x.empty ? "true" : undefined}>
+          <dt className="es-micro">{x.label}</dt>
+          <dd className="es-num">{x.value}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 
-export function StatsBar({ st }: { st: WorkspaceState }) {
+export function StatsBar({ st, title }: { st: WorkspaceState; title?: boolean }) {
   const { stock, money } = stats(st);
   return (
-    <dl className={s.statsBar} aria-label="Scenario numbers">
+    <div className={s.strip} role="group" aria-label="Scenario numbers">
+      {title && <span className={s.stripTitle}>Astro Robotics</span>}
       <Group name="Stock" items={stock} />
       <Group name="Money" items={money} />
-    </dl>
+    </div>
   );
 }

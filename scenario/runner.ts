@@ -26,7 +26,7 @@ export function initialState(policy: Policy = defaultPolicy): WorkspaceState {
     demand: { ordered: 0, shippedOut: 0, motorsOnHand: demand.motorsOnHand, series: [demand.motorsOnHand], headline: `${demand.robotsOrdered} robots ordered, motors for ${motorsFor}` },
     messages: [], proofs: [], fitment: [],
     requiredApprovals: requiredApprovals({ totalCents: PO.revisedTotalCents, supplier: haoyun }, policy),
-    approvals: [],
+    approvals: [], limitApprovals: [],
     price: { originalCents: PO.originalUnitCents, limitBps: policy.priceChangeLimitBps, history: [] },
     escrow: null, shipment: { progress: 0, docs: [], checkpoints: [] }, dock: null, refused: [], endCard: false,
     policy, halted: null,
@@ -47,8 +47,8 @@ function apply(s: WorkspaceState, b: Beat): WorkspaceState {
   const policy = s.policy;
   if (s.halted && !AFTER_HALT.has(ev.type)) return s;
   switch (ev.type) {
-    case "scene": return { ...s, scene: ev.id, layout: ev.layout.slice(0, 3) };
-    case "layout": return { ...s, layout: ev.panels.slice(0, 3) };
+    case "scene": return { ...s, scene: ev.id, layout: ev.layout };
+    case "layout": return { ...s, layout: ev.panels };
     case "phone": return { ...s, phoneOpen: ev.open };
     case "wallet": return { ...s, wallet: { owner: OWNER, agentKeyCapCents: policy.autoApproveUnderCents } };
     case "stage": {
@@ -89,7 +89,9 @@ function apply(s: WorkspaceState, b: Beat): WorkspaceState {
       const res = plainEngine.scoreFitment(bom10MA, offers.filter((o) => o.supplierId === sup.id), sup, policy);
       return { ...s, fitment: [...s.fitment.filter((f) => f.supplierId !== sup.id), res] };
     }
-    case "approval": return { ...s, approvals: [...s.approvals, { by: ev.by, atMs: at }] };
+    case "approval": return ev.scope === "limit"
+      ? { ...s, limitApprovals: [...s.limitApprovals, { by: ev.by, atMs: at, time: ev.time }] }
+      : { ...s, approvals: [...s.approvals, { by: ev.by, atMs: at, time: ev.time }] };
     case "price_quote": {
       const c = checkPriceChange(PO.originalUnitCents, ev.unitCents, policy.priceChangeLimitBps);
       return { ...s, price: { ...s.price, history: [...s.price.history, { unitCents: ev.unitCents, bps: c.bps, pass: c.pass, from: ev.from }] } };

@@ -1,37 +1,47 @@
 // @vitest-environment jsdom
-import { describe, expect, it, afterEach } from "vitest";
-import { render, screen, cleanup, within, fireEvent } from "@testing-library/react";
+import { describe, expect, it, afterEach, vi } from "vitest";
+import { render, screen, cleanup, within, fireEvent, act, waitFor } from "@testing-library/react";
 import { Workspace } from "../workspace/Workspace";
 import { sceneStartMs, stateAt } from "@/scenario/runner";
-import { totalDurationMs, timeline } from "@/scenario/scenes";
+import { scenes, totalDurationMs, timeline } from "@/scenario/scenes";
 
-afterEach(() => { cleanup(); localStorage.clear(); });
+afterEach(() => { cleanup(); localStorage.clear(); vi.useRealTimers(); window.history.replaceState(null, "", "/"); });
 const at = (ms: number) => render(<Workspace initialMs={ms} autoplay={false} />);
+const panels = () => [...document.querySelectorAll("[data-panel]")].map((e) => e.getAttribute("data-panel"));
+const nav = () => screen.getByRole("navigation", { name: "Workspace panels" });
+const rail = () => screen.getByRole("complementary", { name: "Demo mode" });
+const whole = (t: string) => (_: string, el: Element | null) => el?.textContent === t && [...el.children].every((c) => c.textContent !== t);
+const nextButton = () => within(screen.getByRole("group", { name: "Next step" })).getByRole("button");
 
 describe("workspace", () => {
   it("has no camera placeholder: the presenter camera is overlaid top right when recording", () => {
     at(0);
     expect(screen.queryByLabelText("Presenter camera")).toBeNull();
   });
-  it("docks the phone and a collapsed developer drawer at the bottom; the chevron pulls it up with plain words beside the call", () => {
-    at(sceneStartMs(6) + 700); // the escrow proof has just arrived
+  it("shows the developer drawer as a collapsed bar with the latest step; Open shows the call and plain words", () => {
+    at(sceneStartMs(5) + 700); // the commit proof has just arrived
     const drawer = screen.getByLabelText("Developer drawer");
-    expect(drawer.parentElement).toBe(screen.getByLabelText("Phone").parentElement);
-    expect(drawer.className).not.toMatch(/drawerOpen/);
-    expect(within(drawer).getByRole("button", { name: "Expand developer drawer" }).textContent).toContain("Committed for PO 1042");
-    fireEvent.click(screen.getByRole("button", { name: "Expand developer drawer" }));
-    expect(drawer.className).toMatch(/drawerOpen/);
+    expect(drawer.getAttribute("data-open")).toBe("false");
+    const bar = within(drawer).getByRole("button", { name: "Open developer drawer" });
+    expect(bar.textContent).toContain("Developer");
+    expect(bar.textContent).toContain("Committed for PO 1042");
+    expect(bar.textContent).toContain("Open");
+    fireEvent.click(bar);
+    expect(drawer.getAttribute("data-open")).toBe("true");
+    expect(within(drawer).getByText("POST /v1/agents/{id}/transfer")).toBeTruthy();
+    expect(within(drawer).getByText("Request")).toBeTruthy();
+    expect(within(drawer).getByText("Response")).toBeTruthy();
     expect(within(screen.getByLabelText("What happened")).getByText(/can only pay Haoyun or go back to Astro/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Collapse developer drawer" }));
-    expect(drawer.className).not.toMatch(/drawerOpen/);
+    expect(drawer.getAttribute("data-open")).toBe("false");
   });
   it("lists every step so far in the drawer, with when it happened, and lets you inspect an earlier one", () => {
-    at(sceneStartMs(8) + 9000);
-    fireEvent.click(screen.getByRole("button", { name: "Expand developer drawer" }));
+    at(sceneStartMs(7) + 11000);
+    fireEvent.click(screen.getByRole("button", { name: "Open developer drawer" }));
     const hist = screen.getByRole("navigation", { name: "Steps so far" });
-    const items = within(hist).getAllByRole("button").filter((b) => b.getAttribute("aria-current") !== null || b.textContent!.includes("Scene"));
+    const items = within(hist).getAllByRole("button").filter((b) => b.textContent!.includes(" · S"));
     expect(items.length).toBeGreaterThanOrEqual(10);
-    expect(items[0].textContent).toMatch(/0:0\d in the demo · Scene 0/);
+    expect(items[0].textContent).toMatch(/Astro's wallet created0:01 · S1$/);
     expect(items.at(-1)!.getAttribute("aria-current")).toBe("step");
     fireEvent.click(items[0]);
     expect(items[0].getAttribute("aria-current")).toBe("step");
@@ -40,160 +50,260 @@ describe("workspace", () => {
     expect(items.at(-1)!.getAttribute("aria-current")).toBe("step");
   });
   it("Present mode: nothing moves until you act; Next (or Cmd+K) plays the next step and says what it is", () => {
-    at(sceneStartMs(3) - 1);
-    const next = screen.getByRole("group", { name: "Next step" });
-    expect(within(next).getByRole("button").textContent).toContain("Scene 3: Sourcing and fitment");
+    at(sceneStartMs(2) - 1);
+    expect(nextButton().textContent).toBe("Check 4 suppliers⌘K");
+    expect(within(rail()).getByText("Happy path · Scene 2")).toBeTruthy();
     fireEvent.keyDown(window, { key: "k", metaKey: true });
-    expect(screen.getByText(/· SCENE 3$/)).toBeTruthy();
+    expect(within(rail()).getByText("Happy path · Scene 3")).toBeTruthy();
+    expect(within(rail()).getByRole("heading", { name: "Sourcing and fitment" })).toBeTruthy();
     const fit = timeline.find((b) => b.ev.type === "fitment")!;
     cleanup();
     at(fit.atMs - 1);
-    expect(within(screen.getByRole("group", { name: "Next step" })).getByRole("button").textContent).toContain("Check Kansai Servo Works against the BOM");
-    // Between stops (paused or playing) the next step is still named and one press away.
+    expect(nextButton().textContent).toContain("Check Kansai Servo Works against the BOM");
+    // Between stops the next step is still named and one press away.
     cleanup();
     at(fit.atMs - 900);
-    expect(within(screen.getByRole("group", { name: "Next step" })).getByRole("button").textContent).toContain("Check Kansai Servo Works against the BOM");
+    expect(nextButton().textContent).toContain("Check Kansai Servo Works against the BOM");
   });
-  it("keeps the phone tucked away unless it is waiting for you", () => {
-    at(sceneStartMs(5) + 1000);
-    expect(screen.getByLabelText("Phone").className).not.toMatch(/phoneOpen/);
+  it("shows the phone as a left column only in scenes with a conversation", () => {
+    for (const sc of scenes) {
+      const { unmount } = at(sceneStartMs(sc.id) + 1000);
+      expect(!!screen.queryByLabelText("Phone")).toBe(!!sc.phone);
+      unmount();
+    }
+    expect(scenes.filter((x) => x.phone).map((x) => x.title)).toEqual(["Approval", "Negotiation", "Day 9 · Chicago dock"]);
   });
-  it("says a wrong address refusal is the guard working, then reduces it to a quiet line", () => {
+  it("records a payment to a wrong address as refused, the guard working", () => {
     const r = timeline.find((b) => b.ev.type === "release")!;
     at(r.atMs + 500);
-    expect(screen.getByText(/^Blocked as designed: a release to 0x0000…dead is not one of the three exits$/)).toBeTruthy();
-    cleanup();
-    at(r.atMs + 6000);
-    expect(screen.queryByText(/Blocked as designed/)).toBeNull();
-    expect(screen.getByText("1 wrong address release blocked")).toBeTruthy();
+    const bar = screen.getByRole("button", { name: "Open developer drawer" });
+    expect(bar.textContent).toContain("refused a withdraw to 0x000000000000000000000000000000000000dead");
+    fireEvent.click(bar);
+    expect(within(screen.getByLabelText("What happened")).getByText(/refused by the PO account itself\. The guard works\./)).toBeTruthy();
+    expect(stateAt(r.atMs + 500).refused.map((x) => x.kind)).toContain("wrong_address_release");
   });
-  it("shows the end card in the workspace instead of over the panels", () => {
-    at(sceneStartMs(9) + 1000);
-    expect(screen.getByRole("region", { name: "End card" }).closest("main")).toBeTruthy();
-    expect(document.querySelectorAll("[data-panel]")).toHaveLength(0);
+  it("shows the end line below the cards, then the money goes back at the deadline", () => {
+    at(sceneStartMs(7) + 6500);
+    const end = screen.getByRole("region", { name: "End card" });
+    expect(end.closest("main")).toBeTruthy();
+    expect(end.textContent).toContain("0 wires. 0 days waiting. 1 human decision.");
+    expect(panels()).toEqual(["money", "stock"]);
   });
-  it("shows the rail with eight steps", () => {
+  it("lists the eight scenes in the rail and jumps to one", () => {
     at(0);
-    expect(within(screen.getByLabelText("Restock progress")).getAllByRole("listitem")).toHaveLength(8);
+    const list = within(screen.getByRole("list", { name: "Scenes" })).getAllByRole("button");
+    expect(list.map((b) => b.textContent)).toEqual([
+      "01Onboarding", "02The bottleneck", "03Sourcing and fitment", "04Approval", "05Negotiation",
+      "06Funds committed and shipped", "07Day 9 · Chicago dock", "08Paid",
+    ]);
+    expect(list[0].getAttribute("aria-current")).toBe("step");
+    fireEvent.click(list[6]);
+    expect(within(rail()).getByRole("heading", { name: "Day 9 · Chicago dock" })).toBeTruthy();
+    expect(within(rail()).getByText("Happy path · Scene 7")).toBeTruthy();
+    expect(list[6].getAttribute("aria-current")).toBe("step");
+    expect(list[0].getAttribute("data-state")).toBe("done");
   });
-  it("waits for the approval click, then approves as Luca and asks Jordy", () => {
+  it("in Present mode shows the next approval as waiting; YES on the phone approves as Luca and asks Jordy", () => {
     const g = timeline.find((b) => b.gate?.id === "approve_luca")!;
-    at(g.atMs - 1);
+    at(g.atMs - 600); // the clock is not yet at the gate, but it comes next
     const ask = screen.getByRole("group", { name: "Waiting for you" });
-    expect(within(ask).getByText("Approve PO 1042: $38,000 to Haoyun Precision?")).toBeTruthy();
-    expect(screen.getByLabelText("Phone").className).toMatch(/phoneOpen/);
-    fireEvent.click(within(screen.getByRole("group", { name: "Approval card" })).getByRole("button", { name: "YES, approve as Luca" }));
+    expect(within(ask).getByText("Waiting for Luca")).toBeTruthy();
+    expect(within(ask).getByText("Reply YES on Telegram to sign PO 1042.")).toBeTruthy();
+    const yes = within(screen.getByRole("group", { name: "Approval card" })).getByRole("button", { name: "YES, approve as Luca" }) as HTMLButtonElement;
+    expect(yes.disabled).toBe(false);
+    fireEvent.click(yes);
     expect(screen.queryByRole("group", { name: "Waiting for you" })).toBeNull();
-    expect(screen.getByText("Approval 1 of 2")).toBeTruthy();
+    const rules = screen.getByRole("region", { name: "Rules" });
+    expect(within(rules).getByRole("status").textContent).toBe("Signed14:02");
+    expect(nextButton().textContent).toContain("Jordy, PO 1042 needs your signature");
   });
-  it("Autoplay mode never stops to ask, and the scenario picker switches the story", () => {
+  it("blocks at a gate in Autoplay too, answers it by itself after a beat, and the scenario picker switches the story", () => {
+    vi.useFakeTimers();
     const g = timeline.find((b) => b.gate?.id === "start_sourcing")!;
     at(g.atMs - 1);
     fireEvent.click(within(screen.getByRole("group", { name: "Mode" })).getByRole("button", { name: "Autoplay" }));
+    expect(within(screen.getByRole("group", { name: "Waiting for you" })).getByText("Waiting for Luca")).toBeTruthy();
+    act(() => { vi.advanceTimersByTime(1500); });
     expect(screen.queryByRole("group", { name: "Waiting for you" })).toBeNull();
-    expect(screen.queryByRole("group", { name: "Next step" })).toBeNull();
-    fireEvent.change(screen.getByLabelText("Scenario"), { target: { value: "standoff" } });
+    vi.useRealTimers();
+    const picker = screen.getByRole("radiogroup", { name: "Scenario" });
+    const radios = within(picker).getAllByRole("radio");
+    expect(radios).toHaveLength(3);
+    expect(radios[0].getAttribute("aria-checked")).toBe("true");
+    fireEvent.click(within(picker).getByRole("radio", { name: /^Bad pathHaoyun holds/ }));
+    expect(within(picker).getByRole("radio", { name: /^Bad pathHaoyun holds/ }).getAttribute("aria-checked")).toBe("true");
     const scenesList = within(screen.getByRole("list", { name: "Scenes" })).getAllByRole("button").map((b) => b.textContent);
-    expect(scenesList).toContain("6On hold");
-    expect(screen.getByText(/^BAD PATH · SCENE 0$/)).toBeTruthy();
+    expect(scenesList).toEqual(["01Onboarding", "02The bottleneck", "03Sourcing and fitment", "04Approval", "05Negotiation", "06On hold"]);
+    expect(within(rail()).getByText("Bad path · Scene 1")).toBeTruthy();
   });
   it("tracks the scenario numbers on top: stock, shortfall and where the money is", () => {
-    at(sceneStartMs(8) + 9000);
-    const bar = screen.getByLabelText("Scenario numbers");
-    const val = (label: string) => within(bar).getByText(label).nextElementSibling!.textContent;
-    expect(val("ROBOTS ORDERED")).toBe("14");
-    expect(val("PO 1042")).toBe("$38,000");
-    expect(val("PAID TO SUPPLIER")).toBe("$34,200");
-    expect(val("BACK TO ASTRO")).toBe("$3,800");
-    expect(val("COMMITTED")).toBe("$0");
+    const val = (label: string) => within(screen.getByRole("group", { name: "Scenario numbers" })).getByText(label).nextElementSibling!.textContent;
+    at(sceneStartMs(2));
+    expect(val("Motors on hand")).toBe("24");
+    expect(val("Robots ordered")).toBe("14");
+    expect(val("Motors short")).toBe("32");
+    expect(val("PO")).toBe("None");
+    cleanup();
+    at(sceneStartMs(7) + 11000);
+    expect(val("Motors on hand")).toBe("1,824");
+    expect(val("Motors short")).toBe("0");
+    expect(val("PO")).toBe("1042");
+    expect(val("Committed")).toBe("$38,000");
+    expect(val("Paid to supplier")).toBe("$34,200");
+    expect(val("Back to Astro")).toBe("$3,800");
   });
-  it("collapses the sidebar to icons and keeps every component reachable", () => {
+  it("opens the sidebar on onboarding with the brand and seven panels, and collapses it to an icon rail", () => {
     at(0);
-    const nav = screen.getByRole("navigation", { name: "Workspace components" });
-    fireEvent.click(within(nav).getByRole("button", { name: "Collapse sidebar" }));
-    expect(nav.getAttribute("data-open")).toBe("false");
-    expect(within(nav).getAllByRole("button", { pressed: false }).length).toBeGreaterThanOrEqual(5);
+    const n = nav();
+    expect(n.getAttribute("data-open")).toBe("true");
+    expect(within(n).getByText("Astro Robotics")).toBeTruthy();
+    expect(within(n).getByText("Supply workspace")).toBeTruthy();
+    expect(within(n).getByText("Panels")).toBeTruthy();
+    expect(within(n).getByText("Powered by Evernear")).toBeTruthy();
+    const names = ["Products", "Stock", "Orders", "Inbox", "Map", "Rules", "Money"];
+    for (const x of names) expect(within(n).getByRole("button", { name: x })).toBeTruthy();
+    expect(within(n).getByRole("status").textContent).toBe("Stockbot ready");
+    fireEvent.click(within(n).getByRole("button", { name: "Collapse" }));
+    expect(n.getAttribute("data-open")).toBe("false");
+    expect(within(n).queryByText("Supply workspace")).toBeNull();
+    for (const x of names) expect(within(n).getByRole("button", { name: x })).toBeTruthy();
+    fireEvent.click(within(n).getByRole("button", { name: "Expand sidebar" }));
+    expect(n.getAttribute("data-open")).toBe("true");
   });
-  it("shows the everNEAR wordmark", () => {
-    at(0);
-    expect(screen.getByLabelText("everNEAR").textContent).toBe("everNEAR");
+  it("marks the card that needs you in the sidebar", () => {
+    const g = timeline.find((b) => b.gate?.id === "start_sourcing")!;
+    at(g.atMs - 1);
+    const n = nav();
+    expect(n.getAttribute("data-open")).toBe("false"); // icons after onboarding
+    expect(within(within(n).getByRole("button", { name: "Inbox" })).getByLabelText("1 needs you")).toBeTruthy();
+    expect(within(n).getAllByLabelText(/needs you/)).toHaveLength(1);
+    // The Inbox card answers it: Start sourcing.
+    fireEvent.click(within(screen.getByRole("region", { name: "Inbox" })).getByRole("button", { name: "Start sourcing" }));
+    expect(within(nav()).queryAllByLabelText(/needs you/)).toHaveLength(0);
   });
   it("a card you open from the sidebar stays across scenes until you close it; unlocking never removes it", () => {
-    at(sceneStartMs(6) + 2000);
-    const panels = () => [...document.querySelectorAll("[data-panel]")].map((e) => e.getAttribute("data-panel"));
-    expect(panels()).not.toContain("demand");
-    fireEvent.click(within(screen.getByRole("navigation", { name: "Workspace components" })).getByRole("button", { name: "Orders" }));
-    expect(panels()).toContain("demand");
-    fireEvent.click(screen.getByRole("button", { name: "Lock Orders" }));
+    at(sceneStartMs(4) + 2000);
+    expect(panels()).toEqual(["inbox", "rules"]);
+    fireEvent.click(within(nav()).getByRole("button", { name: "Stock" }));
+    expect(panels()).toContain("stock");
+    expect(within(nav()).getByRole("button", { name: "Stock" }).getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: "Lock Stock" }));
     fireEvent.keyDown(window, { key: "ArrowRight" });
-    expect(panels()).toContain("demand");
-    fireEvent.click(screen.getByRole("button", { name: "Unlock Orders" }));
-    expect(panels()).toContain("demand");
-    fireEvent.click(screen.getByRole("button", { name: "Close Orders" }));
-    expect(panels()).not.toContain("demand");
+    expect(within(rail()).getByText("Happy path · Scene 6")).toBeTruthy();
+    expect(panels()).toContain("stock");
+    expect(screen.queryByRole("button", { name: "Close Stock" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Unlock Stock" }));
+    expect(panels()).toContain("stock");
+    fireEvent.click(screen.getByRole("button", { name: "Close Stock" }));
+    expect(panels()).not.toContain("stock");
   });
   it("moves a card to another spot on the grid from its grip, and a locked card stays put", () => {
-    at(sceneStartMs(7) + 2000);
-    const spotOf = (id: string) => (document.querySelector(`[data-panel="${id}"]`)!.parentElement as HTMLElement).style.gridColumn;
-    fireEvent.keyDown(screen.getByRole("button", { name: "Move Suppliers" }), { key: "ArrowRight", altKey: true });
-    expect(spotOf("map")).toBe("3");
-    fireEvent.keyDown(screen.getByRole("button", { name: "Move Suppliers" }), { key: "ArrowDown", altKey: true });
-    expect((document.querySelector('[data-panel="map"]')!.parentElement as HTMLElement).style.gridRow).toBe("2");
-    fireEvent.click(screen.getByRole("button", { name: "Lock Suppliers" }));
-    expect((screen.getByRole("button", { name: "Move Suppliers" }) as HTMLButtonElement).disabled).toBe(true);
+    at(sceneStartMs(5) + 2000);
+    const slot = (id: string) => document.querySelector(`[data-panel="${id}"]`)!.parentElement as HTMLElement;
+    fireEvent.keyDown(screen.getByRole("button", { name: "Move Map" }), { key: "ArrowRight", altKey: true });
+    expect(slot("map").style.gridColumn).toBe("2");
+    fireEvent.keyDown(screen.getByRole("button", { name: "Move Map" }), { key: "ArrowDown", altKey: true });
+    expect(slot("map").style.gridRow).toBe("2");
+    fireEvent.click(screen.getByRole("button", { name: "Lock Map" }));
+    expect((screen.getByRole("button", { name: "Move Map" }) as HTMLButtonElement).disabled).toBe(true);
     fireEvent.keyDown(window, { key: "ArrowRight" });
-    expect((document.querySelector('[data-panel="map"]')!.parentElement as HTMLElement).style.gridRow).toBe("2");
+    expect(slot("map").style.gridRow).toBe("2");
+    expect(slot("map").style.gridColumn).toBe("2");
   });
-  it("lets you change the thresholds, says where a stricter rule stops PO 1042, and resets", () => {
-    at(sceneStartMs(6) + 2000);
-    fireEvent.click(screen.getByRole("button", { name: "Change thresholds" }));
+  it("lets you change the thresholds, says where a stricter rule stops PO 1042, and resets", async () => {
+    at(6000);
+    const rules = screen.getByRole("region", { name: "Rules" });
+    fireEvent.click(within(rules).getByRole("button", { name: "Change thresholds" }));
     fireEvent.change(screen.getByLabelText("price change limit"), { target: { value: "2" } });
-    expect(within(screen.getByRole("status", { name: "Stopped by your rules" })).getByText(/over your 2% limit/)).toBeTruthy();
-    expect(within(screen.getByLabelText("Scenario numbers")).getByText("PO 1042").nextElementSibling!.textContent).toBe("not placed");
-    fireEvent.click(within(screen.getByRole("status", { name: "Stopped by your rules" })).getByRole("button", { name: "Reset to Astro's rules" }));
+    expect(within(rules).getByRole("button", { name: "Reset to Astro's rules" })).toBeTruthy();
+    // The replay runs on the saved rules: at the commit, the PO stops.
+    cleanup();
+    window.history.replaceState(null, "", "/?scene=6&at=1000");
+    at(0);
+    const stop = await waitFor(() => screen.getByRole("status", { name: "Stopped by your rules" }));
+    expect(within(stop).getByText(/Haoyun's price change of \+2\.5% is over your 2% limit/)).toBeTruthy();
+    expect(within(screen.getByRole("group", { name: "Scenario numbers" })).getByText("Committed").nextElementSibling!.textContent).toBe("$0");
+    fireEvent.click(within(stop).getByRole("button", { name: "Reset to Astro's rules" }));
     expect(screen.queryByRole("status", { name: "Stopped by your rules" })).toBeNull();
-  });
-  it("leads with the outcome: Rules shows what was paid before the company rules", () => {
-    at(sceneStartMs(8) + 9000);
-    const rules = screen.getByLabelText("Rules and approvals");
-    const text = rules.textContent!;
-    expect(text.indexOf("$34,200 paid to Haoyun")).toBeGreaterThan(-1);
-    expect(text.indexOf("$34,200 paid to Haoyun")).toBeLessThan(text.indexOf("COMPANY RULES"));
+    expect(within(screen.getByRole("group", { name: "Scenario numbers" })).getByText("Committed").nextElementSibling!.textContent).toBe("$38,000");
   });
   it("groups the numbers into stock and money, and says what each scene is about", () => {
-    at(sceneStartMs(5) + 1000);
-    expect(screen.getByRole("group", { name: "Stock" })).toBeTruthy();
-    expect(within(screen.getByRole("group", { name: "Money" })).getByText("not placed")).toBeTruthy();
-    expect(screen.getByText("Haoyun asks for 8% more. Your limit is 3%.")).toBeTruthy();
+    at(sceneStartMs(4) + 1000);
+    const bar = screen.getByRole("group", { name: "Scenario numbers" });
+    expect(within(bar).getByLabelText("Stock")).toBeTruthy();
+    const money = within(bar).getByLabelText("Money");
+    expect(within(money).getByText("PO").nextElementSibling!.textContent).toBe("1042");
+    expect(within(money).getByText("Committed").parentElement!.getAttribute("data-empty")).toBe("true");
+    expect(within(rail()).getByText("Haoyun asks for 8% more. Your limit is 3%.")).toBeTruthy();
   });
   it("never renders more than 3 panels when nothing is pinned", () => {
-    for (const id of [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]) {
-      const { container, unmount } = at(sceneStartMs(id) + 2000);
+    for (const sc of scenes) {
+      const { container, unmount } = at(sceneStartMs(sc.id) + 2000);
       expect(container.querySelectorAll("[data-panel]").length).toBeLessThanOrEqual(3);
       unmount();
     }
   });
   it("names the exact failing spec in fitment", () => {
-    at(sceneStartMs(4) - 100);
-    expect(screen.getByText("Shaft 8 mm, needs 6 mm")).toBeTruthy();
-    expect(screen.getByText("Not approved, 2.4x price cap")).toBeTruthy();
-    expect(screen.getByText("Flange NEMA 23, needs NEMA 17")).toBeTruthy();
-    expect(screen.getByText("Connector JST-GH, needs Molex")).toBeTruthy();
-    expect(screen.getByText("Battery 36 V, needs 48 V")).toBeTruthy();
+    at(sceneStartMs(3) - 100);
+    const fit = within(screen.getByRole("list", { name: "Fitment" }));
+    expect(fit.getByText("Shaft 8 mm, needs 6 mm")).toBeTruthy();
+    expect(fit.getByText("Not approved, 2.4x price cap")).toBeTruthy();
+    expect(fit.getByText("Flange NEMA 23, needs NEMA 17")).toBeTruthy();
+    expect(fit.getByText("Connector JST-GH, needs Molex")).toBeTruthy();
+    expect(fit.getByText("Battery 36 V, needs 48 V")).toBeTruthy();
   });
-  it("shows the dock release and hold", () => {
-    at(sceneStartMs(8) - 100);
-    expect(screen.getByText("$34,200")).toBeTruthy();
-    expect(screen.getByText("$3,800")).toBeTruthy();
+  it("proposes the dock release and hold, and the phone's YES releases it", () => {
+    const g = timeline.find((b) => b.gate?.id === "approve_release")!;
+    at(g.atMs - 1);
+    const money = within(screen.getByRole("region", { name: "Money" }));
+    expect(money.getByText("$34,200")).toBeTruthy();
+    expect(money.getByText("$3,800")).toBeTruthy();
+    expect(within(screen.getByRole("region", { name: "Orders" })).getByText("Short 200")).toBeTruthy();
+    expect(within(screen.getByRole("group", { name: "Waiting for you" })).getByText("Reply YES on Telegram to release $34,200 and hold $3,800.")).toBeTruthy();
+    const card = within(screen.getByRole("group", { name: "Release card" }));
+    expect(card.getByText(/^YES pays Haoyun/).textContent).toBe("YES pays Haoyun $34,200 now. $3,800 stays held until 11 Dec.");
+    fireEvent.click(card.getByRole("button", { name: "YES, release $34,200" }));
+    expect(screen.queryByRole("group", { name: "Waiting for you" })).toBeNull();
+    expect(nextButton().textContent).toContain("Go to Paid");
   });
   it("labels every synthetic proof on screen, and only those", () => {
-    const { container } = at(sceneStartMs(1));
+    at(sceneStartMs(1));
     const synthetic = stateAt(sceneStartMs(1)).proofs.some((p) => p.synthetic);
-    expect(screen.queryAllByText("synthetic").length > 0).toBe(synthetic);
-    expect(container.textContent?.includes("Proofs are placeholders")).toBe(synthetic);
+    const foot = rail();
+    expect(within(foot).getByText(synthetic ? "synthetic" : "testnet")).toBeTruthy();
+    expect(foot.textContent!.includes("Proofs on screen are placeholders")).toBe(synthetic);
   });
   it("ends on the end card", () => {
     at(totalDurationMs);
     expect(screen.getByText(/human decision/)).toBeTruthy();
+  });
+  it("on the bad path puts the PO on hold with $0 moved", () => {
+    at(0);
+    fireEvent.click(screen.getByRole("radio", { name: /^Bad pathHaoyun holds/ }));
+    fireEvent.click(within(screen.getByRole("list", { name: "Scenes" })).getByRole("button", { name: "06On hold" }));
+    expect(within(rail()).getByRole("heading", { name: "On hold" })).toBeTruthy();
+    const money = within(screen.getByRole("region", { name: "Money" }));
+    expect(money.getAllByText("$0")).toHaveLength(5); // the total and its four cells
+    expect(money.getByText("Nothing committed. No money has left Astro's wallet.")).toBeTruthy();
+    expect(within(screen.getByRole("region", { name: "Rules" })).getByText("Over limit")).toBeTruthy();
+    expect(within(screen.getByLabelText("Phone")).getByRole("status").textContent).toContain("On hold");
+  });
+  it("on the bad path waits at On hold; ending the order says $0 moved", async () => {
+    window.history.replaceState(null, "", "/?scenario=standoff&scene=6&at=3000");
+    at(0);
+    const ask = await waitFor(() => screen.getByRole("group", { name: "Waiting for you" }));
+    expect(within(ask).getByText("On hold")).toBeTruthy();
+    expect(within(ask).getByText("Raise the limit with two approvals, or end the order.")).toBeTruthy();
+    expect(screen.queryByRole("region", { name: "End card" })).toBeNull();
+    fireEvent.click(within(screen.getByLabelText("Phone")).getByRole("button", { name: "End the order" }));
+    expect(screen.getByRole("region", { name: "End card" }).textContent).toContain("PO 1042 ended. $0 moved.");
+  });
+  it("on the adjusted path raises the price limit to 8% with two approvals", async () => {
+    window.history.replaceState(null, "", "/?scenario=adjusted&scene=6&at=7000");
+    at(0);
+    await waitFor(() => expect(within(rail()).getByRole("heading", { name: "Adjustment" })).toBeTruthy());
+    const rules = within(screen.getByRole("region", { name: "Rules" }));
+    expect(rules.getByText(whole("Price limit raised to 8%"))).toBeTruthy();
+    expect(rules.getAllByRole("status").map((x) => x.textContent)).toEqual(["Signed15:12", "Signed15:13"]);
   });
 });

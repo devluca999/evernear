@@ -17,9 +17,8 @@ describe("three scenarios", () => {
     expect(s.escrow).toBeNull();
     expect(s.halted?.reason).toBe("Haoyun's price change of +8% is over your 3% limit. The PO stops before any money is committed.");
     expect(s.price.history.map((h) => [h.unitCents, h.pass])).toEqual([[2002, false], [2002, false]]);
-    expect(s.endCard).toBe(true);
-    expect(gates("standoff")).toEqual(["start_sourcing", "approve_luca", "approve_jordy", "price_limit"]);
-    expect(SCENARIOS.standoff.scenes.map((x) => x.title)).toEqual(["Onboarding", "Bottleneck", "Routine reorder", "Sourcing and fitment", "Approval", "Negotiation", "On hold", "End card"]);
+    expect(gates("standoff")).toEqual(["start_sourcing", "approve_luca", "approve_jordy", "price_limit", "on_hold"]);
+    expect(SCENARIOS.standoff.scenes.map((x) => x.title)).toEqual(["Onboarding", "The bottleneck", "Sourcing and fitment", "Approval", "Negotiation", "On hold"]);
   });
   it("bad path, adjusted: you raise the limit to 8% with two approvals, and it goes through at $20.02", () => {
     const s = end("adjusted");
@@ -28,11 +27,13 @@ describe("three scenarios", () => {
     expect(s.policy.priceCaps["Actuator motor"]).toBe(2010);
     expect(s.price.history.at(-1)).toMatchObject({ unitCents: 2002, pass: true });
     expect(s.escrow).toMatchObject({ lockedCents: 4_004_000, releasedCents: 3_603_600, reclaimedCents: 400_400, closed: true });
-    expect(gates("adjusted")).toEqual(["start_sourcing", "approve_luca", "approve_jordy", "price_limit", "raise_limit", "approve_raise", "packing_slip"]);
+    expect(gates("adjusted")).toEqual(["start_sourcing", "approve_luca", "approve_jordy", "price_limit", "raise_limit", "approve_raise", "packing_slip", "approve_release"]);
+    expect(s.limitApprovals.map((a) => a.by)).toEqual(["Luca", "Jordy"]);
+    expect(s.dock).toMatchObject({ releaseCents: 3_603_600, holdCents: 400_400 });
     const labels = s.proofs.map((p) => p.label).join("\n");
     expect(labels).toContain("Committed for PO 1042: $40.04 (1:1,000 of $40,040.00)");
     expect(labels).toContain("Paid supplier on Base Sepolia for PO 1042: $36.04 (1:1,000 of $36,036.00)");
-    expect(s.messages.some((m) => m.text === "1,800 of 2,000 arrived. Releasing $36,036 to Haoyun, holding $4,004.")).toBe(true);
+    expect(SCENARIOS.adjusted.timeline.find((b) => b.gate?.id === "approve_release")!.gate!.prompt).toBe("Reply YES on Telegram to release $36,036 and hold $4,004.");
   });
   it("every scenario numbers its scenes 0, 1, 2 and every beat sits inside its scene", () => {
     for (const sc of Object.values(SCENARIOS)) {

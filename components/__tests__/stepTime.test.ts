@@ -6,8 +6,8 @@ const proof = (x: Partial<Proof>): Proof => ({ id: "x", scene: 0, kind: "k", lab
 
 describe("step timestamps", () => {
   it("a replayed step shows when it happens in the demo", () => {
-    expect(stepTime(proof({ atMs: 83_400 }))).toBe("1:23 in the demo");
-    expect(stepTime(proof({ atMs: 5_000 }))).toBe("0:05 in the demo");
+    expect(stepTime(proof({ atMs: 83_400 }))).toBe("1:23");
+    expect(stepTime(proof({ atMs: 5_000 }))).toBe("0:05");
   });
   it("a live step shows the clock time it really ran", () => {
     expect(stepTime(proof({ atMs: 5_000, wallMs: Date.UTC(2026, 10, 5, 21, 10, 6) }))).toMatch(/^\d{2}:\d{2}:\d{2}$/);

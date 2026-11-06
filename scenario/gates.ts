@@ -44,6 +44,8 @@ export function liveStepOf(b: Beat, supplierAddress: string): LiveStep | null {
 const STOP_TYPES = new Set(["message", "fitment", "refused", "lock_funds", "dock", "release", "reclaim", "rules", "end_card"]);
 export const isStop = (b: Beat) => !!b.gate || STOP_TYPES.has(b.ev.type) || (b.ev.type === "scene" && b.scene > 0);
 
+const SENDER: Record<string, string> = { "haoyun-precision.example": "Haoyun", "ultra-motion.example": "Ultra Motion" };
+
 const clip = (t: string, n = 64) => (t.length > n ? `${t.slice(0, n - 1).trimEnd()}…` : t);
 
 /** What happens at a stop, for the "Next:" button. */
@@ -51,11 +53,11 @@ export function describeStop(b: Beat, sceneTitle: (id: number) => string, suppli
   if (b.gate) return b.gate.action;
   const ev = b.ev;
   switch (ev.type) {
-    case "scene": return `Scene ${ev.id}: ${sceneTitle(ev.id)}`;
+    case "scene": return sceneTitle(ev.id);
     case "message": {
       const m = ev.message;
       if (m.channel === "telegram") return m.direction === "out" ? `Stockbot: ${clip(m.text)}` : `You reply: ${clip(m.text, 40)}`;
-      if (m.direction === "in") return `Email from ${m.from.split("@")[1]?.split(".")[0] ?? m.from}: ${clip(m.subject ?? m.text, 48)}`;
+      if (m.direction === "in") return `Deliver ${SENDER[m.from.split("@")[1] ?? ""] ?? m.from}'s reply`;
       return `Evernear emails ${m.to?.split("@")[1]?.split(".")[0] ?? "the supplier"}`;
     }
     case "fitment": return `Check ${ev.supplierId === "haoyun" ? "Haoyun Precision" : ev.supplierId === "kansai" ? "Kansai Servo Works" : ev.supplierId === "rheinwerk" ? "Rheinwerk" : ev.supplierId === "huaxin" ? "Huaxin Robotics" : ev.supplierId} against the BOM`;
@@ -63,9 +65,9 @@ export function describeStop(b: Beat, sceneTitle: (id: number) => string, suppli
     case "lock_funds": return "Commit the PO total";
     case "dock": return "Count the delivery at the dock";
     case "release": return ev.to === supplierAddress ? "Pay Haoyun for what arrived" : "Try a payment to a wrong address";
-    case "reclaim": return "Return the held part to Astro";
+    case "reclaim": return "At the deadline, return the rest to Astro";
     case "rules": return "Apply the new limit";
-    case "end_card": return "End card";
+    case "end_card": return "Close the order";
     default: return "Continue";
   }
 }

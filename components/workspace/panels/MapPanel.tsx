@@ -9,8 +9,8 @@ import { eta, isoDay, LANES } from "@/scenario/eta";
 import { formatUsd } from "@/engine/money";
 import { MAP } from "../map/generated";
 import { cumulative, pointAt, polyline, type Pt } from "../map/route";
-import { Panel } from "../Panel";
-import { Led } from "../Led";
+import { Dot, N, Panel } from "../Panel";
+import sh from "../shell.module.css";
 import { Tracking } from "../Tracking";
 import s from "../workspace.module.css";
 
@@ -135,7 +135,7 @@ export function MapPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }) 
   const pinCls = (c: keyof typeof MAP.pins) => (failed.has(c) ? s.pinFail : passed.has(c) || (shipping && c === "Shenzhen") ? s.pinOk : s.pin);
 
   return (
-    <Panel id="map" title="Suppliers" pulse={pulse}>
+    <Panel id="map" title="Map" pulse={pulse} meta={shipping ? <>Shipment <N>1042</N></> : "Suppliers"}>
       {(() => {
         const map = (
           <>
@@ -187,8 +187,11 @@ export function MapPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }) 
         // The workspace root carries the theme, so the map stays themed there.
         return expanded && portalRoot ? createPortal(map, portalRoot) : map;
       })()}
-      {!planOpen && (
-        <button type="button" className={`${s.btnQuiet} ${s.planOpenBtn}`} onClick={() => setPlanOpen(true)}>Plan an order</button>
+      {!planOpen && !shipping && (
+        <div className={sh.mapFoot}>
+          <span className={sh.note} style={{ fontSize: 12 }}><N>{suppliers.length}</N> suppliers in <N>{new Set(suppliers.map((v) => v.country)).size}</N> countries{st.fitment.length ? <> · <N>{st.fitment.filter((f) => f.pass).length}</N> fits</> : null}</span>
+          <button type="button" className={`es-btn es-btn-secondary es-btn-sm ${sh.push}`} onClick={() => setPlanOpen(true)}>Plan an order</button>
+        </div>
       )}
       {planOpen && (
       <div className={s.plan} role="group" aria-label="Plan an order">
@@ -219,13 +222,24 @@ export function MapPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }) 
         )}
       </div>
       )}
-      {st.shipment.docs.length > 0 && (
-        <ul className={s.docs}>
-          {st.shipment.docs.map((d) => <li key={d.name}><Led tone={d.state === "done" ? "success" : d.state === "working" ? "attention" : "alert"} />{d.name}</li>)}
-          <li className={s.faint}><span className={s.fig}>{MAP.airKm.toLocaleString("en-US")}</span> km by air, SZX to ORD</li>
-        </ul>
+      {shipping && (
+        <div className={sh.mapShip}>
+          <div className={sh.lines}>
+            <span className="es-micro">Documents</span>
+            <div className={sh.rows}>
+              {st.shipment.docs.map((d) => (
+                <div key={d.name} className={sh.row} style={{ minHeight: 30 }}>
+                  <Dot tone={d.state === "done" ? "success" : d.state === "working" ? "attention" : "alert"} /><span>{d.name}</span>
+                  <span className={`${sh.rowEnd} ${d.state === "working" ? sh.attnInk : ""}`}>{d.state === "done" ? (d.name === "Commercial invoice" ? <N>{formatUsd(st.escrow!.lockedCents)}</N> : "Matches PO") : d.state === "working" ? "Not yet sent" : "Problem"}</span>
+                </div>
+              ))}
+            </div>
+            <span className={sh.note} style={{ fontSize: 12.5, paddingTop: 6 }}><N>{MAP.airKm.toLocaleString("en-US")} km</N> by air, <N>SZX</N> to <N>ORD</N></span>
+            {!planOpen && <button type="button" className="es-btn es-btn-secondary es-btn-sm" style={{ alignSelf: "flex-start", marginTop: "auto" }} onClick={() => setPlanOpen(true)}>Plan an order</button>}
+          </div>
+          <Tracking checkpoints={st.shipment.checkpoints} />
+        </div>
       )}
-      <Tracking checkpoints={st.shipment.checkpoints} />
     </Panel>
   );
 }

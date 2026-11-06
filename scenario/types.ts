@@ -3,7 +3,7 @@ import type { Escrow } from "../engine/escrow";
 import type { Stage } from "./stages";
 import type { Checkpoint } from "./shipment";
 
-export type PanelId = "products" | "demand" | "map" | "inbox" | "bom" | "rules";
+export type PanelId = "products" | "stock" | "orders" | "inbox" | "map" | "rules" | "money";
 
 export interface Message {
   id: string;
@@ -18,7 +18,15 @@ export interface Message {
   reading?: string;
   refersTo?: PanelId;
   /** A chat card returned with the message. */
-  card?: "approval";
+  card?: "approval" | "sign" | "release" | "commit";
+  /** Quick replies shown under a bot message. */
+  chips?: string[];
+  /** A file attached to an email. */
+  attachment?: string;
+  /** Clock time shown on an email (story time). */
+  time?: string;
+  /** Short subject line for an email row. */
+  kind?: string;
 }
 
 export interface Proof {
@@ -52,7 +60,7 @@ export type Event =
   | { type: "demand"; ordered: number; shippedOut: number; motorsOnHand: number }
   | { type: "wallet" }
   | { type: "fitment"; supplierId: string }
-  | { type: "approval"; by: string }
+  | { type: "approval"; by: string; time: string; scope?: "po" | "limit" }
   | { type: "price_quote"; unitCents: number; from: string }
   | { type: "refused"; kind: string; detail: string }
   | { type: "lock_funds" }
@@ -65,7 +73,13 @@ export type Event =
   | { type: "end_card" };
 
 /** A beat that waits for the viewer: the clock stops just before it until they click. */
-export interface Gate { id: string; who: "Luca" | "Jordy"; prompt: string; action: string }
+export interface Gate {
+  id: string; who: "Luca" | "Jordy"; prompt: string; action: string;
+  /** The cards that show a "needs you" count while this gate waits. */
+  panels?: PanelId[];
+  /** The sidebar status line while it waits. */
+  status?: string;
+}
 
 export interface Beat {
   atMs: number;
@@ -89,7 +103,9 @@ export interface WorkspaceState {
   proofs: Proof[];
   fitment: FitmentResult[];
   requiredApprovals: number;
-  approvals: { by: string; atMs: number }[];
+  approvals: { by: string; atMs: number; time: string }[];
+  /** Signatures for a rules change on this PO (the adjustment). */
+  limitApprovals: { by: string; atMs: number; time: string }[];
   price: { originalCents: number; limitBps: number; history: { unitCents: number; bps: number; pass: boolean; from: string }[] };
   escrow: Escrow | null;
   shipment: { progress: number; docs: { name: string; state: "done" | "working" | "problem" }[]; checkpoints: Checkpoint[] };

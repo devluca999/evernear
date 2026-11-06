@@ -1,22 +1,23 @@
 "use client";
-
+// The workspace, laid out as the V2 storyboard: sidebar, summary strip, the scene's cards (with the
+// phone beside them when a conversation is on), the developer drawer, and the demo rail.
 import { useEffect, useMemo, useRef, useState } from "react";
-import { stateAt, sceneStartMs, stageStartMs } from "@/scenario/runner";
-import { SCENARIOS, type ScenarioId } from "@/scenario/scenes";
-import { suppliers } from "@/seed/astro";
+import { stateAt, sceneStartMs } from "@/scenario/runner";
+import { ADJUSTMENT_SCENE, amounts, HOLD_UNIT, SCENARIOS, type ScenarioId } from "@/scenario/scenes";
+import { PO, story, suppliers } from "@/seed/astro";
 import type { Beat, PanelId, WorkspaceState } from "@/scenario/types";
-import { Rail } from "./Rail";
 import { Drawer } from "./Drawer";
 import { Phone } from "./Phone";
-import { DemandPanel } from "./panels/DemandPanel";
+import { DemoRail, RailShow } from "./DemoRail";
+import { OrdersPanel } from "./panels/OrdersPanel";
+import { StockPanel } from "./panels/StockPanel";
+import { MoneyPanel } from "./panels/MoneyPanel";
 import { MapPanel } from "./panels/MapPanel";
 import { InboxPanel } from "./panels/InboxPanel";
-import { BomPanel } from "./panels/BomPanel";
 import { RulesPanel } from "./panels/RulesPanel";
 import { ProductsPanel } from "./panels/ProductsPanel";
 import { ActionsContext, type WorkspaceActions } from "./actions";
 import { PhotoViewer } from "./PhotoViewer";
-import { Pill } from "./ui";
 import { CHECKPOINTS } from "@/scenario/shipment";
 import { PANEL_ORDER } from "@/scenario/layout";
 import { arrange, closeCard, COLS, emptyBoard, loadBoard, lockCard, openCard, placeCard, rowsUsed, SPOTS, type Board } from "@/scenario/board";
@@ -25,20 +26,24 @@ import { useLive } from "./useLive";
 import { loadPolicy, PolicyContext, POLICY_KEY, sameRules } from "./rules";
 import { policy as defaultPolicy } from "@/seed/astro";
 import type { Policy } from "@/engine/types";
-import { BoardContext } from "./Panel";
-import { Sidebar } from "./Sidebar";
+import { BoardContext, N } from "./Panel";
+import { Sidebar, type StatusTone } from "./Sidebar";
 import { StatsBar } from "./StatsBar";
-import s from "./workspace.module.css";
+import s from "./shell.module.css";
 
 const PANELS: Record<PanelId, (p: { st: WorkspaceState; pulse: boolean }) => React.ReactNode> = {
-  products: ProductsPanel, demand: DemandPanel, map: MapPanel, inbox: InboxPanel, bom: BomPanel, rules: RulesPanel,
+  products: ProductsPanel, stock: StockPanel, orders: OrdersPanel, inbox: InboxPanel, map: MapPanel, rules: RulesPanel, money: MoneyPanel,
 };
 
-const BOARD_KEY = "evernear.board";
-const LOCK_KEY = "evernear.locked";
+const BOARD_KEY = "evernear.board.v2";
+const LOCK_KEY = "evernear.locked.v2";
 const save = (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* storage may be blocked */ } };
 const HAOYUN = suppliers.find((x) => x.id === "haoyun")!.receiveAddress;
-
+const AFTER: Record<ScenarioId, { label: string; to: ScenarioId | null }> = {
+  happy: { label: "Try the bad path", to: "standoff" },
+  standoff: { label: "Try the bad path, adjusted", to: "adjusted" },
+  adjusted: { label: "Back to the happy path", to: "happy" },
+};
 
 export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: number; autoplay?: boolean }) {
   const [t, setT] = useState(initialMs);
@@ -58,9 +63,7 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
     changed: !sameRules(policy, defaultPolicy),
   }), [policy]);
   const [mode, setMode] = useState<"dark" | "light">("dark");
-  // The drawer stays collapsed (its bar shows the latest call) until the chevron opens it.
   const [drawerOpenState, setDrawerOpen] = useState(false);
-  const [phonePinned, setPhonePinned] = useState<boolean | null>(null);
   const last = useRef<number | null>(null);
   const [viewer, setViewer] = useState<{ checkpointId: string; index: number } | null>(null);
   const [pinnedProof, setPinnedProof] = useState<string | null>(null);
@@ -69,13 +72,11 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
   const setBoard = (b: Board) => { setBoardState(b); save(BOARD_KEY, b); };
   const setLocked = (l: PanelId[]) => { setLockedState(l); save(LOCK_KEY, l); };
   const [drag, setDrag] = useState<{ id: PanelId; dx: number; dy: number; over: number | null } | null>(null);
-  const [navOpen, setNavOpen] = useState(true);
-  const actions = useMemo<WorkspaceActions>(() => ({
-    openPhoto: (checkpointId, index) => { setPlaying(false); setViewer({ checkpointId, index }); },
-    openProof: (id) => { setPinnedProof(id); },
-  }), []);
+  // null: the sidebar follows the story (open on onboarding, icons after); true or false: your choice.
+  const [navChoice, setNavChoice] = useState<boolean | null>(null);
+  const [railHidden, setRailHidden] = useState(false);
 
-  // ?scene=7 jumps to a scene; ?paused=1 holds it there; ?mode=light picks the theme; ?photo=dock:0 opens a photo.
+  // ?scene=7 jumps to a scene (1-based, as on screen); ?paused=1 holds it there; ?mode=light picks the theme; ?photo=dock:0 opens a photo.
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
     const id = q.get("scene");
@@ -84,10 +85,12 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
       const sc = q.get("scenario");
       const scList = sc && sc in SCENARIOS ? SCENARIOS[sc as ScenarioId].scenes : SCENARIOS.happy.scenes;
       if (sc && sc in SCENARIOS) setScenarioId(sc as ScenarioId);
-      if (id !== null) setT(sceneStartMs(Number(id), scList) + off);
+      if (id !== null) setT(sceneStartMs(Math.max(0, Number(id) - 1), scList) + off);
       if (q.get("paused") === "1") setPlaying(false);
       if (q.get("autoplay") === "1" || q.get("play") === "autoplay") setPlayMode("autoplay");
       if (q.get("mode") === "light") setMode("light");
+      if (q.get("drawer") === "1") setDrawerOpen(true);
+      if (q.get("rail") === "0") setRailHidden(true);
       const photo = q.get("photo");
       if (photo && photo.split(":")[0] in CHECKPOINTS) setViewer({ checkpointId: photo.split(":")[0], index: Number(photo.split(":")[1] ?? 0) });
       try { setPolicyState(loadPolicy(localStorage.getItem(POLICY_KEY))); } catch { /* no saved rules */ }
@@ -103,10 +106,11 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
   const haltedAt = useMemo(() => stateAt(TOTAL, TL, policy).halted?.atMs ?? null, [policy, TL, TOTAL]);
   // What holds the clock: a human moment, the end of a scene (narrate, then Cmd+K), or a live step still running.
   const blocked = (b: Beat) => {
-    const afterHalt = haltedAt !== null && b.atMs > haltedAt;
-    // A live money step holds the clock until the real call finished, in both modes.
-    const step = liveStepOf(b, HAOYUN);
-    if (!afterHalt && live.on && !live.error && step && !live.done.includes(step)) return true;
+    const afterHalt = haltedAt !== null && b.atMs >= haltedAt;
+    // A live money step holds the clock until the real call finished, in both modes. Nothing runs past a halt.
+    const step = afterHalt ? null : liveStepOf(b, HAOYUN);
+    if (live.on && !live.error && step && !live.done.includes(step)) return true;
+    if (b.gate) return true;
     if (!present) return false;
     // Once the rules stop the PO, only scene changes and the end still wait for you.
     if (afterHalt) return b.ev.type === "scene" || b.ev.type === "end_card";
@@ -122,6 +126,7 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
       const dt = last.current === null ? 0 : now - last.current;
       last.current = now;
       setT((x) => {
+        // Autoplay answers each human moment by itself after a short beat, so the story runs start to finish.
         const next = stepClockWith(x, Math.min(TOTAL, x + dt), (b) => blockedRef.current(b), TL);
         if (next >= TOTAL) setPlaying(false);
         return next;
@@ -133,15 +138,33 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
   }, [playing, TL, TOTAL]);
 
   const held = heldAt(t, blocked, TL);
-  const heldStep = held ? liveStepOf(held, HAOYUN) : null;
-  const waiting = held?.gate ?? null;
+  const heldStep = held && !(haltedAt !== null && held.atMs >= haltedAt) ? liveStepOf(held, HAOYUN) : null;
+  const heldGate = held?.gate ?? null;
+  // Autoplay: a human moment waits a beat, then answers itself.
+  useEffect(() => {
+    if (present || !held?.gate || !playing) return;
+    const at = held.atMs;
+    const id = setTimeout(() => setT(at), 1400);
+    return () => clearTimeout(id);
+  }, [present, held, playing]);
   const liveBusy = !!heldStep && live.on && !live.error && !live.done.includes(heldStep);
   // In Present the next step is always named and one press away, whether the clock is held there or on its way.
   const upcoming = held ?? (present ? nextBlock(t, blocked, TL) : null);
-  const nextLabel = upcoming && !liveBusy ? describeStop(upcoming, (id) => LIST[id]?.title ?? "", HAOYUN) : null;
+  // In Present, a human moment that comes next is already shown as waiting: the next press answers it.
+  const waiting = heldGate ?? (present && upcoming?.gate ? upcoming.gate : null);
+  const finished = t >= TOTAL;
+  const sceneTitle = (id: number) => LIST[id]?.enter ?? `Go to ${LIST[id]?.title ?? "the next scene"}`;
+  const nextLabel = upcoming && !liveBusy ? describeStop(upcoming, sceneTitle, HAOYUN) : null;
+  const jump = (id: number) => { setT(sceneStartMs(id, LIST)); setPinnedProof(null); setViewer(null); };
+  const reset = () => { setPinnedProof(null); setViewer(null); live.reset(); };
+  const restart = () => { setT(0); reset(); setPlaying(true); };
+  const pickScenario = (id: ScenarioId, sceneId = 0) => { setScenarioId(id); setT(sceneStartMs(sceneId, SCENARIOS[id].scenes)); reset(); setPlaying(true); };
+  const pickRef = useRef(pickScenario);
+  useEffect(() => { pickRef.current = pickScenario; });
   /** Next: play the next step (or answer the moment). A live step finishes first. */
   const proceed = () => {
-    if (upcoming && !liveBusy) { setT(upcoming.atMs); setPhonePinned(null); setPlaying(true); return; }
+    if (finished) { const to = AFTER[scenarioId].to; if (to) pickScenario(to); return; }
+    if (upcoming && !liveBusy) { setT(upcoming.atMs); setPlaying(true); return; }
     if (!present && t < TOTAL) setPlaying(true);
   };
   const proceedRef = useRef(proceed);
@@ -152,10 +175,18 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
   const liveScenario = scenarioId === "adjusted" ? "adjusted" : "happy";
   useEffect(() => { if (heldStep && live.on && !live.pending && !live.error) void liveRun(heldStep, liveScenario); }, [heldStep, live.on, live.pending, live.error, liveRun, liveScenario]);
 
+  const base = useMemo(() => stateAt(t, TL, policy), [t, TL, policy]);
+  // In live mode the real proofs replace the placeholders as they arrive.
+  const st = useMemo(() => ({ ...base, proofs: base.proofs.map((p) => (live.byKey[p.id] ? { ...live.byKey[p.id], scene: p.scene, atMs: p.atMs } : p)) }), [base, live.byKey]);
+  const scene = LIST.find((x) => x.id === st.scene) ?? LIST[0];
+  // The phone shows this scene's conversation only.
+  const sceneMsgStart = useMemo(() => stateAt(sceneStartMs(st.scene, LIST), TL, policy).messages.length, [st.scene, LIST, TL, policy]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || viewer || e.altKey) return;
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); proceedRef.current(); return; }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "b") { e.preventDefault(); pickRef.current(scenarioId === "standoff" ? "adjusted" : "standoff"); return; }
       if (e.key === " ") { e.preventDefault(); setPlaying((p) => !p); }
       const cur = stateAt(t, TL).scene;
       if (e.key === "ArrowRight") setT(sceneStartMs(Math.min(LAST, cur + 1), LIST));
@@ -163,18 +194,14 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [t, viewer, TL, LIST, LAST]);
+  }, [t, viewer, TL, LIST, LAST, scenarioId]);
 
-  const base = useMemo(() => stateAt(t, TL, policy), [t, TL, policy]);
-  // In live mode the real proofs replace the placeholders as they arrive.
-  const st = useMemo(() => ({ ...base, proofs: base.proofs.map((p) => (live.byKey[p.id] ? { ...live.byKey[p.id], scene: p.scene, atMs: p.atMs } : p)) }), [base, live.byKey]);
   const lastProof = st.proofs.at(-1) ?? null;
   const pinned = pinnedProof ? st.proofs.find((p) => p.id === pinnedProof) ?? null : null;
-  const placed = arrange(board, st.endCard ? [] : st.layout);
+  const placed = arrange(board, st.layout);
   const ownBoard = board.some(Boolean);
   const gridMode = ownBoard || drag !== null;
   const rows = drag ? 2 : rowsUsed(placed);
-  // Only the columns that hold a card take width, so two cards share the whole row; dragging shows all three.
   const cols = drag ? COLS : Math.max(1, ...placed.map((p) => (p.spot % COLS) + 1));
   const boardCtx = {
     isMine: (id: PanelId) => board.includes(id),
@@ -211,63 +238,106 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
   };
   const boardRef = useRef(board), lockedRef = useRef(locked), placedRef = useRef(placed);
   useEffect(() => { boardRef.current = board; lockedRef.current = locked; placedRef.current = placed; });
+
   const drawerOpen = drawerOpenState || !!pinned;
-  const answer = proceed;
-  // Present: the phone comes up only when it waits for you. Autoplay: it follows the script.
-  const phoneOpen = phonePinned ?? (present ? !!waiting : st.phoneOpen || !!waiting);
-  const scene = LIST.find((x) => x.id === st.scene) ?? LIST[0];
-  const stalled = st.stage === "low" && st.scene >= 1;
-  const jump = (id: number) => { setT(sceneStartMs(id, LIST)); setPhonePinned(null); setPinnedProof(null); setViewer(null); };
-  const restart = () => { setT(0); setPhonePinned(null); setPinnedProof(null); setViewer(null); live.reset(); setPlaying(true); };
-  const pickScenario = (id: ScenarioId) => { setScenarioId(id); setT(0); setPhonePinned(null); setPinnedProof(null); setViewer(null); live.reset(); setPlaying(true); };
+  const actions = useMemo<WorkspaceActions>(() => ({
+    openPhoto: (checkpointId, index) => { setPlaying(false); setViewer({ checkpointId, index }); },
+    openProof: (id) => { setPinnedProof(id); },
+    waiting, answer: () => proceedRef.current(),
+  }), [waiting]);
+
+  // The phone: on in scenes with a conversation, and whenever a human moment waits on Telegram.
+  const chat = st.messages.slice(sceneMsgStart);
+  const phoneOn = !!scene.phone;
+  const lastBot = [...chat].reverse().find((m) => m.channel === "telegram" && m.direction === "out");
+  const phoneTo = waiting?.who ?? (lastBot?.to as "Luca" | "Jordy" | undefined) ?? "Luca";
+  const lastPrice = st.price.history.at(-1);
+  const adjustedUnit = st.limitApprovals.length > 0 ? HOLD_UNIT : PO.revisedUnitCents;
+  const trailing = waiting?.id === "on_hold" || (scene.title === "On hold" && !st.endCard)
+    ? { tone: "attention" as const, text: "On hold", note: "waiting on you" }
+    : lastBot?.text.startsWith("Countering") && !(lastPrice && lastPrice.pass) ? { tone: "active" as const, text: "Waiting on Haoyun" } : null;
+
+  const needs: Partial<Record<PanelId, number>> = {};
+  for (const p of waiting?.panels ?? []) needs[p] = 1;
+  const status: { tone: StatusTone; text: string } = waiting
+    ? { tone: "attention", text: waiting.status ?? "Stockbot needs you" }
+    : st.halted ? { tone: "attention", text: "On hold, needs you" }
+    : st.scene === 0 && st.proofs.length < 2 ? { tone: undefined, text: "Stockbot ready" }
+    : st.stage === "paid" || st.stage === "closed" ? { tone: "success", text: scene.status ?? "Settled" }
+    : { tone: "active", text: scene.status ?? "Working" };
+  const navOpen = navChoice ?? st.scene === 0;
+  const synthetic = st.proofs.some((p) => p.synthetic) || (!st.proofs.length && !live.on);
+  const endText = scenarioId === "standoff"
+    ? { big: <>PO <N>{PO.number}</N> ended. <N>$0</N> moved.</>, sub: "Haoyun held at +8%, over Astro's limit. Stockbot stopped before committing anything." }
+    : { big: <><N>0</N> wires. <N>0</N> days waiting. <N>1</N> human decision.</>, sub: <>Astro Robotics · PO <N>{PO.number}</N> closed in <N>{story.closedInDays}</N> days</> };
+  const sceneGrid = scene.grid;
+  const gridStyle: React.CSSProperties = gridMode
+    ? { gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`, gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }
+    : sceneGrid && placed.every((p) => !p.mine)
+      ? { gridTemplateColumns: sceneGrid.cols.split(" ").map((c) => `minmax(0, ${c})`).join(" "), ...(sceneGrid.rows ? { gridTemplateRows: sceneGrid.rows.split(" ").map((r) => `minmax(0, ${r})`).join(" ") } : {}), ...(sceneGrid.areas ? { gridTemplateAreas: sceneGrid.areas.join(" ") } : {}) }
+      : { gridTemplateColumns: `repeat(${Math.max(1, placed.length)}, minmax(0, 1fr))` };
+  const useAreas = !gridMode && !!sceneGrid?.areas && placed.every((p) => !p.mine);
+  const stacked = !gridMode && sceneGrid?.cols === "1fr" && placed.every((p) => !p.mine);
+
+  const liveStatus = live.on && (liveBusy || live.error)
+    ? (live.error ? `Live call failed (${live.error}). The replay carries on.` : `Live on Tidepool testnet: ${heldStep} running`)
+    : null;
 
   return (
     <PolicyContext.Provider value={policyCtx}>
     <ActionsContext.Provider value={actions}>
     <BoardContext.Provider value={boardCtx}>
-    <div className={s.root} data-theme="clean" data-mode={mode} data-working={playing && st.stage !== "closed"}>
-      <header className={s.top}>
-        <div className={s.brand}>
-          <span className={s.wordmark} aria-label="everNEAR">ever<span className={s.wordmarkNear}>NEAR</span></span>
-          <span className={s.faint}>for Astro Robotics</span>
-        </div>
-        <Rail stage={st.stage} stalled={stalled}
-          onJump={(stage) => { setT(stageStartMs(stage, TL)); setPinnedProof(null); setViewer(null); }}
-          onPrev={() => jump(Math.max(0, st.scene - 1))} onNext={() => jump(Math.min(LAST, st.scene + 1))} />
-      </header>
-
-      <Sidebar open={navOpen} onToggle={() => setNavOpen((o) => !o)} pinned={board.filter((x): x is PanelId => !!x)}
+    <div className={s.root} data-theme="clean" data-mode={mode} data-nav={navOpen ? "open" : "closed"} data-rail={railHidden ? "hidden" : "shown"} data-working={playing && st.stage !== "closed"}>
+      <Sidebar open={navOpen} onToggle={() => setNavChoice(!navOpen)} onScreen={placed.map((p) => p.id)} pinned={board.filter((x): x is PanelId => !!x)}
+        needs={needs} status={status}
         onPick={(id) => {
           if (board.includes(id)) { if (!locked.includes(id)) boardCtx.close(id); return; }
           const here = placed.find((p) => p.id === id);
           setBoard(here ? placeCard(board, locked, id, here.spot, placed) : openCard(board, id, placed));
         }}
         onClear={() => { setBoard(emptyBoard()); setLocked([]); }} />
-      <StatsBar st={st} />
-      <main className={s.stageArea}>
-        {st.endCard ? (
-          <div className={s.endCard} role="region" aria-label="End card">
-            <p className={s.endLine}><span className={s.fig}>0</span> wires. <span className={s.fig}>0</span> days waiting. <span className={s.fig}>1</span> human decision.</p>
-            <p className={s.mono}>github.com/devluca999/evernear</p>
+
+      <main className={s.main}>
+        <StatsBar st={st} title={!navOpen} />
+        <div className={s.body}>
+          {phoneOn && (
+            <Phone messages={chat} to={phoneTo} clock={scene.clock ?? "09:00"} waiting={waiting} onAnswer={proceed} onNext={proceed} trailing={trailing}
+              onChoice={(c) => { if (c.startsWith("Raise")) pickScenario("adjusted", ADJUSTMENT_SCENE); }}
+              facts={{
+                totalCents: st.limitApprovals.length > 0 ? amounts(adjustedUnit).lockedCents : PO.revisedTotalCents,
+                releaseCents: st.dock?.releaseCents ?? 0, holdCents: st.dock?.holdCents ?? 0, receivedQty: st.dock?.receivedQty ?? 0, deadline: story.deadline,
+              }} />
+          )}
+          <div className={s.stack}>
+            <div className={s.grid} data-end={st.endCard} style={gridStyle}>
+              {drag && Array.from({ length: SPOTS }, (_, spot) => (
+                <div key={`spot-${spot}`} className={s.dropSpot} data-spot={spot} data-over={drag.over === spot}
+                  style={{ gridColumn: (spot % COLS) + 1, gridRow: Math.floor(spot / COLS) + 1 }} aria-hidden="true" />
+              ))}
+              {placed.length === 0 && <p className={s.empty}>Pick a panel in the sidebar to pin it here.</p>}
+              {placed.map(({ id, spot }, i) => {
+                const P = PANELS[id];
+                const moving = drag?.id === id;
+                const style: React.CSSProperties = gridMode
+                  ? { gridColumn: (spot % COLS) + 1, gridRow: Math.floor(spot / COLS) + 1, ...(moving ? { transform: `translate(${drag!.dx}px, ${drag!.dy}px)` } : {}) }
+                  : useAreas ? { gridArea: id } : stacked ? { gridRow: i + 1 } : {};
+                return (
+                  <div key={id} className={s.slot} data-moving={moving} style={style}>
+                    <P st={st} pulse={st.pulse === id} />
+                  </div>
+                );
+              })}
+            </div>
+            {st.endCard && (
+              <div className={s.endLine} role="region" aria-label="End card">
+                <p className={s.endBig}>{endText.big}</p>
+                <p className={s.endSub}>{endText.sub}</p>
+              </div>
+            )}
+            <Drawer proof={pinned ?? lastProof} lastProof={lastProof} history={st.proofs} open={drawerOpen} narrow={phoneOn}
+              onToggle={() => { if (pinned) setPinnedProof(null); setDrawerOpen(!drawerOpen); }} />
           </div>
-        ) : (
-          <div className={s.panels} data-count={placed.length} data-grid={gridMode} style={gridMode ? { gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`, gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` } : undefined}>
-            {drag && Array.from({ length: SPOTS }, (_, spot) => (
-              <div key={`spot-${spot}`} className={s.spot} data-spot={spot} data-over={drag.over === spot}
-                style={{ gridColumn: (spot % COLS) + 1, gridRow: Math.floor(spot / COLS) + 1 }} aria-hidden="true" />
-            ))}
-            {placed.map(({ id, spot }) => {
-              const P = PANELS[id];
-              const moving = drag?.id === id;
-              return (
-                <div key={id} className={s.cardSlot} data-moving={moving}
-                  style={gridMode ? { gridColumn: (spot % COLS) + 1, gridRow: Math.floor(spot / COLS) + 1, ...(moving ? { transform: `translate(${drag!.dx}px, ${drag!.dy}px)` } : {}) } : undefined}>
-                  <P st={st} pulse={st.pulse === id} />
-                </div>
-              );
-            })}
-          </div>
-        )}
+        </div>
         {viewer && (
           <PhotoViewer checkpointId={viewer.checkpointId} index={viewer.index}
             onIndex={(index) => setViewer({ ...viewer, index })} onClose={() => setViewer(null)}
@@ -275,69 +345,16 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
         )}
       </main>
 
-      <aside className={s.side}>
-        <div className={s.sceneCard}>
-          <span className={s.micro}>{SC.title.toUpperCase()} · SCENE {st.scene}</span>
-          <p className={s.sceneTitle}>{scene.timeCard ?? scene.title}</p>
-          {scene.line && <p className={s.sceneLine}>{scene.line}</p>}
-          {waiting && (
-            <div className={s.waiting} role="group" aria-label="Waiting for you">
-              <span className={s.micro}>WAITING FOR {waiting.who.toUpperCase()}</span>
-              <p className={s.waitingPrompt}>{waiting.prompt}</p>
-              <button type="button" className={s.btn} onClick={answer}>{waiting.action} <kbd className={s.kbd}>⌘K</kbd></button>
-            </div>
-          )}
-          {st.halted && (
-            <div className={s.waiting} role="status" aria-label="Stopped by your rules">
-              <span className={s.micro}>STOPPED BY THE RULES</span>
-              <p className={s.waitingPrompt}>{st.halted.reason}</p>
-              {policyCtx.changed && <button type="button" className={s.btnQuiet} onClick={policyCtx.reset}>Reset to Astro&apos;s rules</button>}
-            </div>
-          )}
-          {present && !waiting && nextLabel && (
-            <div className={s.waiting} data-kind="scene" role="group" aria-label="Next step">
-              <span className={s.micro}>NEXT</span>
-              <button type="button" className={s.btn} onClick={proceed}>{nextLabel} <kbd className={s.kbd}>⌘K</kbd></button>
-            </div>
-          )}
-          {t >= TOTAL && <p className={s.liveStatus}>Finished. <button type="button" className={s.pinClear} onClick={restart}>Restart</button></p>}
-          {live.on && (liveBusy || live.error) && (
-            <p className={s.liveStatus} role="status">{live.error ? `Live call failed (${live.error}). The replay carries on.` : `Live on Tidepool testnet: ${heldStep} running`}</p>
-          )}
-        </div>
-        <div className={s.runBar}>
-          <div className={s.segmented} role="group" aria-label="Mode">
-            <button type="button" aria-pressed={present} onClick={() => setPlayMode("present")} title="Nothing moves until you act">Present</button>
-            <button type="button" aria-pressed={!present} onClick={() => { setPlayMode("autoplay"); setPlaying(true); }} title="Plays the scenario start to finish">Autoplay</button>
-          </div>
-          <label className={s.scenarioPick}>
-            <span className={s.micro}>SCENARIO</span>
-            <select value={scenarioId} onChange={(e) => pickScenario(e.target.value as ScenarioId)} aria-label="Scenario">
-              {Object.values(SCENARIOS).map((x) => <option key={x.id} value={x.id}>{x.title}</option>)}
-            </select>
-            <span className={s.faint}>{SC.blurb}</span>
-          </label>
-          <div className={s.controls}>
-            {!present && <button className={s.btn} onClick={() => { if (t >= TOTAL) setT(0); setPlaying((p) => !p); }}>{playing && t < TOTAL ? "Pause" : "Play"}</button>}
-            <button className={s.btnQuiet} onClick={restart}>Restart</button>
-            {live.available && <button className={s.btnQuiet} aria-pressed={live.on} onClick={() => live.setOn(!live.on)} title="Run the money steps for real on Tidepool testnet">{live.on ? "Live: on" : "Live: off"}</button>}
-            <button className={s.btnQuiet} onClick={() => setMode((m) => (m === "dark" ? "light" : "dark"))}>{mode === "dark" ? "Light" : "Dark"}</button>
-          </div>
-        </div>
-        <ol className={s.sceneList} aria-label="Scenes">
-          {LIST.map((x) => (
-            <li key={x.id}><button className={s.sceneBtn} data-current={x.id === st.scene} onClick={() => jump(x.id)}><span className={s.fig}>{x.id}</span>{x.title}</button></li>
-          ))}
-        </ol>
-        {st.proofs.some((p) => p.synthetic) && <p className={s.syntheticNote}><Pill tone="idle">synthetic</Pill><span>Proofs are placeholders until real testnet recordings replace them.</span></p>}
-      </aside>
-
-      <div className={s.dock}>
-        <Phone messages={st.messages} open={phoneOpen} waiting={waiting} onAnswer={answer} onToggle={() => setPhonePinned(!phoneOpen)} />
-        <Drawer proof={pinned ?? lastProof} lastProof={lastProof} history={st.proofs} open={drawerOpen}
-          onToggle={() => { if (pinned) setPinnedProof(null); setDrawerOpen(!drawerOpen); }} />
-      </div>
-
+      <DemoRail scenario={SC} scenarios={Object.values(SCENARIOS)} scene={st.scene} title={scene.title} line={scene.line}
+        waiting={waiting} onHold={waiting?.id === "on_hold"} halted={waiting ? null : st.halted?.reason ?? null} rulesChanged={policyCtx.changed} onResetRules={policyCtx.reset}
+        next={finished ? { label: AFTER[scenarioId].label, key: "⌘B" } : nextLabel ? { label: nextLabel, key: "⌘K" } : null} onNext={proceed}
+        present={present} setPresent={(p) => { setPlayMode(p ? "present" : "autoplay"); if (!p) setPlaying(true); }}
+        playing={playing && !finished} finished={finished} onPlayPause={() => { if (finished) { setT(0); setPlaying(true); } else setPlaying((x) => !x); }}
+        pick={(id) => pickScenario(id)} jump={jump} restart={restart}
+        live={{ available: live.available, on: live.on, toggle: () => live.setOn(!live.on), status: liveStatus }}
+        mode={mode} toggleMode={() => setMode((m) => (m === "dark" ? "light" : "dark"))}
+        synthetic={synthetic} hide={() => setRailHidden(true)} />
+      {railHidden && <RailShow onClick={() => setRailHidden(false)} />}
     </div>
     </BoardContext.Provider>
     </ActionsContext.Provider>

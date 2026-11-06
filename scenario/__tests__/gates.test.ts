@@ -7,7 +7,7 @@ const gates = timeline.filter((b) => b.gate);
 
 describe("gates", () => {
   it("waits at every human moment, in story order", () => {
-    expect(gates.map((g) => g.gate!.id)).toEqual(["start_sourcing", "approve_luca", "approve_jordy", "price_limit", "packing_slip"]);
+    expect(gates.map((g) => g.gate!.id)).toEqual(["start_sourcing", "approve_luca", "approve_jordy", "price_limit", "packing_slip", "approve_release"]);
   });
   it("stops the clock 1 ms before a gate and asks", () => {
     const g = gates[0];
@@ -15,7 +15,7 @@ describe("gates", () => {
     expect(t).toBe(g.atMs - 1);
     expect(waitingAt(t, true)?.gate?.id).toBe("start_sourcing");
     // Nothing the gate does has happened yet.
-    expect(stateAt(t).messages.some((m) => m.text === "Yes" && m.direction === "in")).toBe(false);
+    expect(stateAt(t).messages.some((m) => m.text === "Start sourcing" && m.direction === "in")).toBe(false);
   });
   it("answering moves the clock onto the gate, which then fires, and play continues to the next gate", () => {
     const [a, b] = [gates[1], gates[2]];
@@ -31,7 +31,7 @@ describe("gates", () => {
     expect(waitingAt(gates[0].atMs - 1, false)).toBeNull();
   });
   it("a gate behind the clock is passed, so a jump past it never asks again", () => {
-    expect(nextGate(gates[4].atMs)).toBeNull();
+    expect(nextGate(gates[5].atMs)).toBeNull();
   });
 });
 
@@ -60,11 +60,12 @@ describe("present mode stops", () => {
     const { isStop, describeStop } = await import("../gates");
     const { scenes } = await import("../scenes");
     const stops = timeline.filter(isStop);
-    const say = (b: (typeof timeline)[number]) => describeStop(b, (id) => scenes[id].title, "0x2003975a521c6fa45238dbc402c9e4adcb8863e0");
+    const say = (b: (typeof timeline)[number]) => describeStop(b, (id) => scenes[id].enter ?? scenes[id].title, "0x2003975a521c6fa45238dbc402c9e4adcb8863e0");
     expect(stops.length).toBeGreaterThan(25);
     expect(stops.map(say)).toEqual(expect.arrayContaining([
-      "Scene 3: Sourcing and fitment", "Check Kansai Servo Works against the BOM", "YES, approve as Luca", "Commit the PO total",
-      "Count the delivery at the dock", "Try a payment to a wrong address", "Pay Haoyun for what arrived", "Return the held part to Astro",
+      "Check 4 suppliers", "Send PO 1042 for approval", "Check Kansai Servo Works against the BOM", "YES, approve as Luca", "Deliver Haoyun's reply",
+      "Commit $38,000 to PO 1042", "Commit the PO total", "Land at Chicago dock", "Count the delivery at the dock", "YES, release $34,200",
+      "Try a payment to a wrong address", "Pay Haoyun for what arrived", "At the deadline, return the rest to Astro",
     ]));
     // Shipment progress and checkpoints only animate between stops.
     expect(timeline.filter((b) => b.ev.type === "shipment" || b.ev.type === "checkpoint").some(isStop)).toBe(false);

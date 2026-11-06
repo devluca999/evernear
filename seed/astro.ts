@@ -68,7 +68,7 @@ export const bomFor: Record<string, BomLine[]> = { "10ma": bom10MA, kip: bomKip,
 
 /** Sample stock on hand per part (units). The actuator motor count comes from the scenario. */
 export const partStock: Record<string, number> = {
-  "Chassis frame": 9, "Arm servo": 22, "Battery pack": 16, "Controller board": 12, "Camera module": 30, "Encoder harness": 48,
+  "Chassis frame": 9, "Arm servo": 40, "Battery pack": 22, "Controller board": 12, "Camera module": 30, "Encoder harness": 70,
   "Drive wheel": 26, "Lidar sensor": 11, "Head shell": 14, "Speaker": 19, "Microphone array": 15, "Wiring loom": 13, "Fastener kit": 40,
   "Brush motor": 34, "Suction fan": 12, "Bumper sensor": 80, "Water tank": 17, "Housing": 15, "Hub motor": 20, "Cargo deck": 6,
   "Safety light": 24, "Caster wheel": 18,
@@ -129,11 +129,62 @@ export const PO = {
   receivedQty: 1800,
 };
 
-export const routineReorder = { supplierId: "ultra", quantity: 300, unitCents: 1854 };
+/** A routine reorder under the cap that pays itself: encoder harnesses from an established supplier. */
+export const routineReorder = { supplier: "Pacific Harness Co.", po: "1039", part: "Encoder harness", quantity: 220, unitCents: 1900 };
 
 export const demand = {
   robotsOrdered: 14,
   motorsPerRobot: 4,
   motorsOnHand: 24,
-  customers: ["Lakeview Restaurant Group", "St. Brigid Hospital", "Calumet Logistics warehouse"],
+  customers: [
+    { name: "Harbor and Vine Restaurant Group", so: "3326", robots: 6, due: "20 Nov" },
+    { name: "St. Brennan Hospital", so: "3329", robots: 5, due: "24 Nov" },
+    { name: "Northgate Fulfillment warehouse", so: "3331", robots: 3, due: "1 Dec" },
+  ],
 };
+
+/** The parts the 10MA build plan watches, with their stock codes and how many each robot takes. */
+export const buildPlan = [
+  { part: MOTOR_PART, code: "AM17", perRobot: 4 },
+  { part: "Arm servo", code: "AS25", perRobot: 2 },
+  { part: "Encoder harness", code: "EH30", perRobot: 4 },
+  { part: "Battery pack", code: "BP48", perRobot: 1 },
+];
+
+/** Actuator motors on hand, 14 Sep to 2 Nov: the slide that set off the story. */
+export const motorHistory = { from: "14 Sep", to: "2 Nov", reorderPoint: 80, units: [207, 197, 180, 157, 137, 110, 87, 60, 40, 24] };
+
+/** Astro's wallet and spend, simulated. */
+export const wallet = {
+  balanceCents: 41_260_000,
+  keys: [
+    { name: "Luca's laptop", role: "Owner key" },
+    { name: "Jordy's phone", role: "Owner key" },
+    { name: "Hardware key, finance safe", role: "Recovery" },
+  ],
+  /** Spend per month before November, in cents. November adds this story's payments. */
+  spend: [["Jun", 2_140_000], ["Jul", 2_920_000], ["Aug", 1_730_000], ["Sep", 2_510_000], ["Oct", 2_300_000]] as [string, number][],
+};
+
+/** Story dates and places shown on screen. */
+export const story = {
+  committedAt: "3 Nov 15:04",
+  dockAt: "Wed 11 Nov 08:40 · Dock 3",
+  paidAt: "11 Nov 08:42",
+  deadline: "11 Dec",
+  remainderShips: "18 Nov",
+  closedInDays: 9,
+};
+
+/** Astro's other purchase orders and quotes, for the Purchase tab. */
+export const purchaseOrders = [
+  { ref: "PO 1037", supplier: "Ultra Motion", location: "Cutchogue, NY", approved: true, fitment: true },
+  { ref: "PO 1039", supplier: "Pacific Harness Co.", location: "Fresno, CA", approved: true, fitment: true },
+];
+
+/** Shipments out to Astro's customers. */
+export const shipmentsOut = [
+  { ref: "SH 8812", what: "2 Kip to Lakeview Schools", date: "30 Oct", done: true },
+  { ref: "SH 8815", what: "4 Porter to Northgate", date: "2 Nov", done: true },
+  { ref: "SH 8819", what: "6 10MA to Harbor and Vine", date: "18 Nov", done: false },
+];

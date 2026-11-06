@@ -14,4 +14,5 @@ export const mismatchText = (m: { spec: string; offered: string; required: strin
   return `${label} ${m.offered}, needs ${m.required}`;
 };
 
-export const pct = (bps: number) => `${(bps / 100).toFixed(bps % 100 === 0 ? 0 : 1)}%`;
+/** 300 -> "3%", 250 -> "2.5%", 798 -> "8%" (one decimal at most, trailing zero dropped). */
+export const pct = (bps: number) => `${+(bps / 100).toFixed(1)}%`;

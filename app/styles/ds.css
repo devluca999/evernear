@@ -1,0 +1,335 @@
+/* Everstock V2 design system: type, controls and patterns (es-* classes), from the design project's foundations. */
+/* Type roles. Three faces, three jobs, never swapped.
+   General Sans = display/titles · Space Grotesk = UI/body · Geist Mono = all data. */
+.es-display{font-family:var(--font-display);font-weight:var(--weight-semibold);font-size:var(--text-3xl);line-height:var(--leading-tight);letter-spacing:var(--tracking-display);color:var(--text-primary);margin:0}
+.es-title{font-family:var(--font-display);font-weight:var(--weight-semibold);font-size:var(--text-xl);line-height:var(--leading-snug);letter-spacing:var(--tracking-title);color:var(--text-primary);margin:0}
+.es-subtitle{font-family:var(--font-display);font-weight:var(--weight-medium);font-size:var(--text-md);line-height:var(--leading-snug);letter-spacing:var(--tracking-title);color:var(--text-primary);margin:0}
+.es-body{font-family:var(--font-ui);font-size:var(--text-body);line-height:var(--leading-normal);color:var(--text-secondary);margin:0;text-wrap:pretty}
+.es-body-lg{font-family:var(--font-ui);font-size:var(--text-md);line-height:var(--leading-relaxed);color:var(--text-secondary);margin:0;text-wrap:pretty}
+.es-caption{font-family:var(--font-ui);font-size:var(--text-xs);line-height:var(--leading-normal);color:var(--text-muted);margin:0}
+
+/* The ONLY uppercase role in the system. Never a heading, button or badge. */
+.es-micro{font-family:var(--font-ui);font-size:var(--text-micro);font-weight:var(--weight-medium);line-height:1.2;letter-spacing:var(--tracking-micro);text-transform:uppercase;color:var(--text-faint);margin:0}
+
+/* Every price, quantity, identifier and lead time. Tabular figures, no exceptions. */
+.es-num{font-family:var(--font-mono);font-variant-numeric:var(--numeric-tabular);font-feature-settings:"tnum" 1,"lnum" 1;letter-spacing:var(--tracking-mono);color:var(--text-primary)}
+.es-num-lg{font-size:var(--text-lg);font-weight:var(--weight-medium)}
+.es-num-xl{font-size:var(--text-2xl);font-weight:var(--weight-medium)}
+.es-num-muted{color:var(--text-muted)}
+
+/* Control primitives. Every raised control carries a dual-stack shadow;
+   flat single-shadow controls are not permitted. */
+
+/* --- Button ------------------------------------------------------------- */
+.es-btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--gap-inline);font-family:var(--font-ui);font-size:var(--text-sm);font-weight:var(--weight-medium);line-height:1;height:var(--control-h-md);padding:0 var(--pad-btn-x);border-radius:var(--radius-sm);border:1px solid transparent;cursor:pointer;white-space:nowrap;position:relative;isolation:isolate;transition:transform var(--dur-fast) var(--ease-standard),background-color var(--dur-fast) var(--ease-standard),border-color var(--dur-fast) var(--ease-standard),box-shadow var(--dur-fast) var(--ease-standard),color var(--dur-fast) var(--ease-standard)}
+.es-btn::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:0;background-image:var(--grain-tex);background-size:var(--grain-size);opacity:calc(var(--grain-surface) * .8 * var(--grain-opacity));mix-blend-mode:var(--grain-blend)}
+.es-btn > *{position:relative;z-index:1}
+.es-btn:active:not(:disabled){transform:scale(var(--press-scale))}
+.es-btn:disabled{opacity:.42;cursor:not-allowed;transform:none}
+.es-btn-sm{height:var(--control-h-sm);font-size:var(--text-xs);padding:0 var(--pad-btn-x-sm);border-radius:var(--radius-xs)}
+.es-btn-lg{height:var(--control-h-lg);font-size:var(--text-md);padding:0 var(--pad-btn-x-lg);border-radius:var(--radius-md)}
+
+.es-btn-primary{background-color:var(--accent);background-image:var(--btn-image);color:var(--accent-fg);border-color:var(--btn-primary-edge);box-shadow:var(--btn-primary-shadow)}
+.es-btn-primary:hover:not(:disabled){background-color:var(--btn-primary-hover-bg);box-shadow:var(--btn-primary-hover-shadow)}
+
+.es-btn-secondary{background-color:var(--btn-secondary-bg);background-image:var(--btn-secondary-image);color:var(--text-primary);border-color:var(--line-strong);box-shadow:var(--btn-secondary-shadow)}
+.es-btn-secondary:hover:not(:disabled){background-color:var(--btn-secondary-hover-bg);border-color:var(--line-strong)}
+
+.es-btn-glass{background-color:var(--glass-base);background-image:var(--glass-cast);color:var(--text-primary);border-color:var(--glass-border);-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-saturate));backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-saturate));box-shadow:var(--elev-1)}
+.es-btn-glass:hover:not(:disabled){border-color:var(--glass-border-strong)}
+
+/* Chrome button = a committed, irreversible action already taken. Rare. */
+.es-btn-chrome{background-color:var(--btn-chrome-bg);background-image:var(--btn-chrome-image);color:var(--btn-chrome-fg);border-color:var(--btn-chrome-border);box-shadow:var(--elev-1)}
+/* Committed check: shown where the commit signal is a stamp (Default). */
+.es-btn-commit{display:var(--commit-stamp-display);align-items:center}
+.es-btn-chrome:hover:not(:disabled){filter:brightness(1.08)}
+
+.es-btn-ghost{background:transparent;color:var(--text-secondary);border-color:transparent;box-shadow:none}
+.es-btn-ghost::before{opacity:0}
+.es-btn-ghost:hover:not(:disabled){background:var(--bg-inset);color:var(--text-primary)}
+
+.es-btn-danger{background-color:var(--state-alert);background-image:var(--btn-image-danger);color:var(--text-on-accent);border-color:var(--btn-danger-edge);box-shadow:var(--btn-danger-shadow)}
+.es-btn-danger:hover:not(:disabled){background-color:var(--btn-danger-hover-bg)}
+
+.es-btn-block{width:100%}
+.es-btn-spin{width:1em;height:1em;border-radius:50%;border:1.5px solid currentColor;border-top-color:transparent;animation:es-spin 720ms linear infinite}
+
+/* --- Icon button -------------------------------------------------------- */
+.es-iconbtn{display:inline-flex;align-items:center;justify-content:center;width:var(--control-h-md);height:var(--control-h-md);border-radius:var(--radius-sm);border:1px solid transparent;background:transparent;color:var(--text-muted);cursor:pointer;transition:color var(--dur-fast) var(--ease-standard),background-color var(--dur-fast) var(--ease-standard),border-color var(--dur-fast) var(--ease-standard),transform var(--dur-fast) var(--ease-standard)}
+.es-iconbtn:hover:not(:disabled){background:var(--bg-inset);color:var(--text-primary)}
+.es-iconbtn:active:not(:disabled){transform:scale(var(--press-scale))}
+.es-iconbtn:disabled{opacity:.42;cursor:not-allowed}
+.es-iconbtn-sm{width:var(--control-h-sm);height:var(--control-h-sm);border-radius:var(--radius-xs)}
+.es-iconbtn-lg{width:var(--control-h-lg);height:var(--control-h-lg);border-radius:var(--radius-md)}
+.es-iconbtn-bordered{border-color:var(--line-hairline);background-color:var(--panel-base);background-image:var(--matte-dark);box-shadow:var(--elev-1);color:var(--text-secondary)}
+.es-iconbtn-active{color:var(--accent);background:var(--accent-wash);border-color:var(--accent-edge)}
+
+/* --- Checkbox / Radio / Switch ------------------------------------------ */
+.es-choice{display:inline-flex;align-items:flex-start;gap:var(--space-4);cursor:pointer;font-family:var(--font-ui);font-size:var(--text-sm);color:var(--text-secondary);line-height:1.35}
+.es-choice-disabled{opacity:.45;cursor:not-allowed}
+.es-choice input{position:absolute;opacity:0;width:0;height:0}
+.es-box{width:16px;height:16px;flex:none;margin-top:1px;border-radius:var(--radius-xs);border:1px solid var(--line-strong);background:var(--bg-inset);box-shadow:var(--elev-inset);display:inline-flex;align-items:center;justify-content:center;color:transparent;transition:all var(--dur-fast) var(--ease-standard)}
+.es-box-round{border-radius:50%}
+.es-choice input:checked + .es-box{background:var(--accent);border-color:color-mix(in oklab,var(--accent) 60%,var(--hue-white) 40%);color:var(--accent-fg);box-shadow:0 0 0 3px var(--accent-wash),var(--choice-inset)}
+.es-choice input:focus-visible + .es-box{outline:2px solid var(--line-focus);outline-offset:2px}
+.es-box-dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+
+.es-switch{width:34px;height:19px;flex:none;border-radius:var(--radius-pill);background:var(--bg-inset);border:1px solid var(--line-strong);box-shadow:var(--elev-inset);position:relative;transition:background-color var(--dur-base) var(--ease-standard),border-color var(--dur-base) var(--ease-standard)}
+.es-switch::after{content:"";position:absolute;top:2px;left:2px;width:13px;height:13px;border-radius:50%;background:var(--gr-100);box-shadow:var(--switch-knob-shadow);transition:transform var(--dur-base) var(--ease-standard),background-color var(--dur-base) var(--ease-standard)}
+.es-choice input:checked + .es-switch{background:var(--accent);border-color:color-mix(in oklab,var(--accent) 60%,var(--hue-white) 40%)}
+.es-choice input:checked + .es-switch::after{transform:translateX(15px);background:var(--switch-knob-on)}
+
+/* --- Tag (category / filter, never state) ------------------------------ */
+.es-tag{display:inline-flex;align-items:center;gap:var(--space-3);height:22px;padding:0 8px;border-radius:var(--radius-xs);border:1px solid var(--line-hairline);background:var(--bg-inset);color:var(--text-muted);font-family:var(--font-ui);font-size:var(--text-2xs);font-weight:var(--weight-medium);white-space:nowrap}
+.es-tag-mono{font-family:var(--font-mono);font-variant-numeric:var(--numeric-tabular)}
+.es-tag-removable{padding-right:4px}
+.es-tag-x{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border:0;background:transparent;color:inherit;cursor:pointer;border-radius:var(--radius-xs);opacity:.65}
+.es-tag-x:hover{opacity:1;background:var(--line-hairline)}
+.es-tag-selected{border-color:var(--line-strong);background:var(--panel-hover);color:var(--text-primary)}
+
+/* --- Theme toggle ------------------------------------------------------- */
+.es-themecontrol{display:inline-flex;align-items:center;gap:var(--space-4)}
+.es-themecontrol-seg{display:inline-flex;padding:2px;gap:2px;border-radius:var(--radius-pill);border:1px solid var(--line-hairline);background:var(--bg-inset);box-shadow:var(--elev-inset)}
+.es-themecontrol-seg button{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border:0;border-radius:var(--radius-pill);background:transparent;color:var(--text-faint);font-family:var(--font-ui);font-size:var(--text-2xs);font-weight:var(--weight-medium);cursor:pointer;transition:all var(--dur-fast) var(--ease-standard)}
+.es-themecontrol-lg .es-themecontrol-seg{padding:3px}
+.es-themecontrol-lg .es-themecontrol-seg button{height:var(--control-h-sm);padding:0 var(--pad-control-x);font-size:var(--text-sm)}
+.es-themecontrol-seg button[aria-pressed="true"]{background:var(--panel-base);background-image:var(--matte-dark);color:var(--text-primary);box-shadow:var(--seg-pressed-shadow)}
+
+/* Product patterns: state language, calm review surfaces, and presence surfaces. */
+
+/* --- Status dot: an LED, a small lamp under glass, never a painted circle.
+   Specular top-left, saturated core, black-darkened rim, bloom under 4px. Unlit = recessed well.
+   Light mode carries its own values; never reuse or dim the dark ones. ------------------- */
+.es-dot{display:inline-block;width:7px;height:7px;border-radius:50%;flex:none;position:relative;background:var(--led-unlit-bg);box-shadow:var(--led-unlit-ring)}
+.es-dot-active{color:var(--state-active);background:radial-gradient(circle at 40% 34%,var(--led-spec) 0 9%,color-mix(in oklab,var(--state-active) 34%,var(--led-spec)) 20%,var(--state-active) 46%,color-mix(in oklab,var(--state-active) 54%,var(--led-shade)) 100%);box-shadow:0 0 0 .5px color-mix(in oklab,var(--state-active) 62%,var(--led-shade)),0 0 1.5px 0 var(--state-active),0 0 4px -1px var(--state-active),inset 0 .5px .5px var(--led-glint)}
+.es-dot-attention{color:var(--state-attention);background:radial-gradient(circle at 40% 34%,var(--led-spec) 0 9%,color-mix(in oklab,var(--state-attention) 34%,var(--led-spec)) 20%,var(--state-attention) 46%,color-mix(in oklab,var(--state-attention) 54%,var(--led-shade)) 100%);box-shadow:0 0 0 .5px color-mix(in oklab,var(--state-attention) 62%,var(--led-shade)),0 0 1.5px 0 var(--state-attention),0 0 4px -1px var(--state-attention),inset 0 .5px .5px var(--led-glint)}
+.es-dot-success{color:var(--state-success);background:radial-gradient(circle at 40% 34%,var(--led-spec) 0 9%,color-mix(in oklab,var(--state-success) 34%,var(--led-spec)) 20%,var(--state-success) 46%,color-mix(in oklab,var(--state-success) 54%,var(--led-shade)) 100%);box-shadow:0 0 0 .5px color-mix(in oklab,var(--state-success) 62%,var(--led-shade)),0 0 1.5px 0 var(--state-success),0 0 4px -1px var(--state-success),inset 0 .5px .5px var(--led-glint)}
+.es-dot-alert{color:var(--state-alert);background:radial-gradient(circle at 40% 34%,var(--led-spec) 0 9%,color-mix(in oklab,var(--state-alert) 34%,var(--led-spec)) 20%,var(--state-alert) 46%,color-mix(in oklab,var(--state-alert) 54%,var(--led-shade)) 100%);box-shadow:0 0 0 .5px color-mix(in oklab,var(--state-alert) 62%,var(--led-shade)),0 0 1.5px 0 var(--state-alert),0 0 4px -1px var(--state-alert),inset 0 .5px .5px var(--led-glint)}
+.es-dot-alert{border-radius:var(--led-alert-radius,50%);rotate:var(--led-alert-turn,0deg);scale:var(--led-alert-scale,1)}
+/* Proposed: the agent drafted it, awaiting sign-off. A solid LED in the soft orange; the word "proposed" always sits in the row meta. */
+.es-dot-proposed{color:var(--state-proposed);background:radial-gradient(circle at 40% 34%,var(--led-spec) 0 9%,color-mix(in oklab,var(--state-proposed) 34%,var(--led-spec)) 20%,var(--state-proposed) 46%,color-mix(in oklab,var(--state-proposed) 54%,var(--led-shade)) 100%);box-shadow:0 0 0 .5px color-mix(in oklab,var(--state-proposed) 62%,var(--led-shade)),0 0 1.5px 0 var(--state-proposed),0 0 4px -1px var(--state-proposed),inset 0 .5px .5px var(--led-glint)}
+.es-dot-pulse::after{content:"";position:absolute;inset:-4px;z-index:-1;border-radius:50%;pointer-events:none;background:radial-gradient(circle,color-mix(in oklab,currentColor 85%,transparent) 0 30%,color-mix(in oklab,currentColor 40%,transparent) 52%,transparent 74%);opacity:.62;animation:es-breathe var(--dur-breathe) var(--ease-standard) infinite}
+[data-mode="light"] .es-dot-active{box-shadow:0 0 0 .5px color-mix(in oklab,var(--state-active) 78%,var(--led-shade)),0 0 3px -1px var(--state-active),inset 0 .5px .5px var(--led-glint)}
+[data-mode="light"] .es-dot-attention{box-shadow:0 0 0 .5px color-mix(in oklab,var(--state-attention) 78%,var(--led-shade)),0 0 3px -1px var(--state-attention),inset 0 .5px .5px var(--led-glint)}
+[data-mode="light"] .es-dot-success{box-shadow:0 0 0 .5px color-mix(in oklab,var(--state-success) 78%,var(--led-shade)),0 0 3px -1px var(--state-success),inset 0 .5px .5px var(--led-glint)}
+[data-mode="light"] .es-dot-proposed{box-shadow:0 0 0 .5px color-mix(in oklab,var(--state-proposed) 78%,var(--led-shade)),0 0 3px -1px var(--state-proposed),inset 0 .5px .5px var(--led-glint)}
+[data-mode="light"] .es-dot-alert{box-shadow:0 0 0 .5px color-mix(in oklab,var(--state-alert) 78%,var(--led-shade)),0 0 3px -1px var(--state-alert),inset 0 .5px .5px var(--led-glint)}
+[data-mode="light"] .es-dot-pulse::after{inset:-3px;opacity:.4}
+/* Clickable LED (timeline, task flow): hover blinks once + grows 1.2x; selected holds 1.42x. */
+.es-ledbtn{display:flex;align-items:center;justify-content:center;width:14px;height:14px;padding:0;border:0;background:transparent;cursor:pointer}
+.es-ledbtn .es-dot{transition:transform var(--dur-fast) var(--ease-standard)}
+.es-ledbtn:hover .es-dot{transform:scale(1.2);animation:es-blink .46s var(--ease-standard) 1}
+.es-ledbtn[aria-current="true"] .es-dot{transform:scale(1.42)}
+@keyframes es-blink{0%,100%{opacity:1}22%{opacity:.3}46%{opacity:1}70%{opacity:.42}}
+@media (prefers-reduced-motion: reduce){.es-dot-pulse::after{animation:none}.es-ledbtn:hover .es-dot{animation:none}}
+[data-motion="reduced"] .es-dot-pulse::after,[data-motion="reduced"] .es-ledbtn:hover .es-dot{animation:none}
+
+/* --- Status pill: solid fill + solid text, every theme and mode. Never outline-only. --------
+   Text is white or graphite, whichever clears 4.5:1 on that fill. Inside a solid pill the dot is flat
+   in the pill's text colour (the pill itself is the indicator); the count is the inverse circle. */
+.es-badge{display:inline-flex;align-items:center;gap:6px;height:20px;padding:0 8px;border-radius:var(--radius-pill);font-family:var(--font-ui);font-size:var(--text-micro);font-weight:var(--weight-medium);letter-spacing:.02em;white-space:nowrap;border:1px solid transparent}
+.es-badge{position:relative;isolation:isolate;overflow:hidden;color:var(--pill-fg);border-color:transparent;background-color:var(--pill-bg);
+background-image:linear-gradient(180deg,var(--pill-sheen) 0%,transparent 42%,transparent 70%,var(--pill-shade) 100%);
+box-shadow:inset 0 1px 0 var(--pill-highlight),inset 0 -1px 0 var(--pill-shade),0 0 0 .5px var(--pill-rim),var(--pill-drop)}
+.es-badge::before{content:"";position:absolute;inset:0;z-index:-1;border-radius:inherit;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .5 0 0 0 0 .5 0 0 0 1.6 -.3'/%3E%3C/filter%3E%3Crect width='64' height='64' filter='url(%23n)'/%3E%3C/svg%3E");background-size:64px 64px;opacity:var(--pill-grain-opacity,.08);mix-blend-mode:overlay;pointer-events:none}
+.es-badge{text-shadow:0 .5px 0 color-mix(in oklab,var(--pill-bg) 70%,transparent)}
+.es-badge>.es-dot{color:var(--pill-fg);background:currentColor;box-shadow:none}
+.es-badge>.es-dot-pulse::after{opacity:.45}
+.es-badge-active{--pill-bg:var(--pill-active-bg);--pill-fg:var(--pill-on)}
+.es-badge-attention{--pill-bg:var(--badge-attention-bg);--pill-fg:var(--badge-attention-fg)}
+.es-badge-proposed{--pill-bg:var(--pill-proposed-bg);--pill-fg:var(--pill-proposed-fg)}
+.es-badge-success{--pill-bg:var(--pill-success-bg);--pill-fg:var(--pill-on)}
+.es-badge-alert{--pill-bg:var(--pill-alert-bg);--pill-fg:var(--pill-on)}
+.es-badge-idle{--pill-bg:var(--pill-idle-bg);--pill-fg:var(--pill-idle-fg)}
+/* Category accent, infrastructure tiles only. Never a task state. */
+.es-badge-infra{--pill-bg:var(--pill-infra-bg);--pill-fg:var(--pill-on)}
+/* Standalone count badge: an indicator, so it carries the waiting-pill fill. */
+.es-count{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;border-radius:var(--radius-pill);font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:var(--text-2xs);font-weight:var(--weight-medium);line-height:1}
+.es-count-attention{background:var(--badge-attention-bg);color:var(--badge-attention-fg)}
+.es-badge .es-count{background:var(--pill-fg);color:var(--pill-bg);text-shadow:none;box-shadow:inset 0 1px 1px rgba(0,0,0,.18)}
+/* Highlighted row: the opaque tint wash only, with the LED leading the row. Cell text stays ink. No edge strip. */
+.es-row-attention>*{background:var(--state-attention-tint)}
+
+/* --- Commit seal: compact Default commit mark for headings (paired with a settle). The full
+   rectangular Stamp lives in foundations/agent.css. Legacy Matrix hides it;
+   there chrome carries the commit. Visibility is a behaviour token, so nesting works. ------ */
+.es-commit-seal{display:var(--commit-stamp-display);align-items:center;justify-content:center;flex:none;width:22px;height:22px;border-radius:var(--radius-pill);border:1px solid var(--state-success-edge);background:var(--state-success-wash);color:var(--state-success);font-size:12px;animation:var(--commit-animation)}
+
+/* --- Tooltip ------------------------------------------------------------ */
+.es-tooltip-wrap{position:relative;display:inline-flex}
+.es-tooltip{position:absolute;z-index:60;pointer-events:none;padding:5px 8px;border-radius:var(--radius-xs);font-family:var(--font-ui);font-size:var(--text-2xs);line-height:1.3;color:var(--text-primary);max-width:220px;white-space:normal;border:1px solid var(--glass-border);background-color:var(--glass-base);background-image:var(--glass-cast);-webkit-backdrop-filter:blur(var(--glass-blur-strong));backdrop-filter:blur(var(--glass-blur-strong));box-shadow:var(--elev-2);animation:es-rise var(--dur-fast) var(--ease-enter)}
+.es-tooltip-top{bottom:calc(100% + 6px);left:50%;transform:translateX(-50%)}
+.es-tooltip-bottom{top:calc(100% + 6px);left:50%;transform:translateX(-50%)}
+.es-tooltip-left{right:calc(100% + 6px);top:50%;transform:translateY(-50%)}
+.es-tooltip-right{left:calc(100% + 6px);top:50%;transform:translateY(-50%)}
+
+/* --- Toast -------------------------------------------------------------- */
+.es-toast{display:flex;align-items:flex-start;gap:var(--space-5);width:340px;padding:12px 14px;border-radius:var(--radius-md);animation:es-rise var(--dur-base) var(--ease-enter)}
+.es-toast-body{flex:1;min-width:0}
+/* Toast and dialog are not active work: glass stays neutral-edged in every theme. */
+.es-glass.es-toast,.es-glass.es-dialog{border-color:var(--glass-border)}
+.es-toast-title{font-family:var(--font-ui);font-size:var(--text-sm);font-weight:var(--weight-medium);color:var(--text-primary);margin:0}
+.es-toast-desc{font-family:var(--font-ui);font-size:var(--text-xs);color:var(--text-muted);margin:2px 0 0}
+.es-toast-led{flex:none;display:inline-flex;height:20px;align-items:center}
+
+/* --- Tabs (calm surface navigation) ------------------------------------- */
+.es-tabs{display:flex;align-items:center;gap:var(--space-6);border-bottom:1px solid var(--line-hairline)}
+.es-tab{position:relative;display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 2px;border:0;background:transparent;color:var(--text-muted);font-family:var(--font-ui);font-size:var(--text-sm);font-weight:var(--weight-medium);cursor:pointer;transition:color var(--dur-fast) var(--ease-standard)}
+.es-tab:hover{color:var(--text-secondary)}
+.es-tab[aria-selected="true"]{color:var(--text-primary)}
+.es-tab[aria-selected="true"]::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;background:var(--accent);box-shadow:0 0 var(--fx-accent-glow) -1px var(--accent)}
+.es-tab-count{font-family:var(--font-mono);font-variant-numeric:var(--numeric-tabular);font-size:var(--text-2xs);color:var(--text-faint)}
+
+/* --- Data table: fast, dense, scannable. No living motion here. --------- */
+.es-table{width:100%;border-collapse:separate;border-spacing:0;font-family:var(--font-ui);font-size:var(--text-sm)}
+.es-table th{text-align:left;font-family:var(--font-ui);font-size:var(--text-micro);font-weight:var(--weight-medium);letter-spacing:var(--tracking-micro);text-transform:uppercase;color:var(--text-faint);padding:0 12px 8px;white-space:nowrap}
+.es-table td{padding:9px 12px;border-top:1px solid var(--line-hairline);color:var(--text-secondary);vertical-align:middle}
+.es-table tbody tr{transition:background-color var(--dur-fast) var(--ease-standard)}
+.es-table tbody tr:hover{background:var(--bg-inset)}
+/* Selected: one opaque elevation step + stronger ink. Never a wash plus a strip. */
+.es-table tbody tr[aria-selected="true"]{background:var(--row-selected)}
+.es-table tbody tr[aria-selected="true"] td{color:var(--text-primary)}
+.es-table tbody tr[aria-selected="true"] td:first-child{font-weight:var(--weight-medium)}
+.es-table .es-td-num{text-align:right;font-family:var(--font-mono);font-variant-numeric:var(--numeric-tabular);letter-spacing:var(--tracking-mono);color:var(--text-primary)}
+.es-table th.es-th-num{text-align:right}
+.es-table td:first-child,.es-table th:first-child{padding-left:16px}
+.es-table td:last-child,.es-table th:last-child{padding-right:16px}
+
+/* --- Command hub tile (Magic-Bento motion, Everstock state language) ---- */
+.es-tile{position:relative;isolation:isolate;display:flex;flex-direction:column;gap:var(--space-5);padding:var(--pad-panel);min-height:150px;border-radius:var(--radius-lg);border:1px solid var(--panel-border);background-color:var(--panel-base);background-image:var(--matte-dark);box-shadow:var(--elev-1);cursor:pointer;text-align:left;color:inherit;font:inherit;transform-style:preserve-3d;transition:transform var(--dur-base) var(--ease-standard),box-shadow var(--dur-base) var(--ease-standard),border-color var(--dur-base) var(--ease-standard)}
+.es-tile::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:0;background-image:var(--grain-tex);background-size:var(--grain-size);opacity:calc(var(--grain-surface) * var(--grain-opacity));mix-blend-mode:var(--grain-blend)}
+.es-tile::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:0;background-image:var(--sheen)}
+.es-tile > *{position:relative;z-index:1}
+/* Cursor-follow spotlight. Tinted by the tile's AMBIENT identity, which is neutral by
+   default, hovering must never imply failure. Real problems surface as a line item inside. */
+.es-tile-spot{position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:0;opacity:0;transition:opacity var(--dur-base) var(--ease-standard);background:radial-gradient(220px circle at var(--spot-x,50%) var(--spot-y,50%),var(--tile-glow,var(--tile-shine)),transparent 62%)}
+.es-tile:hover .es-tile-spot{opacity:var(--fx-spotlight)}
+/* Neutral material shine, the baseline hover response on EVERY tile, whatever its state. */
+.es-tile-shine{position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:0;opacity:0;transition:opacity var(--dur-base) var(--ease-standard);background-image:linear-gradient(148deg,rgba(255,255,255,.17) 0%,rgba(255,255,255,.05) 26%,rgba(255,255,255,0) 54%)}
+[data-mode="light"] .es-tile-shine{background-image:linear-gradient(148deg,rgba(255,255,255,.95) 0%,rgba(255,255,255,.38) 28%,rgba(255,255,255,0) 56%)}
+.es-tile:hover .es-tile-shine{opacity:var(--fx-shine)}
+.es-tile:hover{translate:var(--tile-lift);border-color:color-mix(in oklab,var(--tile-edge,var(--line-strong)) var(--fx-state-hover),var(--line-strong));box-shadow:var(--elev-2),0 0 var(--fx-tile-glow) -10px var(--tile-glow-solid,var(--text-muted))}
+.es-tile:active{transform:scale(.995)}
+.es-tile-head{display:flex;align-items:center;justify-content:space-between;gap:var(--space-4)}
+.es-tile-icon{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:var(--radius-sm);border:1px solid var(--line-hairline);background:var(--bg-inset);color:var(--text-secondary);font-size:15px}
+/* Infrastructure tiles carry the indigo category identity on their icon and ambient hover. */
+.es-tile-infra .es-tile-icon{color:var(--accent-infra-soft);border-color:var(--accent-infra-edge);background:var(--accent-infra-wash)}
+[data-mode="light"] .es-tile-infra .es-tile-icon{color:var(--accent-infra)}
+.es-tile-title{font-family:var(--font-display);font-size:var(--text-md);font-weight:var(--weight-semibold);letter-spacing:var(--tracking-title);color:var(--text-primary);margin:0}
+.es-tile-preview{margin-top:auto;display:flex;flex-direction:column;gap:6px}
+.es-tile-row{display:flex;align-items:baseline;justify-content:space-between;gap:var(--space-5);font-size:var(--text-xs);color:var(--text-muted)}
+/* A real problem inside a tile reads here, in crimson, not as a full-tile hover flare. */
+.es-tile-row-alert,.es-tile-row-alert .es-num{color:var(--state-alert)}
+.es-tile-row-attention,.es-tile-row-attention .es-num{color:var(--state-attention-figure)}
+.es-tile-row-success .es-num{color:var(--state-success)}
+.es-tile-particle{position:absolute;width:3px;height:3px;border-radius:50%;pointer-events:none;z-index:0;background:var(--tile-glow-solid,var(--state-active));box-shadow:0 0 8px 1px var(--tile-glow-solid,var(--state-active));opacity:0;transition:opacity var(--dur-base) linear}
+.es-tile-empty{display:flex;align-items:center;gap:var(--space-5);padding-top:var(--space-2)}
+.es-tile:hover .es-tile-particle{opacity:calc(.9 * var(--beam-density));animation:es-beam var(--dur-beam) linear infinite}
+
+/* --- Center-stage module (Z-1 living surface) --------------------------- */
+.es-stage{position:relative;isolation:isolate;border-radius:var(--radius-lg);padding:var(--pad-panel-lg);border:1px solid var(--glass-active-edge);background-color:var(--glass-base);background-image:var(--glass-cast);-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-saturate));backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-saturate));box-shadow:var(--elev-1),var(--glow-active)}
+.es-stage::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:0;background-image:var(--grain-tex);background-size:var(--grain-size);opacity:calc(var(--grain-surface) * var(--grain-opacity));mix-blend-mode:var(--grain-blend)}
+.es-stage::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:0;background-image:var(--sheen)}
+.es-stage > *{position:relative;z-index:1}
+.es-stage-committed{border-color:var(--chrome-border);background-image:var(--chrome-base-broad);-webkit-backdrop-filter:none;backdrop-filter:none;color:var(--chrome-text);box-shadow:var(--elev-1),var(--glow-success);animation:var(--commit-animation)}
+.es-stage-committed::before{background-image:var(--chrome-scrim-soft),var(--grain-tex);background-size:auto,var(--grain-size);opacity:1;mix-blend-mode:normal}
+.es-stage-committed::after{background-image:var(--chrome-sheen)}
+.es-stage-attention{border-color:var(--state-attention-edge);box-shadow:var(--elev-1),var(--glow-attention)}
+.es-stage-alert{border-color:var(--state-alert-edge);box-shadow:var(--elev-1),var(--glow-alert)}
+/* Horizontal progressive disclosure = depth within one task.
+   The native scrollbar is suppressed, scroll position is expressed by the comparison rail below. */
+.es-stage-lanes{display:flex;gap:var(--space-5);overflow-x:auto;padding-bottom:4px;scrollbar-width:none;-ms-overflow-style:none}
+.es-stage-lanes::-webkit-scrollbar{width:0;height:0;display:none}
+.es-lane{flex:none;width:196px;padding:12px;border-radius:var(--radius-sm);border:1px solid var(--line-hairline);background:var(--bg-inset);box-shadow:var(--elev-inset);transition:border-color var(--dur-base) var(--ease-standard),background-color var(--dur-base) var(--ease-standard),opacity var(--dur-base) var(--ease-standard)}
+.es-lane-lead{border-color:var(--accent-edge);background:var(--accent-wash);box-shadow:var(--lane-lead-shadow)}
+/* A lane whose evaluation has resolved takes the chrome material, like any committed step. */
+.es-lane-done{position:relative;isolation:isolate;border-color:var(--chrome-border);background-color:transparent;background-image:var(--chrome-base);color:var(--chrome-text);box-shadow:var(--commit-chip-shadow);animation:var(--commit-animation)}
+/* Matte pass over chrome: keeps content legible across the metal's light bands. */
+.es-lane-done::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background-image:var(--chrome-scrim)}
+.es-lane-done::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background-image:var(--chrome-sheen)}
+.es-lane-done > *{position:relative;z-index:1}
+.es-lane-done .es-micro,.es-lane-done .es-num,.es-lane-done .es-caption{color:inherit}
+/* Not yet reached, present but visibly unevaluated. */
+.es-lane-queued{opacity:.5;border-style:dashed;box-shadow:none;background:transparent}
+
+/* --- Filmstrip of resolved steps (chrome = committed) ------------------- */
+.es-filmstrip{display:flex;align-items:center;gap:var(--space-4);padding:var(--space-4);border-radius:var(--radius-md);background:var(--bg-inset);box-shadow:var(--elev-inset);border:1px solid var(--line-hairline);overflow-x:auto}
+.es-frame{position:relative;isolation:isolate;flex:none;width:132px;padding:9px 10px;border-radius:var(--radius-sm);border:1px solid var(--chrome-border);background-image:var(--chrome-base);color:var(--chrome-text);box-shadow:var(--commit-frame-shadow);animation:var(--commit-animation)}
+.es-frame::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background-image:var(--chrome-scrim)}
+.es-frame::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background-image:var(--chrome-sheen)}
+.es-frame > *{position:relative;z-index:1}
+.es-frame-pending{background-image:none;background-color:var(--bg-inset);border-color:var(--line-hairline);color:var(--text-faint);box-shadow:var(--elev-inset)}
+.es-frame-pending::before{background-image:none}
+/* Resolved-frame tick: the Default commit signal on a settled frame. */
+.es-frame-tick{display:var(--commit-stamp-display);align-items:center;gap:var(--space-2);margin-top:var(--space-3);color:var(--state-success);font-family:var(--font-ui);font-size:var(--text-2xs)}
+
+/* --- Vertical stage flow: movement between distinct process stages ------ */
+.es-flow{display:flex;flex-direction:column;gap:var(--space-4)}
+.es-flow-row{position:relative;display:grid;grid-template-columns:22px minmax(0,1fr);gap:var(--space-5);align-items:stretch}
+.es-flow-spine{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px}
+.es-flow-spine::after{content:"";flex:1;width:1px;background:var(--line-hairline);border-radius:1px}
+.es-flow-row:last-child .es-flow-spine::after{background:transparent}
+.es-flow-spine .es-dot{margin-top:17px}
+.es-flow-done .es-flow-spine::after{background:var(--chrome-border)}
+.es-flow-panel{position:relative;isolation:isolate;padding:13px 15px;border-radius:var(--radius-md);border:1px solid var(--panel-border);background-color:var(--panel-base);background-image:var(--matte-dark);box-shadow:var(--elev-1)}
+.es-flow-panel::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:0;background-image:var(--grain-tex);background-size:var(--grain-size);opacity:calc(var(--grain-surface) * var(--grain-opacity));mix-blend-mode:var(--grain-blend)}
+.es-flow-panel::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:0;background-image:var(--sheen)}
+.es-flow-panel > *{position:relative;z-index:1}
+/* A resolved stage is chrome. A live stage is glass. A queued stage is neither. */
+.es-flow-done .es-flow-panel{border-color:var(--chrome-border);background-image:var(--chrome-base);color:var(--chrome-text);animation:var(--commit-animation)}
+.es-flow-done .es-flow-panel::after{background-image:var(--chrome-sheen)}
+.es-flow-live .es-flow-panel{border-color:var(--glass-active-edge);background-color:var(--glass-base);background-image:var(--glass-cast);-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-saturate));backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-saturate));box-shadow:var(--elev-1),var(--glow-active)}
+.es-flow-queued .es-flow-panel{background-image:none;background-color:transparent;border-style:dashed;border-color:var(--line-hairline);box-shadow:none;color:var(--text-faint)}
+.es-flow-queued .es-flow-panel::before,.es-flow-queued .es-flow-panel::after{opacity:0}
+
+/* --- Comparison rail: the sanctioned horizontal-scroll affordance ---------
+   A thin glass rail (Pillar 1 material, scaled down, hairline border and grain
+   still apply at this size). Segmented where the content has a discrete count,
+   so the rail reflects real state rather than smooth interpolation. */
+.es-crail-wrap{display:flex;align-items:center;gap:var(--space-5);min-width:0}
+.es-crail{position:relative;isolation:isolate;display:flex;align-items:center;gap:3px;flex:1;min-width:0;height:16px;padding:0 6px;border-radius:var(--radius-pill);border:1px solid var(--glass-border);background-color:var(--glass-base);background-image:var(--glass-cast);-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-saturate));backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-saturate));box-shadow:var(--elev-inset);cursor:pointer;transition:transform var(--dur-base) var(--ease-standard),border-color var(--dur-base) var(--ease-standard),box-shadow var(--dur-base) var(--ease-standard)}
+.es-crail::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:0;background-image:var(--grain-tex);background-size:var(--grain-size);opacity:calc(var(--grain-surface) * var(--grain-opacity));mix-blend-mode:var(--grain-blend)}
+.es-crail::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:0;background-image:var(--sheen)}
+.es-crail:hover{transform:translateY(var(--hover-lift));border-color:var(--glass-border-strong);box-shadow:var(--elev-inset),var(--crail-lift-shadow)}
+.es-crail-tick{position:relative;z-index:1;flex:1 1 0;min-width:2px;height:4px;border-radius:1px;border:0;padding:0;background:var(--line-strong);cursor:pointer;transition:background-color var(--dur-fast) var(--ease-standard),height var(--dur-fast) var(--ease-standard),box-shadow var(--dur-fast) var(--ease-standard)}
+/* Items already stepped through read as resolved; the rail is state, not chrome. */
+.es-crail-tick-seen{background:var(--state-success);opacity:.55}
+.es-crail-tick-current{height:9px;background:var(--accent);box-shadow:0 0 9px -1px var(--accent)}
+.es-crail-tick-attention{background:var(--state-attention);box-shadow:0 0 8px -2px var(--state-attention)}
+.es-crail-tick-alert{background:var(--state-alert);box-shadow:0 0 8px -2px var(--state-alert)}
+/* Hover reactivity, the rail responds to presence rather than sitting inert. */
+.es-crail:hover .es-crail-tick{background:var(--text-muted)}
+.es-crail:hover .es-crail-tick-seen{background:var(--state-success);opacity:.8}
+.es-crail:hover .es-crail-tick-current{background:var(--accent-soft);box-shadow:0 0 12px 0 var(--accent)}
+.es-crail-tick:hover{height:11px;background:var(--accent-soft);box-shadow:0 0 12px 0 var(--accent)}
+.es-crail-count{font-family:var(--font-mono);font-variant-numeric:var(--numeric-tabular);font-size:var(--text-2xs);color:var(--text-faint);white-space:nowrap;flex:none}
+/* Continuous fallback for content with no natural discrete count. */
+.es-crail-thumb{position:relative;z-index:1;height:5px;border-radius:var(--radius-pill);background:var(--accent);box-shadow:0 0 10px -2px var(--accent);transition:background-color var(--dur-fast) var(--ease-standard),height var(--dur-fast) var(--ease-standard)}
+.es-crail:hover .es-crail-thumb{height:8px;background:var(--accent-soft)}
+[data-motion="reduced"] .es-crail:hover{transform:none}
+@media (prefers-reduced-motion:reduce){.es-crail:hover{transform:none}}
+
+/* --- Segmented step indicator -------------------------------------------
+   Allowed progress: every segment maps to ONE real discrete step, colored by
+   the state system. Smooth/percentage fills remain forbidden. */
+.es-steps{display:flex;flex-direction:column;gap:7px;min-width:0}
+.es-steps-bar{display:flex;align-items:center;gap:5px;min-height:14px}
+.es-steps-link{flex:1 1 0;min-width:6px;height:0;border-top:1px dashed var(--steps-link)}
+.es-steps-legend{display:flex;align-items:center;justify-content:space-between;gap:var(--space-5)}
+.es-steps-labels{display:flex;align-items:center;gap:4px}
+.es-steps-label{flex:1 1 0;min-width:0;font-family:var(--font-ui);font-size:var(--text-2xs);line-height:1.25;color:var(--text-faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.es-steps-label-on{color:var(--text-primary)}
+
+/* --- Floating input oval (Z-2, always present) -------------------------- */
+.es-oval{display:flex;align-items:center;gap:var(--space-5);height:44px;padding:0 6px 0 16px;border-radius:var(--radius-pill);border:1px solid var(--glass-border);background-color:var(--glass-base);background-image:var(--glass-cast);-webkit-backdrop-filter:blur(var(--glass-blur-strong)) saturate(var(--glass-saturate));backdrop-filter:blur(var(--glass-blur-strong)) saturate(var(--glass-saturate));box-shadow:var(--oval-shadow);transition:width var(--dur-base) var(--ease-standard),box-shadow var(--dur-base) var(--ease-standard),border-color var(--dur-base) var(--ease-standard)}
+.es-oval-expanded{border-color:var(--oval-expanded-edge);box-shadow:var(--oval-expanded-shadow)}
+.es-oval input{flex:1;min-width:0;border:0;background:transparent;color:var(--text-primary);font-family:var(--font-ui);font-size:var(--text-sm);outline:none}
+.es-oval input::placeholder{color:var(--text-faint)}
+.es-wave{display:flex;align-items:center;gap:2px;height:18px}
+.es-wave span{width:2px;border-radius:1px;background:var(--state-active);box-shadow:0 0 6px -1px var(--state-active)}
+
+/* --- Dialog (Z-2) -------------------------------------------------------- */
+.es-scrim{position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;padding:var(--space-8);background:var(--scrim);-webkit-backdrop-filter:blur(var(--scrim-blur));backdrop-filter:blur(var(--scrim-blur))}
+.es-dialog{width:min(520px,100%);border-radius:var(--radius-lg);padding:var(--pad-panel-lg);box-shadow:var(--elev-dialog);animation:es-rise var(--dur-base) var(--ease-enter)}
+.es-dialog-head{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-6);margin-bottom:var(--space-5)}
+.es-dialog-foot{display:flex;align-items:center;justify-content:flex-end;gap:var(--space-4);margin-top:var(--space-8)}

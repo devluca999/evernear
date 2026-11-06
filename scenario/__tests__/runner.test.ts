@@ -7,8 +7,9 @@ import { recordedKeys } from "../proofs";
 const end = stateAt(totalDurationMs);
 
 describe("scenario runner", () => {
-  it("has scenes 0 to 9", () => {
-    expect(scenes.map((s) => s.id)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  it("has scenes 0 to 7, as in the storyboard", () => {
+    expect(scenes.map((s) => s.id)).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
+    expect(scenes.map((s) => s.title)).toEqual(["Onboarding", "The bottleneck", "Sourcing and fitment", "Approval", "Negotiation", "Funds committed and shipped", "Day 9 · Chicago dock", "Paid"]);
   });
   it("starts at Low with nothing done", () => {
     const s = stateAt(0);
@@ -18,10 +19,9 @@ describe("scenario runner", () => {
   it("never shows more than 3 panels", () => {
     for (let t = 0; t <= totalDurationMs; t += 250) expect(stateAt(t).layout.length).toBeLessThanOrEqual(3);
   });
-  it("runs the routine reorder in 8 s, green end to end, with no approvals", () => {
-    const s2 = scenes.find((s) => s.id === 2)!;
-    expect(s2.durationMs).toBe(8000);
-    const s = stateAt(sceneStartMs(3));
+  it("runs the routine reorder inside the bottleneck, green end to end, with no approvals", () => {
+    const s = stateAt(sceneStartMs(2));
+    expect(s.routine.totalCents).toBe(418_000);
     expect(s.routine.stage).toBe("closed");
     expect(s.routine.approvals).toBe(0);
     expect(s.proofs.some((p) => p.kind === "payment_receipt")).toBe(true);

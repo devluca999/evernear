@@ -7,7 +7,12 @@ import { CHECKPOINTS } from "@/scenario/shipment";
 
 afterEach(cleanup);
 const at = (ms: number) => render(<Workspace initialMs={ms} autoplay={false} />);
-const dockScene = sceneStartMs(8) - 100;
+const dockScene = sceneStartMs(6) + 5000; // after the dock count
+/** The dock scene shows Orders and Money; pin Map from the sidebar to see its tracking. */
+const atDock = () => {
+  at(dockScene);
+  fireEvent.click(within(screen.getByRole("navigation", { name: "Workspace panels" })).getByRole("button", { name: "Map" }));
+};
 
 describe("tracking checkpoints", () => {
   it("adds checkpoints in time order, ending on Day 9 at the Chicago dock", () => {
@@ -21,7 +26,7 @@ describe("tracking checkpoints", () => {
     expect(cps.at(-1)).toMatchObject({ day: 9, proofId: "dock_attestation", photos: ["packing_slip", "pallets_dock"] });
   });
   it("shows only the latest checkpoint, with the earlier ones one click away", () => {
-    at(dockScene);
+    atDock();
     const list = () => within(screen.getByRole("region", { name: "Tracking" })).getAllByRole("listitem");
     expect(list().map((li) => li.textContent)).toEqual([expect.stringContaining("Received at dock")]);
     fireEvent.click(screen.getByRole("button", { name: "Show 5 earlier checkpoints" }));
@@ -31,11 +36,11 @@ describe("tracking checkpoints", () => {
     expect(list()).toHaveLength(1);
   });
   it("shows who acknowledged the latest checkpoint and when", () => {
-    at(dockScene);
+    atDock();
     expect(screen.getByText(/Last acknowledged/).textContent).toBe("Last acknowledged Day 9, 08:42 Chicago time by Astro receiving (Luca)");
   });
   it("opens a dock photo with its metadata, steps to the next, and closes on Escape", () => {
-    at(dockScene);
+    atDock();
     fireEvent.click(screen.getAllByRole("button", { name: "Open photo: Packing slip at the Chicago dock" })[0]);
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).getByText("Received at dock")).toBeTruthy();
@@ -55,7 +60,7 @@ describe("tracking checkpoints", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
   it("opens the dock check proof from the photo", () => {
-    at(dockScene);
+    atDock();
     fireEvent.click(screen.getAllByRole("button", { name: "Open photo: Packing slip at the Chicago dock" })[0]);
     fireEvent.click(screen.getByRole("button", { name: "Open proof" }));
     const drawer = screen.getByLabelText("Developer drawer");

@@ -15,7 +15,7 @@ describe("the story follows your rules", () => {
     const s = end({ ...policy, priceChangeLimitBps: 200 });
     expect(s.halted?.reason).toBe("Haoyun's price change of +2.5% is over your 2% limit. The PO stops before any money is committed.");
     expect(s.escrow).toBeNull();
-    expect(s.halted?.scene).toBe(6);
+    expect(s.halted?.scene).toBe(5);
   });
   it("3 approvers stops it at the confirmation, with 2 signed", () => {
     const s = end({ ...policy, approversRequired: 3 });
@@ -29,8 +29,8 @@ describe("the story follows your rules", () => {
     expect(s.stage).toBe("sourcing");
   });
   it("a cap below the routine reorder holds it for a person, without stopping PO 1042", () => {
-    const s = stateAt(sceneStartMs(3), timeline, { ...policy, autoApproveUnderCents: 100_000 });
-    expect(s.routine.held).toBe("Under your rules this $5,562 reorder needs approval, so it waits for a person.");
+    const s = stateAt(sceneStartMs(2), timeline, { ...policy, autoApproveUnderCents: 100_000 });
+    expect(s.routine.held).toBe("Under your rules this $4,180 reorder needs approval, so it waits for a person.");
     expect(end({ ...policy, autoApproveUnderCents: 100_000 }).halted).toBeNull();
   });
   it("reads saved rules safely: malformed or out of range values fall back or clamp", () => {

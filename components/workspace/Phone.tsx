@@ -11,7 +11,7 @@ export function Phone({ messages, open, onToggle, waiting = null, onAnswer }: { 
   const { openPhoto } = useActions();
   return (
     <section className={`${s.phone} ${open ? s.phoneOpen : ""}`} aria-label="Phone">
-      <button className={s.phoneTab} onClick={onToggle} aria-expanded={open} aria-label={open ? "Tuck the phone away" : "Phone"}>Phone</button>
+      <button className={s.phoneTab} onClick={onToggle} aria-expanded={open}>Phone</button>
       <div className={s.phoneScreen}>
         <span className={s.phoneIsland} aria-hidden="true" />
         <header className={s.phoneHead}><span className={s.phoneName}>Stockbot</span><span className={s.faint}>Telegram</span></header>

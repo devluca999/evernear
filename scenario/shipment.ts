@@ -32,7 +32,7 @@ export const CHECKPOINTS: Record<string, Checkpoint> = {
 export type PhotoSource = { kind: "synthetic" } | { kind: "document" } | { kind: "stock"; src: string; credit: string; url: string };
 export const PHOTO_SOURCE: Record<PhotoId, PhotoSource> = {
   pallets_origin: { kind: "synthetic" },
-  awb_label: { kind: "synthetic" },
+  awb_label: { kind: "document" },
   packing_slip: { kind: "document" },
   pallets_dock: { kind: "stock", src: "/photos/dock-pallets.jpg", credit: "Pexels", url: "https://www.pexels.com/photo/cartons-near-warehouse-gates-12585837/" },
 };

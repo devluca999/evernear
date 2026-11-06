@@ -40,3 +40,10 @@
 .slipStamp { fill: none; stroke: #4A4743; stroke-width: 3; opacity: .7; }
 .slipStampText { font: 800 22px var(--font-ui); letter-spacing: .18em; fill: #4A4743; opacity: .75; }
 .slipStampSmall { font: 600 12px var(--font-mono); letter-spacing: .06em; fill: #4A4743; opacity: .75; }
+/* Air waybill label: printed on white stock, under stretch film. */
+.film { fill: #FFFFFF; opacity: .08; }
+.slipInkBand { fill: #1E1C19; }
+.labelInverseTitle { font: 700 26px var(--font-ui); letter-spacing: .1em; fill: #FBF9F4; }
+.labelInverseMono { font: 700 30px var(--font-mono); fill: #FBF9F4; }
+.labelInverseSmall { font: 600 12px var(--font-ui); letter-spacing: .12em; fill: #CFC9BD; }
+.labelHuge { font: 800 76px var(--font-ui); letter-spacing: .02em; fill: #1E1C19; }

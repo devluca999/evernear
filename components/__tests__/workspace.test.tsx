@@ -49,6 +49,10 @@ describe("workspace", () => {
     cleanup();
     at(fit.atMs - 1);
     expect(within(screen.getByRole("group", { name: "Next step" })).getByRole("button").textContent).toContain("Check Kansai Servo Works against the BOM");
+    // Between stops (paused or playing) the next step is still named and one press away.
+    cleanup();
+    at(fit.atMs - 900);
+    expect(within(screen.getByRole("group", { name: "Next step" })).getByRole("button").textContent).toContain("Check Kansai Servo Works against the BOM");
   });
   it("keeps the phone tucked away unless it is waiting for you", () => {
     at(sceneStartMs(5) + 1000);

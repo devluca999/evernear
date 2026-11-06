@@ -20,7 +20,7 @@ import { Pill } from "./ui";
 import { CHECKPOINTS } from "@/scenario/shipment";
 import { PANEL_ORDER } from "@/scenario/layout";
 import { arrange, closeCard, COLS, emptyBoard, loadBoard, lockCard, openCard, placeCard, rowsUsed, SPOTS, type Board } from "@/scenario/board";
-import { describeStop, heldAt, isStop, liveStepOf, stepClockWith } from "@/scenario/gates";
+import { describeStop, heldAt, isStop, liveStepOf, nextBlock, stepClockWith } from "@/scenario/gates";
 import { useLive } from "./useLive";
 import { loadPolicy, PolicyContext, POLICY_KEY, sameRules } from "./rules";
 import { policy as defaultPolicy } from "@/seed/astro";
@@ -136,12 +136,13 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
   const heldStep = held ? liveStepOf(held, HAOYUN) : null;
   const waiting = held?.gate ?? null;
   const liveBusy = !!heldStep && live.on && !live.error && !live.done.includes(heldStep);
-  const nextLabel = held && !liveBusy ? describeStop(held, (id) => LIST[id]?.title ?? "", HAOYUN) : null;
-  /** Next: play the step the clock is held at (or answer the moment). A live step finishes first. */
+  // In Present the next step is always named and one press away, whether the clock is held there or on its way.
+  const upcoming = held ?? (present ? nextBlock(t, blocked, TL) : null);
+  const nextLabel = upcoming && !liveBusy ? describeStop(upcoming, (id) => LIST[id]?.title ?? "", HAOYUN) : null;
+  /** Next: play the next step (or answer the moment). A live step finishes first. */
   const proceed = () => {
-    if (held && !liveBusy) { setT(held.atMs); setPhonePinned(null); setPlaying(true); return; }
-    if (!held && t >= TOTAL) return;
-    if (!held && !present) setPlaying(true);
+    if (upcoming && !liveBusy) { setT(upcoming.atMs); setPhonePinned(null); setPlaying(true); return; }
+    if (!present && t < TOTAL) setPlaying(true);
   };
   const proceedRef = useRef(proceed);
   useEffect(() => { proceedRef.current = proceed; });
@@ -299,7 +300,6 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
               <button type="button" className={s.btn} onClick={proceed}>{nextLabel} <kbd className={s.kbd}>⌘K</kbd></button>
             </div>
           )}
-          {present && !held && t < TOTAL && <p className={s.liveStatus} role="status">Playing this step</p>}
           {t >= TOTAL && <p className={s.liveStatus}>Finished. <button type="button" className={s.pinClear} onClick={restart}>Restart</button></p>}
           {live.on && (liveBusy || live.error) && (
             <p className={s.liveStatus} role="status">{live.error ? `Live call failed (${live.error}). The replay carries on.` : `Live on Tidepool testnet: ${heldStep} running`}</p>

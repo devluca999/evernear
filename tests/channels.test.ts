@@ -3,7 +3,7 @@ import { convexTest } from "convex-test";
 import { describe, expect, it, beforeEach } from "vitest";
 import schema from "@/convex/schema";
 import { api } from "@/convex/_generated/api";
-import { haoyunReplyTo, haoyunConfirmation, quotes, deliver, ultraOut } from "@/scenarios/suppliers";
+import { haoyunReplyTo, haoyunConfirmation, quickshipOverCeiling, quickshipReplyTo, quotes, deliver, ultraOut } from "@/scenarios/suppliers";
 import { demandAt } from "@/scenarios/demand";
 import { plainEngine } from "@/engine/plain";
 import { readingFor } from "@/convex/channels/email";
@@ -54,27 +54,33 @@ describe("inbound supplier email", () => {
     const t = convexTest(schema, modules);
     expect(await deliver(haoyunConfirmation, { endpoint: "/email/inbound", secret: "mail-secret", fetch: post(t, "mail-secret") as typeof fetch })).toBe(200);
     const [m] = await t.query(api.messages.recent, { channel: "email" });
-    expect(m.reading).toBe("Price change: +8%, over the 3% limit.");
+    expect(m.reading).toBe("Price change: +10%, over the 5% limit.");
   });
 });
 
 describe("supplier simulator", () => {
-  it("sends the +2.5% revision only when the agent's counter is within 3%", () => {
-    const ok = haoyunReplyTo({ to: "sales@haoyun-precision.example", body: "We can accept up to USD 19.00 per unit." })!;
-    expect(ok.text).toContain("USD 19.00");
-    expect(readingFor(ok.text)).toBe("Confirmed at +2.5%, inside the limit.");
-    const over = haoyunReplyTo({ to: "sales@haoyun-precision.example", body: "We can accept USD 19.28 per unit." })!;
-    expect(over.text).toContain("USD 20.02");
-    expect(haoyunReplyTo({ to: "other@x.example", body: "USD 19.00" })).toBeNull();
+  it("sends Haoyun's +5% all-50 offer only when the agent's counter stays within the 5% ceiling", () => {
+    const ok = haoyunReplyTo({ to: "sales@haoyun-precision.example", body: "We can accept up to USD 1260.00 per unit." })!;
+    expect(ok.text).toContain("USD 1260.00");
+    expect(readingFor(ok.text)).toBe("Confirmed at +5%, inside the limit.");
+    const over = haoyunReplyTo({ to: "sales@haoyun-precision.example", body: "We can accept USD 1290.00 per unit." })!;
+    expect(over.text).toContain("USD 1320.00");
+    expect(haoyunReplyTo({ to: "other@x.example", body: "USD 1260.00" })).toBeNull();
+  });
+  it("has QuickShip answer any counter with part now at +10%, over the ceiling, and the rest late", () => {
+    const q = quickshipReplyTo({ to: "orders@quickship-motion.example", body: "USD 1260.00" })!;
+    expect(q.text).toBe("We can ship 38 now at USD 1320.00 per unit and the other 12 after Dec 14, with 5% off your next order.");
+    expect(quickshipOverCeiling()).toBe(true);
+    expect(quickshipReplyTo({ to: "sales@haoyun-precision.example", body: "x" })).toBeNull();
   });
   it("sends quotes the engine can read", () => {
-    const d = plainEngine.readDocument({ kind: "offer", text: quotes.kansai.text });
-    expect(d).toMatchObject({ kind: "offer", unitCents: 1720, specs: { shaftDiameter: "8 mm" } });
+    const d = plainEngine.readDocument({ kind: "offer", text: quotes.haoyun.text });
+    expect(d).toMatchObject({ kind: "offer", unitCents: 132_000, specs: { shaftDiameter: "6 mm", mountingFlange: "NEMA 17" } });
   });
 });
 
 describe("demand simulator", () => {
-  it("reaches 14 robots ordered, motors for 6", () => {
-    expect(demandAt(5000)).toMatchObject({ robots: 14, robotsCovered: 6, short: true });
+  it("reaches 500 robots ordered, motors for 450: 50 short", () => {
+    expect(demandAt(5000)).toMatchObject({ robots: 500, motorsNeeded: 500, motorsOnHand: 450, robotsCovered: 450, short: true });
   });
 });

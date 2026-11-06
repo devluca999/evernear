@@ -46,7 +46,14 @@ describe("record mode: keys", () => {
       [{ codePath: "convex/near/gmail.ts#send", kind: "refusal" }, "refused_email"],
       [{ codePath: "convex/near/escrow.ts#policyRefusal", kind: "refusal" }, "refused_release"],
       [{ codePath: "convex/near/escrow.ts#release", kind: "refusal" }, null],
-      [{ codePath: "convex/near/escrow.ts#release", kind: "payout" }, "intents_payout"],
+      [{ codePath: "convex/near/escrow.ts#release", kind: "payout", response: { stage: "balance" } }, "intents_payout"],
+      [{ codePath: "convex/near/escrow.ts#release", kind: "payout", response: { stage: "advance" } }, "advance_payout"],
+      [{ codePath: "convex/near/escrow.ts#release", kind: "refusal", response: { stage: "advance", missing: ["bill_of_lading"] } }, null],
+      [{ codePath: "scenarios/tracking.ts#signal", kind: "signal", response: { event: "bill_of_lading" } }, "signal_bill_of_lading"],
+      [{ codePath: "scenarios/tracking.ts#signal", kind: "signal", response: { event: "export_cleared" } }, "signal_export_cleared"],
+      [{ codePath: "scenarios/tracking.ts#signal", kind: "signal", response: { event: "import_cleared" } }, "signal_import_cleared"],
+      [{ codePath: "scenarios/tracking.ts#signal", kind: "signal", response: { event: "dock_count" } }, null],
+      [{ codePath: "convex/near/escrow.ts#enroll", kind: "enclave" }, null],
       [{ codePath: "convex/near/escrow.ts#reclaim", kind: "reclaim" }, null],
       [{ codePath: "convex/near/escrow.ts#close", kind: "wallet", label: "Wallet closed: PO 1042 frozen, grant revoked, kept as the order's receipt" }, "wallet_closed"],
       [{ codePath: "convex/near/escrow.ts#close", kind: "freeze" }, null],
@@ -211,9 +218,17 @@ describe("rehearsal", () => {
     const vote = JSON.stringify({ signature: "sig", public_key: "ed25519:PK", account_id: "luca.testnet", nonce: "n" });
     const ask = async (q: string) => (q.startsWith("Paste") ? vote : "");
     const { written } = await rehearse({ env: { ...env, RECORD: "1" }, fetch, ask, log: () => {}, dir });
-    expect(written).toEqual(expect.arrayContaining(["policy_set", "approval_luca", "approval_jordy", "escrow_wallet", "refused_release", "intents_payout", "wallet_closed"]));
-    // 1:1,000: $38.00 committed, $34.20 to Haoyun on Base, the held $3.80 back to Astro.
-    expect(tp.payouts).toEqual([expect.objectContaining({ chain: "base", recipient: env.HAOYUN_BASE_ADDRESS!.toLowerCase(), amount: 34_200_000n })]);
+    expect(written).toEqual(expect.arrayContaining([
+      "policy_set", "approval_luca", "approval_jordy", "escrow_wallet", "signal_bill_of_lading", "signal_export_cleared", "advance_payout",
+      "refused_release", "signal_import_cleared", "intents_payout", "wallet_closed",
+    ]));
+    // 1:1,000: $63.00 committed, the $18.90 advance and the $36.54 balance to Haoyun on Base, the held $7.56 back to Astro.
+    const haoyun = env.HAOYUN_BASE_ADDRESS!.toLowerCase();
+    expect(tp.payouts.map((p) => [p.chain, p.recipient, p.amount])).toEqual([["base", haoyun, 18_900_000n], ["base", haoyun, 36_540_000n]]);
+    expect(tp.sent.filter((x) => x.path.endsWith("/transfer")).at(-1)!.body).toMatchObject({ amount: "7560000" });
+    expect(JSON.parse(readFileSync(join(dir, "advance_payout.json"), "utf8"))).toMatchObject({ kind: "payout", response: { stage: "advance", released_by: "server", request: { amount: "18900000" } }, synthetic: false });
+    expect(JSON.parse(readFileSync(join(dir, "intents_payout.json"), "utf8")).label).toContain("Sent by Evernear's server; the release gate is not deployed");
+    expect(JSON.parse(readFileSync(join(dir, "signal_import_cleared.json"), "utf8"))).toMatchObject({ kind: "signal", label: "Signal: import customs cleared for PO 1042 (simulated feed)", response: { source: "simulated" } });
     expect(JSON.parse(readFileSync(join(dir, "refused_release.json"), "utf8"))).toMatchObject({ kind: "refusal", response: { code: "policy_destination_denied", layer: "policy" } });
     expect(JSON.parse(readFileSync(join(dir, "wallet_closed.json"), "utf8"))).toMatchObject({ kind: "wallet", codePath: "convex/near/escrow.ts#close", response: { frozen: true, grant: "revoked", lifecycle: "closed", reused: false }, replay: true, synthetic: false });
     expect(tp.agents.get([...tp.agents.keys()].at(-1)!)!.policy.frozen).toBe(true);

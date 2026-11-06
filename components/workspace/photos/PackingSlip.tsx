@@ -5,8 +5,8 @@ import { PO } from "@/seed/astro";
 import { formatInt } from "@/engine/money";
 import s from "./photos.module.css";
 
-const SHIPPED = 1_800;
-const PALLETS = 9;
+const SHIPPED = PO.receivedQty;
+const CARTONS = 5;
 const BARS = [3, 1, 2, 1, 1, 3, 2, 1, 1, 2, 3, 1, 2, 2, 1, 1, 3, 1, 2, 1, 1, 2, 3, 1, 1, 2, 1, 3, 2, 1, 1, 2, 2, 1, 3, 1, 1, 2, 1, 3];
 
 /** Bar offsets, computed once: each bar starts where the previous bars and gaps end. */
@@ -40,7 +40,7 @@ export function PackingSlip({ label }: { label: string }) {
         {T(500, 172, "PO", s.slipLabel)}{T(600, 172, PO.number, s.slipMono)}
         {T(500, 194, "SHIP VIA", s.slipLabel)}{T(600, 194, "Air, SZX to ORD")}
         {T(500, 216, "AIR WAYBILL", s.slipLabel)}{T(600, 216, "000-10420018", s.slipMono)}
-        {T(500, 238, "PACKAGES", s.slipLabel)}{T(600, 238, `${PALLETS} pallets, 1,180 kg`, s.slipMono)}
+        {T(500, 238, "PACKAGES", s.slipLabel)}{T(600, 238, `${CARTONS} cartons, ${Math.round(SHIPPED * 1.4)} kg`, s.slipMono)}
         {/* Line items */}
         <rect x="186" y="262" width="588" height="30" className={s.slipBand} />
         {T(196, 282, "PART NO.", s.slipLabel)}{T(330, 282, "DESCRIPTION", s.slipLabel)}
@@ -52,7 +52,7 @@ export function PackingSlip({ label }: { label: string }) {
         {T(694, 318, formatInt(SHIPPED), s.slipMonoBold, "end")}
         {T(766, 318, formatInt(PO.quantity - SHIPPED), s.slipMono, "end")}
         <line x1="186" y1="356" x2="774" y2="356" className={s.slipRule} />
-        {T(186, 382, `${PALLETS} pallets of 200 units. Balance of ${formatInt(PO.quantity - SHIPPED)} to follow on a later shipment.`)}
+        {T(186, 382, `${CARTONS} cartons, ${formatInt(SHIPPED)} units. Balance of ${formatInt(PO.quantity - SHIPPED)} to follow on a later shipment.`)}
         {/* Barcode and signatures */}
         <Barcode x={186} y={414} h={56} />
         {T(186, 490, `PO${PO.number}-HYPS-01`, s.slipMonoSmall)}

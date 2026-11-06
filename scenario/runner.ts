@@ -1,8 +1,8 @@
 import { plainEngine } from "../engine/plain";
 import { requiredApprovals, checkPriceChange } from "../engine/policy";
-import { closeWallet, createEscrow, release, reclaimHeld } from "../engine/escrow";
+import { closeWallet, createEscrow, releaseStage, reclaimHeld } from "../engine/escrow";
 import { cents } from "../engine/money";
-import { bom10MA, offers, policy as defaultPolicy, suppliers, PO, routineReorder, demand } from "../seed/astro";
+import { bom10MA, offers, policy as defaultPolicy, suppliers, PO, routineReorder, demand, NEED_BY } from "../seed/astro";
 import type { Policy } from "../engine/types";
 import { formatUsdShort } from "../engine/money";
 import { advance } from "./stages";
@@ -29,7 +29,7 @@ export function initialState(policy: Policy = defaultPolicy): WorkspaceState {
     approvals: [], limitApprovals: [],
     price: { originalCents: PO.originalUnitCents, limitBps: policy.priceChangeLimitBps, history: [] },
     escrow: null, shipment: { progress: 0, docs: [], checkpoints: [] }, dock: null, refused: [], endCard: false,
-    policy, halted: null, product: null, highlight: null, search: null, offers: [], explain: null,
+    policy, halted: null, product: null, highlight: null, search: null, offers: [], explain: null, signals: [], protectedShown: false,
   };
 }
 
@@ -86,7 +86,7 @@ function apply(s: WorkspaceState, b: Beat): WorkspaceState {
     }
     case "fitment": {
       const sup = suppliers.find((x) => x.id === ev.supplierId)!;
-      const res = plainEngine.scoreFitment(bom10MA, offers.filter((o) => o.supplierId === sup.id), sup, policy);
+      const res = plainEngine.scoreFitment(bom10MA, offers.filter((o) => o.supplierId === sup.id), sup, policy, NEED_BY);
       return { ...s, fitment: [...s.fitment.filter((f) => f.supplierId !== sup.id), res] };
     }
     case "approval": return ev.scope === "limit"
@@ -112,13 +112,20 @@ function apply(s: WorkspaceState, b: Beat): WorkspaceState {
       return { ...s, shipment: { ...s.shipment, checkpoints: [...s.shipment.checkpoints, c] } };
     }
     case "dock": {
+      // The attested count: what arrived times the unit price, minus what was already released.
       const unit = s.escrow!.lockedCents / PO.quantity;
       const m = plainEngine.matchReceipt({ orderedQty: PO.quantity, receivedQty: ev.receivedQty, unitCents: unit });
-      return { ...s, dock: { receivedQty: ev.receivedQty, orderedQty: PO.quantity, releaseCents: m.releaseCents, holdCents: m.holdCents } };
+      return { ...s, dock: { receivedQty: ev.receivedQty, orderedQty: PO.quantity, releaseCents: m.releaseCents - s.escrow!.releasedCents, holdCents: m.holdCents } };
     }
+    case "signal": return { ...s, signals: s.signals.includes(ev.id) ? s.signals : [...s.signals, ev.id] };
+    case "reveal": return { ...s, protectedShown: true };
     case "release": {
-      const r = release(s.escrow!, { to: ev.to, amountCents: s.dock!.releaseCents, nowMs: at });
-      if (!r.ok) return { ...s, refused: [...s.refused, { kind: "wrong_address_release", detail: `${ev.to}: ${r.reason}`, atMs: at }] };
+      const unit = s.escrow!.lockedCents / PO.quantity;
+      const r = releaseStage(s.escrow!, { stage: ev.stage, to: ev.to, signals: s.signals, unitCents: unit, receivedQty: s.dock?.receivedQty, nowMs: at });
+      if (!r.ok) {
+        const kind = r.reason === "address_not_allowed" ? "wrong_address_release" : r.reason === "missing_signal" ? "missing_signal" : "release_refused";
+        return { ...s, refused: [...s.refused, { kind, detail: `${ev.to}: ${r.reason}${r.missing ? ` (${r.missing.join(", ")})` : ""}`, atMs: at }] };
+      }
       return { ...s, escrow: r.escrow };
     }
     case "reclaim": {

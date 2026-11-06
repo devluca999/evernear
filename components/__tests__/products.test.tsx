@@ -12,7 +12,7 @@ describe("Products and BOM", () => {
     const list = screen.getByRole("list", { name: "10MA BOM" });
     expect(within(list).getAllByRole("listitem")).toHaveLength(14);
     const motor = within(list).getByText("Actuator motor").closest("button")!;
-    expect(motor.textContent).toContain("4x");
+    expect(motor.textContent).toContain("1x");
     expect(within(motor).getByLabelText("Short")).toBeTruthy();
   });
   it("opens a line to show its specs, and explodes the drawing", () => {

@@ -8,10 +8,18 @@ export const stage = v.union(
 
 export const network = v.union(v.literal("testnet"), v.literal("mainnet"), v.literal("offchain"));
 
-/** engine/escrow.ts Lifecycle: created, funded, partly released, settled (nothing left), closed (frozen, grant revoked). */
+/** engine/escrow.ts Lifecycle: created, funded, advance released, balance released, settled (nothing left), closed (frozen, grant revoked). */
 export const lifecycle = v.union(
-  v.literal("created"), v.literal("funded"), v.literal("partly_released"), v.literal("settled"), v.literal("closed"),
+  v.literal("created"), v.literal("funded"), v.literal("advance_released"), v.literal("balance_released"), v.literal("settled"), v.literal("closed"),
+  // Rows written before the two-stage release.
+  v.literal("partly_released"),
 );
+
+/** convex/near/escrow.ts ReleasePath: who sends a release, the release gate in OutLayer's enclave or Evernear's server. */
+export const releasePath = v.union(v.literal("gate"), v.literal("server"));
+
+/** convex/live.ts steps, in story order. */
+export const liveStep = v.union(v.literal("commit"), v.literal("advance"), v.literal("refuse"), v.literal("pay"), v.literal("reclaim"));
 
 export default defineSchema({
   companies: defineTable({ slug: v.string(), name: v.string(), city: v.string(), country: v.string(), ownerAccount: v.optional(v.string()) }).index("by_slug", ["slug"]),
@@ -39,7 +47,9 @@ export default defineSchema({
   // Per-PO escrow state (engine/escrow.ts Escrow), committed in a new Agent API account per order
   // (convex/near/deadline.ts), never reused: once settled the account is closed and the row is the
   // order's receipt. No key is stored here: grant tokens are derived at run time from AGENT_API_KEY
-  // and only their sha256 is kept (`grantId` is the grant's public id, used to revoke it).
+  // and only their sha256 is kept (`grantId` is the grant's public id, used to revoke it). On the
+  // release gate path the token exists only inside the enclave: `grantHash` is what enroll returned,
+  // `gatePublicKey` the gate's result key every release answer must be signed with.
   // Amounts are story cents; the account runs at 1:`scale`. `lifecycle` is optional only for rows
   // written before it existed (convex/near/deadline.ts toEscrow derives it for those).
   escrows: defineTable({
@@ -47,6 +57,7 @@ export default defineSchema({
     lockedCents: v.number(), releasedCents: v.number(), reclaimedCents: v.number(), deadlineMs: v.number(), closed: v.boolean(),
     lifecycle: v.optional(lifecycle),
     escrowAccount: v.string(), agentId: v.string(), grantHash: v.string(), grantId: v.optional(v.string()), scale: v.number(),
+    orderedQty: v.optional(v.number()), releasePath: v.optional(releasePath), gatePublicKey: v.optional(v.string()),
     refundJobId: v.optional(v.id("_scheduled_functions")),
     outcome: v.optional(v.union(v.literal("released"), v.literal("reclaimed"), v.literal("refunded"))),
   }).index("by_po", ["po"]),
@@ -55,10 +66,11 @@ export default defineSchema({
   poAccounts: defineTable({ agentId: v.string(), account: v.string(), grantHash: v.string(), busy: v.boolean() })
     .index("by_busy", ["busy"]).index("by_agent", ["agentId"]),
   approvals: defineTable({ restockId: v.id("restocks"), approver: v.string(), signedAt: v.number(), proofId: v.optional(v.id("proofs")) }).index("by_restock", ["restockId"]),
-  // A live run from the workspace (convex/live.ts): one PO committed, refused, paid and closed on Tidepool.
+  // A live run from the workspace (convex/live.ts): one PO committed, its advance paid, a wrong
+  // address refused, the balance paid, the held part returned and the wallet closed, on Tidepool.
   liveRuns: defineTable({
     startedAt: v.number(), escrowId: v.optional(v.id("escrows")), error: v.optional(v.string()),
-    done: v.array(v.union(v.literal("commit"), v.literal("refuse"), v.literal("pay"), v.literal("reclaim"))),
+    done: v.array(liveStep),
   }).index("by_started", ["startedAt"]),
   proofs: defineTable({
     restockId: v.optional(v.id("restocks")), runId: v.optional(v.id("liveRuns")), scene: v.number(), kind: v.string(), label: v.string(), call: v.string(),

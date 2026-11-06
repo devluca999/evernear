@@ -3,7 +3,12 @@ import { describe, expect, it, afterEach, vi } from "vitest";
 import { render, screen, cleanup, within, fireEvent, act, waitFor } from "@testing-library/react";
 import { Workspace } from "../workspace/Workspace";
 import { sceneStartMs, stateAt } from "@/scenario/runner";
-import { scenes, totalDurationMs, timeline } from "@/scenario/scenes";
+import { amounts, scenes, totalDurationMs, timeline } from "@/scenario/scenes";
+import { PO, suppliers } from "@/seed/astro";
+import { formatUsdShort } from "@/engine/money";
+
+const a = amounts(PO.revisedUnitCents);
+const HAOYUN = suppliers.find((x) => x.id === "haoyun")!.receiveAddress;
 
 afterEach(() => { cleanup(); localStorage.clear(); vi.useRealTimers(); window.history.replaceState(null, "", "/"); });
 const at = (ms: number) => render(<Workspace initialMs={ms} autoplay={false} />);
@@ -81,10 +86,10 @@ describe("workspace", () => {
       expect(!!screen.queryByLabelText("Phone")).toBe(!!sc.phone);
       unmount();
     }
-    expect(scenes.filter((x) => x.phone).map((x) => x.title)).toEqual(["Negotiation", "Approve and commit", "Day 9 · Chicago dock"]);
+    expect(scenes.filter((x) => x.phone).map((x) => x.title)).toEqual(["Negotiation", "Approve and commit", "Shenzhen to the Chicago dock"]);
   });
   it("records a payment to a wrong address as refused, the guard working", () => {
-    const r = timeline.find((b) => b.ev.type === "release")!;
+    const r = timeline.find((b) => b.ev.type === "release" && b.ev.to !== HAOYUN)!;
     at(r.atMs + 500);
     const bar = screen.getByRole("button", { name: "Open developer drawer" });
     expect(bar.textContent).toContain("refused a withdraw to 0x000000000000000000000000000000000000dead");
@@ -104,11 +109,11 @@ describe("workspace", () => {
     const list = chapters();
     expect(list.map((b) => b.textContent)).toEqual([
       "01The 10MA", "02The gap", "03Ultra's reply", "04Search", "05Negotiation",
-      "06Approve and commit", "07Day 9 · Chicago dock", "08Paid",
+      "06Approve and commit", "07Shenzhen to the Chicago dock", "08Paid",
     ]);
     expect(list[0].getAttribute("aria-current")).toBe("step");
     fireEvent.click(list[6]);
-    expect(within(rail()).getByRole("heading", { name: "Day 9 · Chicago dock" })).toBeTruthy();
+    expect(within(rail()).getByRole("heading", { name: "Shenzhen to the Chicago dock" })).toBeTruthy();
     expect(within(rail()).getByText("Happy path · Chapter 7")).toBeTruthy();
     expect(list[6].getAttribute("aria-current")).toBe("step");
     expect(list[0].getAttribute("data-state")).toBe("done");
@@ -140,26 +145,27 @@ describe("workspace", () => {
     const radios = within(picker).getAllByRole("radio");
     expect(radios).toHaveLength(3);
     expect(radios[0].getAttribute("aria-checked")).toBe("true");
-    fireEvent.click(within(picker).getByRole("radio", { name: /^Bad pathHaoyun holds/ }));
-    expect(within(picker).getByRole("radio", { name: /^Bad pathHaoyun holds/ }).getAttribute("aria-checked")).toBe("true");
+    fireEvent.click(within(picker).getByRole("radio", { name: /^Bad pathBoth contenders hold/ }));
+    expect(within(picker).getByRole("radio", { name: /^Bad pathBoth contenders hold/ }).getAttribute("aria-checked")).toBe("true");
     expect(chapters().map((b) => b.textContent)).toEqual(["01The 10MA", "02The gap", "03Ultra's reply", "04Search", "05Negotiation", "06On hold"]);
     expect(within(rail()).getByText("Bad path · Chapter 1")).toBeTruthy();
   });
   it("tracks the scenario numbers on top: stock, shortfall and where the money is", () => {
     const val = (label: string) => within(screen.getByRole("group", { name: "Scenario numbers" })).getByText(label).nextElementSibling!.textContent;
     at(sceneStartMs(2));
-    expect(val("Motors on hand")).toBe("24");
-    expect(val("Robots ordered")).toBe("14");
-    expect(val("Motors short")).toBe("32");
+    expect(val("Motors on hand")).toBe("450");
+    expect(val("Robots ordered")).toBe("500");
+    expect(val("Motors short")).toBe("50");
     expect(val("PO")).toBe("None");
     cleanup();
-    at(sceneStartMs(7) + 11000);
-    expect(val("Motors on hand")).toBe("1,824");
-    expect(val("Motors short")).toBe("0");
+    at(timeline.find((b) => b.ev.type === "reclaim")!.atMs + 300);
+    expect(val("Motors on hand")).toBe("494");
+    expect(val("Motors short")).toBe(`${PO.quantity - PO.receivedQty}`);
     expect(val("PO")).toBe("1042");
-    expect(val("Committed")).toBe("$38,000");
-    expect(val("Paid to supplier")).toBe("$34,200");
-    expect(val("Back to Astro")).toBe("$3,800");
+    expect(val("Committed")).toBe(formatUsdShort(a.lockedCents));
+    expect(val("Paid to supplier")).toBe(formatUsdShort(a.releaseCents));
+    expect(val("Back to Astro")).toBe(formatUsdShort(a.holdCents));
+    expect([val("Committed"), val("Paid to supplier"), val("Back to Astro")]).toEqual(["$63,000", "$55,440", "$7,560"]);
   });
   it("opens the sidebar on onboarding with the brand and seven panels, and collapses it to an icon rail", () => {
     at(0);
@@ -215,7 +221,7 @@ describe("workspace", () => {
     expect(slot("map").style.gridRow).toBe("2");
     fireEvent.click(screen.getByRole("button", { name: "Lock Map" }));
     expect((screen.getByRole("button", { name: "Move Map" }) as HTMLButtonElement).disabled).toBe(true);
-    fireEvent.click(chapters()[6]); // Day 9 · Chicago dock also shows the map
+    fireEvent.click(chapters()[6]); // Shenzhen to the Chicago dock also shows the map
     expect(slot("map").style.gridRow).toBe("2");
     expect(slot("map").style.gridColumn).toBe("2");
   });
@@ -231,11 +237,11 @@ describe("workspace", () => {
     window.history.replaceState(null, "", `/?scene=6&at=${lock - sceneStartMs(5) + 1000}`);
     at(0);
     const stop = await waitFor(() => screen.getByRole("status", { name: "Stopped by your rules" }));
-    expect(within(stop).getByText(/Haoyun's price change of \+2\.5% is over your 2% limit/)).toBeTruthy();
+    expect(within(stop).getByText(/Haoyun's price change of \+5% is over your 2% limit/)).toBeTruthy();
     expect(within(screen.getByRole("group", { name: "Scenario numbers" })).getByText("Committed").nextElementSibling!.textContent).toBe("$0");
     fireEvent.click(within(stop).getByRole("button", { name: "Reset to Astro's rules" }));
     expect(screen.queryByRole("status", { name: "Stopped by your rules" })).toBeNull();
-    expect(within(screen.getByRole("group", { name: "Scenario numbers" })).getByText("Committed").nextElementSibling!.textContent).toBe("$38,000");
+    expect(within(screen.getByRole("group", { name: "Scenario numbers" })).getByText("Committed").nextElementSibling!.textContent).toBe("$63,000");
   });
   it("groups the numbers into stock and money, and says what each chapter is about", () => {
     at(sceneStartMs(4) + 1000);
@@ -244,7 +250,7 @@ describe("workspace", () => {
     const money = within(bar).getByLabelText("Money");
     expect(within(money).getByText("PO").nextElementSibling!.textContent).toBe("1042");
     expect(within(money).getByText("Committed").parentElement!.getAttribute("data-empty")).toBe("true");
-    expect(within(rail()).getByText("Three offers side by side. Haoyun asks for 8% more; your limit is 3%.")).toBeTruthy();
+    expect(within(rail()).getByText("Haoyun and QuickShip both ask +10%. Your ceiling is 5%.")).toBeTruthy();
   });
   it("never renders more than 3 panels when nothing is pinned", () => {
     for (const sc of scenes) {
@@ -256,25 +262,24 @@ describe("workspace", () => {
   it("names the exact failing spec in fitment", () => {
     at(sceneStartMs(4) - 100); // the end of Search
     const fit = within(screen.getByRole("list", { name: "Fitment" }));
-    expect(fit.getByText("Shaft 8 mm, needs 6 mm")).toBeTruthy();
+    expect(fit.getByText("Fits every spec, but delivers after Dec 14")).toBeTruthy();
     expect(fit.getByText("Not approved, 2.4x price cap")).toBeTruthy();
     expect(fit.getByText("Flange NEMA 23, needs NEMA 17")).toBeTruthy();
     expect(fit.getByText("Connector JST-GH, needs Molex")).toBeTruthy();
     expect(fit.getByText("Battery 36 V, needs 48 V")).toBeTruthy();
   });
-  it("proposes the dock release and hold, and the phone's YES releases it", () => {
-    const g = timeline.find((b) => b.gate?.id === "approve_release")!;
-    at(g.atMs - 1);
-    const money = within(screen.getByRole("region", { name: "Money" }));
-    expect(money.getByText("$34,200")).toBeTruthy();
-    expect(money.getByText("$3,800")).toBeTruthy();
-    expect(within(screen.getByRole("region", { name: "Orders" })).getByText("Short 200")).toBeTruthy();
-    expect(within(screen.getByRole("group", { name: "Waiting for you" })).getByText("Reply YES on Telegram to release $34,200 and hold $3,800.")).toBeTruthy();
-    const card = within(screen.getByRole("group", { name: "Release card" }));
-    expect(card.getByText(/^YES pays Haoyun/).textContent).toBe("YES pays Haoyun $34,200 now. $3,800 stays held until 11 Dec.");
-    fireEvent.click(card.getByRole("button", { name: "YES, release $34,200" }));
+  it("pays the balance at the dock on its signals, with no YES to tap, and holds the rest", () => {
+    const pay = timeline.find((b) => b.ev.type === "release" && b.ev.stage === "balance" && b.ev.to === HAOYUN)!;
+    expect(pay.gate).toBeUndefined();
+    at(pay.atMs - 1);
+    expect(nextButton().textContent).toContain("Pay Haoyun the balance for what arrived");
+    expect(screen.queryByRole("group", { name: "Release card" })).toBeNull();
     expect(screen.queryByRole("group", { name: "Waiting for you" })).toBeNull();
-    expect(nextButton().textContent).toContain("Go to Paid");
+    expect(within(screen.getByRole("region", { name: "Orders" })).getByText(`Short ${PO.quantity - PO.receivedQty}`)).toBeTruthy();
+    cleanup();
+    at(pay.atMs + 500);
+    const cells = [["Committed", a.lockedCents], ["Advance", a.advanceCents], ["Balance", a.balanceCents], ["Held", a.holdCents], ["Returned", 0]] as const;
+    expect(screen.getByRole("region", { name: "Money" }).textContent).toContain(cells.map(([k, v]) => `${k}${formatUsdShort(v)}`).join(""));
   });
   it("labels every synthetic proof on screen, and only those", () => {
     at(sceneStartMs(1));
@@ -289,7 +294,7 @@ describe("workspace", () => {
   });
   it("on the bad path puts the PO on hold with $0 moved", () => {
     at(0);
-    fireEvent.click(screen.getByRole("radio", { name: /^Bad pathHaoyun holds/ }));
+    fireEvent.click(screen.getByRole("radio", { name: /^Bad pathBoth contenders hold/ }));
     fireEvent.click(within(screen.getByRole("list", { name: "Chapters" })).getByRole("button", { name: "06On hold" }));
     expect(within(rail()).getByRole("heading", { name: "On hold" })).toBeTruthy();
     const money = within(screen.getByRole("region", { name: "Money" }));
@@ -303,17 +308,17 @@ describe("workspace", () => {
     at(0);
     const ask = await waitFor(() => screen.getByRole("group", { name: "Waiting for you" }));
     expect(within(ask).getByText("On hold")).toBeTruthy();
-    expect(within(ask).getByText("Raise the limit with two approvals, or end the order.")).toBeTruthy();
+    expect(within(ask).getByText("Raise the ceiling with two approvals, or end the order.")).toBeTruthy();
     expect(screen.queryByRole("region", { name: "End card" })).toBeNull();
     fireEvent.click(within(screen.getByLabelText("Phone")).getByRole("button", { name: "End the order" }));
     expect(screen.getByRole("region", { name: "End card" }).textContent).toContain("PO 1042 ended. $0 moved.");
   });
-  it("on the adjusted path raises the price limit to 8% with two approvals", async () => {
+  it("on the adjusted path raises the ceiling to 10% with two approvals", async () => {
     window.history.replaceState(null, "", "/?scenario=adjusted&scene=6&at=7000");
     at(0);
     await waitFor(() => expect(within(rail()).getByRole("heading", { name: "Adjustment" })).toBeTruthy());
     const rules = within(screen.getByRole("region", { name: "Rules" }));
-    expect(rules.getByText(whole("Price limit raised to 8%"))).toBeTruthy();
+    expect(rules.getByText(whole("Price limit raised to 10%"))).toBeTruthy();
     expect(rules.getAllByRole("status").map((x) => x.textContent)).toEqual(["Signed15:12", "Signed15:13"]);
   });
 });

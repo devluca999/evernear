@@ -5,6 +5,12 @@ import { formatInt, formatUsdShort } from "../engine/money";
 import { PO } from "../seed/astro";
 import type { Proof, WorkspaceState } from "./types";
 
+/**
+ * Whether the release gate (worker/release-gate) is deployed for this build. Until it is, the
+ * explainer says so instead of claiming only the enclave can release (set NEXT_PUBLIC_RELEASE_GATE_DEPLOYED=1).
+ */
+export const GATE_DEPLOYED = process.env.NEXT_PUBLIC_RELEASE_GATE_DEPLOYED === "1";
+
 export type ExplainerId = "enclave" | "attestation" | "wallet" | "signed" | "payout";
 export type DiagramId = "enclave" | "attestation" | "wallet" | "signed" | "lifecycle";
 
@@ -68,14 +74,18 @@ export const EXPLAINERS: Record<ExplainerId, Explainer> = {
   signed: {
     id: "signed", proof: "dock_attestation", title: "The signed result", diagram: "signed",
     happened: (st) => st.dock
-      ? `The dock check compared the slip to the order in its own enclave and signed it: ${formatInt(st.dock.receivedQty)} of ${formatInt(st.dock.orderedQty)}, release ${formatUsdShort(st.dock.releaseCents)}.`
+      ? `The dock check compared the slip to the order in its own enclave and signed it: ${formatInt(st.dock.receivedQty)} of ${formatInt(st.dock.orderedQty)}, balance ${formatUsdShort(st.dock.releaseCents)}.`
       : "The dock check compared the slip to the order in its own enclave and signed the result.",
-    matters: () => "Only this exact code holds the key that releases the money, so Evernear cannot release without it.",
-    whyNear: "The release key is derived inside the enclave from the code's fingerprint.",
+    matters: () => GATE_DEPLOYED
+      ? "Two signals had to agree: customs cleared and the attested dock count. Only this code holds the release key."
+      : "Two signals had to agree: customs cleared and the attested dock count, before any balance moved.",
+    whyNear: GATE_DEPLOYED
+      ? "The release key is derived inside the enclave from the code's fingerprint."
+      : "OutLayer can bind the release key to the code's fingerprint; this demo's gate is built but not yet deployed.",
     facts: (st, p) => [
       { k: "Order", v: `PO ${PO.number}` },
       { k: "Count", v: st.dock ? `${formatInt(st.dock.receivedQty)} of ${formatInt(st.dock.orderedQty)}` : "" },
-      { k: "Release", v: st.dock ? formatUsdShort(st.dock.releaseCents) : "" },
+      { k: "Balance", v: st.dock ? formatUsdShort(st.dock.releaseCents) : "" },
       { k: "Signature", v: short(field(p, "signature") ?? "") },
       { k: "Fingerprint", v: short(field(p, "fingerprint") ?? "") },
     ],
@@ -101,6 +111,7 @@ const KIND_BY_ID: Record<string, StepKind> = {
   wallet_created: "wallet", policy_set: "policy", payment_receipt: "payment", inference_attestation: "enclave",
   approval_luca: "policy", approval_jordy: "policy", refused_email: "refusal", connector_receipt: "payment",
   escrow_wallet: "wallet", dock_attestation: "attestation", intents_payout: "payment", refused_release: "refusal", wallet_closed: "wallet",
+  advance_payout: "payment", signal_bill_of_lading: "policy", signal_export_cleared: "policy", signal_import_cleared: "policy",
 };
 export function stepKind(p: Pick<Proof, "id" | "kind">): StepKind {
   if (p.kind === "refusal" || p.id.startsWith("refused")) return "refusal";
@@ -111,8 +122,10 @@ export function stepKind(p: Pick<Proof, "id" | "kind">): StepKind {
 const HIGHLIGHT_BY_ID: Record<string, string[]> = {
   inference_attestation: ["signer", "fingerprint", "status"],
   escrow_wallet: ["amount", "account", "address"],
-  dock_attestation: ["received", "releaseCents", "signature", "fingerprint"],
+  dock_attestation: ["received", "alreadyReleasedCents", "releaseCents", "signature"],
   intents_payout: ["amount", "chain", "recipient"],
+  advance_payout: ["amount", "recipient", "signals"],
+  signal_bill_of_lading: ["event", "source"], signal_export_cleared: ["event", "source"], signal_import_cleared: ["event", "source"],
   refused_release: ["recipient", "code"],
   wallet_closed: ["frozen", "grant", "lifecycle"],
 };

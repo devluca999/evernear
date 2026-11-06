@@ -52,7 +52,7 @@ describe("custody", () => {
     expect(p.rules.addresses).toEqual({ mode: "whitelist", list: ["a.testnet"] });
     expect(p.rules.limits.per_transaction["usdc.fakes.testnet"]).toBe("10000000000");
     expect(p.approval.threshold).toEqual({ required: 2 });
-    expect(usdcUnits(cents(38000))).toBe("38000000000");
+    expect(usdcUnits(cents(63000))).toBe("63000000000");
   });
   it("says plainly when no key is configured", async () => {
     await expect(new Custody({ fetch: mockFetch({}).fetch, sink: () => {} }).address()).rejects.toThrow("not configured");
@@ -83,7 +83,7 @@ describe("gmail connector", () => {
   it("sends through the testnet connector with the payment key", async () => {
     const { fetch, sent } = mockFetch({ "POST /call/connectors.outlayer.testnet/gmail": () => ({ call_id: "c1", status: "completed", output: { success: true } }) });
     const { proofs, sink } = sinkRecorder();
-    const r = await new Gmail({ fetch, paymentKey: "o:1:k", ownerAccount: "astro.testnet", allowlist, sink }).send({ to: allowlist[0], subject: "PO 1042", body: "USD 19.00" });
+    const r = await new Gmail({ fetch, paymentKey: "o:1:k", ownerAccount: "astro.testnet", allowlist, sink }).send({ to: allowlist[0], subject: "PO 1042", body: "USD 1260.00" });
     expect(r.ok).toBe(true);
     expect(sent[0].headers["X-Payment-Key"]).toBe("o:1:k");
     expect(JSON.parse(sent[0].body)).toMatchObject({ input: { operation: "send", to: allowlist[0] }, secrets_ref: { profile: "gmail" } });
@@ -178,7 +178,7 @@ describe("no leak", () => {
     const bomText = bom10MA.map((l) => `${l.part}: ${Object.values(l.specs).join(", ")}`).join("\n");
     await new Inference({ fetch, apiKey: "k", sink }).read({ kind: "offer", text: bomText, fields: ["fitment"], label: "Fitment read" });
     await new Custody({ fetch, apiKey: KEY, sink }).payUsdc({ to: "haoyun-precision.testnet", cents: 100, memo: "PO 1042 escrow", label: "lock" });
-    await new Gmail({ fetch, paymentKey: "o:1:k", ownerAccount: "a", allowlist: ["sales@haoyun-precision.example"], sink }).send({ to: "sales@haoyun-precision.example", subject: "PO 1042", body: "We can accept USD 19.00 per unit for 2,000 units." });
+    await new Gmail({ fetch, paymentKey: "o:1:k", ownerAccount: "a", allowlist: ["sales@haoyun-precision.example"], sink }).send({ to: "sales@haoyun-precision.example", subject: "PO 1042", body: "We can accept USD 1260.00 per unit for 50 units." });
 
     const outside = sent.filter((s) => !s.url.startsWith("https://cloud-api.near.ai/"));
     expect(outside.length).toBeGreaterThan(0);

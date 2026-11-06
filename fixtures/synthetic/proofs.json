@@ -1,16 +1,272 @@
 {
   "_note": "Synthetic placeholders. Every entry is shown as synthetic on screen and must be replaced by a real recording in fixtures/ before submission.",
-  "wallet_created": {"kind": "wallet", "label": "Astro's wallet created", "call": "POST /register (agent custody)", "codePath": "convex/near/custody.ts#createWallet", "network": "testnet", "response": {"account": "astro-robotics.testnet", "agentKey": "capped"}},
-  "policy_set": {"kind": "policy", "label": "Owner policy set", "call": "POST /wallet/policy (agent custody)", "codePath": "convex/near/custody.ts#setPolicy", "network": "testnet", "response": {"autoApproveUnderUsd": 10000, "approvers": 2, "priceChangeLimitPct": 3, "whitelist": ["ultra-motion.testnet", "haoyun-precision.testnet"]}},
-  "payment_receipt": {"kind": "payment_receipt", "label": "Routine reorder paid", "call": "POST /wallet/transfer (agent custody)", "codePath": "convex/near/custody.ts#pay", "network": "testnet", "response": {"to": "pacific-harness.testnet", "amountUsd": 4180, "po": "1039", "token": "usdc.fakes.testnet"}},
-  "inference_attestation": {"kind": "attestation", "label": "Offers read privately in an attested enclave", "call": "POST /v1/chat/completions (NEAR AI Cloud)", "codePath": "convex/near/inference.ts#readDocument", "network": "offchain", "response": {"request": {"model": "private", "documents": ["10MA BOM", "supplier list", "price list"]}, "attestation": {"signer": "Intel and NVIDIA", "fingerprint": "sha256:synthetic-inference-build", "status": "verified"}, "answer": "4 matches, 1 fits"}},
-  "approval_luca": {"kind": "approval", "label": "Approval 1 of 2: Luca", "call": "POST /approvals/sign (agent custody)", "codePath": "convex/near/approval.ts#sign", "network": "testnet", "response": {"approver": "Luca", "request": "PO 1042"}},
-  "approval_jordy": {"kind": "approval", "label": "Approval 2 of 2: Jordy", "call": "POST /approvals/sign (agent custody)", "codePath": "convex/near/approval.ts#sign", "network": "testnet", "response": {"approver": "Jordy", "request": "PO 1042"}},
-  "connector_receipt": {"kind": "connector_receipt", "label": "Counter offer sent through the Gmail connector", "call": "POST /connectors/gmail/send", "codePath": "convex/near/gmail.ts#send", "network": "testnet", "response": {"to": "sales@haoyun-precision.example", "status": "sent"}},
-  "refused_email": {"kind": "refusal", "label": "Email to an off list address refused", "call": "POST /connectors/gmail/send", "codePath": "convex/near/gmail.ts#send", "network": "testnet", "response": {"to": "deals@unknown-broker.example", "status": "refused", "reason": "recipient not on allowlist"}},
-  "escrow_wallet": {"kind": "escrow", "label": "Committed for PO 1042: $38.00 (1:1,000 of $38,000.00)", "call": "POST /v1/agents/{id}/transfer", "codePath": "convex/near/escrow.ts#lock", "network": "testnet", "response": {"request": {"asset": "Base Sepolia USDC", "amount": "38000000", "account": "po-1042.astro-robotics.testnet"}, "exits": [{"action": "withdraw", "chain": "base", "address": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0"}, {"action": "transfer", "address": "Astro treasury"}], "status": "SUCCESS", "owner": "Astro (astro-robotics.testnet)", "agent_key": {"grant": "release only", "per_transaction_max": "38000000"}}},
-  "dock_attestation": {"kind": "attestation", "label": "Attested dock check: release $34,200", "call": "POST /execute (OutLayer worker dock-check)", "codePath": "worker/dock-check/src/lib.rs", "network": "testnet", "response": {"input": {"received": 1800, "ordered": 2000, "unitCents": 1900}, "output": {"releaseCents": 3420000, "holdCents": 380000}, "attestation": {"signature": "ed25519:synthetic-dock-check-signature", "fingerprint": "sha256:synthetic-dock-check-build", "status": "verified"}}},
-  "intents_payout": {"kind": "payout", "label": "Paid supplier on Base Sepolia for PO 1042: $34.20 (1:1,000 of $34,200.00)", "call": "POST /v1/agents/{id}/withdraw", "codePath": "convex/near/escrow.ts#release", "network": "testnet", "response": {"request": {"chain": "base", "recipient": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0", "amount": "34200000"}, "status": "SUCCESS", "then": "held $3.80 transferred back to Astro's treasury"}},
-  "refused_release": {"kind": "refusal", "label": "PO 1042 account refused a withdraw to 0x000000000000000000000000000000000000dead: refused", "call": "POST /v1/agents/{id}/withdraw", "codePath": "convex/near/escrow.ts#policyRefusal", "network": "testnet", "response": {"request": {"chain": "base", "recipient": "0x000000000000000000000000000000000000dead", "amount": "34200000"}, "status": 403, "code": "policy_destination_denied", "layer": "policy"}},
-  "wallet_closed": {"kind": "wallet", "label": "Wallet closed: PO 1042 frozen, grant revoked, kept as the order's receipt", "call": "POST /v1/submit-intent grant_revoke, agent_freeze", "codePath": "convex/near/escrow.ts#close", "network": "testnet", "response": {"frozen": true, "grant": "revoked", "lifecycle": "closed", "balance": "0", "reused": false}}
+  "wallet_created": {
+    "kind": "wallet",
+    "label": "Astro's wallet created",
+    "call": "POST /register (agent custody)",
+    "codePath": "convex/near/custody.ts#createWallet",
+    "network": "testnet",
+    "response": {
+      "account": "astro-robotics.testnet",
+      "agentKey": "capped"
+    }
+  },
+  "policy_set": {
+    "kind": "policy",
+    "label": "Owner policy set",
+    "call": "POST /wallet/policy (agent custody)",
+    "codePath": "convex/near/custody.ts#setPolicy",
+    "network": "testnet",
+    "response": {
+      "autoApproveUnderUsd": 10000,
+      "approvers": 2,
+      "priceChangeLimitPct": 3,
+      "whitelist": [
+        "ultra-motion.testnet",
+        "haoyun-precision.testnet"
+      ]
+    }
+  },
+  "payment_receipt": {
+    "kind": "payment_receipt",
+    "label": "Routine reorder paid",
+    "call": "POST /wallet/transfer (agent custody)",
+    "codePath": "convex/near/custody.ts#pay",
+    "network": "testnet",
+    "response": {
+      "to": "pacific-harness.testnet",
+      "amountUsd": 4180,
+      "po": "1039",
+      "token": "usdc.fakes.testnet"
+    }
+  },
+  "inference_attestation": {
+    "kind": "attestation",
+    "label": "Offers read privately in an attested enclave",
+    "call": "POST /v1/chat/completions (NEAR AI Cloud)",
+    "codePath": "convex/near/inference.ts#readDocument",
+    "network": "offchain",
+    "response": {
+      "request": {
+        "model": "private",
+        "documents": [
+          "10MA BOM",
+          "supplier list",
+          "price list"
+        ]
+      },
+      "attestation": {
+        "signer": "Intel and NVIDIA",
+        "fingerprint": "sha256:synthetic-inference-build",
+        "status": "verified"
+      },
+      "answer": "5 suppliers, 2 fit"
+    }
+  },
+  "approval_luca": {
+    "kind": "approval",
+    "label": "Approval 1 of 2: Luca",
+    "call": "POST /approvals/sign (agent custody)",
+    "codePath": "convex/near/approval.ts#sign",
+    "network": "testnet",
+    "response": {
+      "approver": "Luca",
+      "request": "PO 1042"
+    }
+  },
+  "approval_jordy": {
+    "kind": "approval",
+    "label": "Approval 2 of 2: Jordy",
+    "call": "POST /approvals/sign (agent custody)",
+    "codePath": "convex/near/approval.ts#sign",
+    "network": "testnet",
+    "response": {
+      "approver": "Jordy",
+      "request": "PO 1042"
+    }
+  },
+  "connector_receipt": {
+    "kind": "connector_receipt",
+    "label": "Counter offer sent through the Gmail connector",
+    "call": "POST /connectors/gmail/send",
+    "codePath": "convex/near/gmail.ts#send",
+    "network": "testnet",
+    "response": {
+      "to": "sales@haoyun-precision.example",
+      "status": "sent"
+    }
+  },
+  "refused_email": {
+    "kind": "refusal",
+    "label": "Email to an off list address refused",
+    "call": "POST /connectors/gmail/send",
+    "codePath": "convex/near/gmail.ts#send",
+    "network": "testnet",
+    "response": {
+      "to": "deals@unknown-broker.example",
+      "status": "refused",
+      "reason": "recipient not on allowlist"
+    }
+  },
+  "escrow_wallet": {
+    "kind": "escrow",
+    "label": "Committed for PO 1042: $63.00 (1:1,000 of $63,000.00)",
+    "call": "POST /v1/agents/{id}/transfer",
+    "codePath": "convex/near/escrow.ts#lock",
+    "network": "testnet",
+    "response": {
+      "request": {
+        "asset": "Base Sepolia USDC",
+        "amount": "63000000",
+        "account": "po-1042.astro-robotics.testnet"
+      },
+      "exits": [
+        {
+          "action": "withdraw",
+          "chain": "base",
+          "address": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0"
+        },
+        {
+          "action": "transfer",
+          "address": "Astro treasury"
+        }
+      ],
+      "status": "SUCCESS",
+      "owner": "Astro (astro-robotics.testnet)",
+      "agent_key": {
+        "grant": "release-gate enclave only",
+        "per_transaction_max": "63000000"
+      }
+    }
+  },
+  "dock_attestation": {
+    "kind": "attestation",
+    "label": "Attested dock count: 44 of 50, balance $36,540",
+    "call": "POST /execute (OutLayer worker dock-check)",
+    "codePath": "worker/dock-check/src/lib.rs",
+    "network": "testnet",
+    "response": {
+      "input": {
+        "received": 44,
+        "ordered": 50,
+        "unitCents": 126000,
+        "alreadyReleasedCents": 1890000
+      },
+      "output": {
+        "releaseCents": 3654000,
+        "holdCents": 756000
+      },
+      "attestation": {
+        "signature": "ed25519:synthetic-dock-check-signature",
+        "fingerprint": "sha256:synthetic-dock-check-build",
+        "status": "verified"
+      }
+    }
+  },
+  "intents_payout": {
+    "kind": "payout",
+    "label": "Balance paid to Haoyun on Base Sepolia for PO 1042: $36.54 (1:1,000 of $36,540.00)",
+    "call": "POST /v1/agents/{id}/withdraw",
+    "codePath": "convex/near/escrow.ts#release",
+    "network": "testnet",
+    "response": {
+      "request": {
+        "chain": "base",
+        "recipient": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+        "amount": "36540000"
+      },
+      "status": "SUCCESS",
+      "then": "$7.56 held for the 6 missing motors"
+    }
+  },
+  "refused_release": {
+    "kind": "refusal",
+    "label": "PO 1042 account refused a withdraw to 0x000000000000000000000000000000000000dead: refused",
+    "call": "POST /v1/agents/{id}/withdraw",
+    "codePath": "convex/near/escrow.ts#policyRefusal",
+    "network": "testnet",
+    "response": {
+      "request": {
+        "chain": "base",
+        "recipient": "0x000000000000000000000000000000000000dead",
+        "amount": "36540000"
+      },
+      "status": 403,
+      "code": "policy_destination_denied",
+      "layer": "policy"
+    }
+  },
+  "wallet_closed": {
+    "kind": "wallet",
+    "label": "Wallet closed: PO 1042 frozen, grant revoked, kept as the order's receipt",
+    "call": "POST /v1/submit-intent grant_revoke, agent_freeze",
+    "codePath": "convex/near/escrow.ts#close",
+    "network": "testnet",
+    "response": {
+      "frozen": true,
+      "grant": "revoked",
+      "lifecycle": "closed",
+      "balance": "0",
+      "reused": false
+    }
+  },
+  "signal_bill_of_lading": {
+    "kind": "signal",
+    "label": "Signal: bill of lading issued for PO 1042",
+    "call": "tracking.events (simulated carrier and customs feed)",
+    "codePath": "scenarios/tracking.ts",
+    "network": "offchain",
+    "response": {
+      "event": "bill_of_lading",
+      "po": "1042",
+      "source": "simulated",
+      "id": "synthetic-bill_of_lading"
+    }
+  },
+  "signal_export_cleared": {
+    "kind": "signal",
+    "label": "Signal: export cleared at Shenzhen for PO 1042",
+    "call": "tracking.events (simulated carrier and customs feed)",
+    "codePath": "scenarios/tracking.ts",
+    "network": "offchain",
+    "response": {
+      "event": "export_cleared",
+      "po": "1042",
+      "source": "simulated",
+      "id": "synthetic-export_cleared"
+    }
+  },
+  "signal_import_cleared": {
+    "kind": "signal",
+    "label": "Signal: import customs cleared at Chicago for PO 1042",
+    "call": "tracking.events (simulated carrier and customs feed)",
+    "codePath": "scenarios/tracking.ts",
+    "network": "offchain",
+    "response": {
+      "event": "import_cleared",
+      "po": "1042",
+      "source": "simulated",
+      "id": "synthetic-import_cleared"
+    }
+  },
+  "advance_payout": {
+    "kind": "payout",
+    "label": "Advance paid to Haoyun on Base Sepolia for PO 1042: $18.90 (1:1,000 of $18,900.00)",
+    "call": "POST /v1/agents/{id}/withdraw",
+    "codePath": "convex/near/escrow.ts#release",
+    "network": "testnet",
+    "response": {
+      "request": {
+        "chain": "base",
+        "recipient": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+        "amount": "18900000"
+      },
+      "signals": [
+        "bill_of_lading",
+        "export_cleared"
+      ],
+      "status": "SUCCESS",
+      "released_by": "server (the release gate is built, not yet deployed)"
+    }
+  }
 }

@@ -28,10 +28,10 @@ export function heldAt(t: number, blocked: Blocked, beats: Beat[] = timeline): B
 export const waitingAt = (t: number, waitForMe: boolean, beats: Beat[] = timeline) => heldAt(t, gatesOnly(waitForMe), beats);
 
 /** The live money steps, and the beat each one runs at. */
-export type LiveStep = "commit" | "refuse" | "pay" | "reclaim";
+export type LiveStep = "commit" | "advance" | "refuse" | "pay" | "reclaim";
 export function liveStepOf(b: Beat, supplierAddress: string): LiveStep | null {
   if (b.ev.type === "lock_funds") return "commit";
-  if (b.ev.type === "release") return b.ev.to === supplierAddress ? "pay" : "refuse";
+  if (b.ev.type === "release") return b.ev.to !== supplierAddress ? "refuse" : b.ev.stage === "advance" ? "advance" : "pay";
   if (b.ev.type === "reclaim") return "reclaim";
   return null;
 }
@@ -45,7 +45,7 @@ export function liveStepOf(b: Beat, supplierAddress: string): LiveStep | null {
 const STOP_TYPES = new Set(["message", "refused", "lock_funds", "dock", "release", "reclaim", "rules", "end_card"]);
 export const isStop = (b: Beat) => !!b.gate || !!b.focus || STOP_TYPES.has(b.ev.type) || (b.ev.type === "scene" && b.scene > 0);
 
-const SENDER: Record<string, string> = { "haoyun-precision.example": "Haoyun", "ultra-motion.example": "Ultra Motion" };
+const SENDER: Record<string, string> = { "haoyun-precision.example": "Haoyun", "ultra-motion.example": "Ultra Motion", "quickship-motion.example": "QuickShip" };
 
 const clip = (t: string, n = 64) => (t.length > n ? `${t.slice(0, n - 1).trimEnd()}…` : t);
 
@@ -65,7 +65,9 @@ export function describeStop(b: Beat, sceneTitle: (id: number) => string, suppli
     case "refused": return "The agent tries an off-list email";
     case "lock_funds": return "Commit the PO total";
     case "dock": return "Count the delivery at the dock";
-    case "release": return ev.to === supplierAddress ? "Pay Haoyun for what arrived" : "Try a payment to a wrong address";
+    case "release": return ev.to !== supplierAddress ? "Try a payment to a wrong address" : ev.stage === "advance" ? "Release the advance as the motors leave" : "Pay Haoyun the balance for what arrived";
+    case "signal": return "Receive a shipment signal";
+    case "reveal": return "Show what this protected";
     case "reclaim": return "At the deadline, return the rest to Astro";
     case "rules": return "Apply the new limit";
     case "end_card": return "Close the order";

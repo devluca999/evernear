@@ -11,13 +11,18 @@ import type { ProofInput, ProofSink } from "../../convex/near/http";
 /** The scene proof keys, in scene order. Same keys as fixtures/synthetic/proofs.json. */
 export const PROOF_KEYS = [
   "wallet_created", "policy_set", "payment_receipt", "inference_attestation", "approval_luca", "approval_jordy",
-  "connector_receipt", "refused_email", "escrow_wallet", "dock_attestation", "intents_payout", "refused_release", "wallet_closed",
+  "connector_receipt", "refused_email", "escrow_wallet", "signal_bill_of_lading", "signal_export_cleared", "advance_payout",
+  "signal_import_cleared", "dock_attestation", "intents_payout", "refused_release", "wallet_closed",
 ] as const;
+
+/** The release signals that are scene proofs. The dock count is recorded as `dock_attestation` by the dock check. */
+const SIGNAL_PROOFS: Record<string, ProofKey> = { bill_of_lading: "signal_bill_of_lading", export_cleared: "signal_export_cleared", import_cleared: "signal_import_cleared" };
 export type ProofKey = (typeof PROOF_KEYS)[number];
 
 /** Which scene proof an adapter call produces. Null for calls that are not a scene proof. */
 export function keyFor(p: ProofInput): ProofKey | null {
   const [file, fn] = p.codePath.split("#");
+  const r = (p.response ?? {}) as { stage?: unknown; event?: unknown };
   switch (`${file.replace(/^.*\//, "")}#${fn}`) {
     case "custody.ts#register": return "wallet_created";
     case "custody.ts#policy": return "policy_set";
@@ -30,7 +35,10 @@ export function keyFor(p: ProofInput): ProofKey | null {
     case "gmail.ts#send": return p.kind === "refusal" ? "refused_email" : p.kind === "connector_receipt" ? "connector_receipt" : null;
     case "escrow.ts#lock": return p.kind === "escrow" ? "escrow_wallet" : null;
     case "escrow.ts#policyRefusal": return p.kind === "refusal" ? "refused_release" : null;
-    case "escrow.ts#release": return p.kind === "payout" ? "intents_payout" : null; // the engine's own refusal is not a scene proof
+    // The advance and the balance, told apart by the stage the adapter writes into the response.
+    // The engine's own refusal (a missing signal, a wrong address) is not a scene proof.
+    case "escrow.ts#release": return p.kind === "payout" ? (r.stage === "advance" ? "advance_payout" : "intents_payout") : null;
+    case "tracking.ts#signal": return p.kind === "signal" && typeof r.event === "string" ? SIGNAL_PROOFS[r.event] ?? null : null;
     case "escrow.ts#close": return p.kind === "wallet" ? "wallet_closed" : null; // not the revoke and freeze rows before it
     case "dockcheck.ts#verify": return "dock_attestation";
     default: return null;

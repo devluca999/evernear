@@ -67,7 +67,12 @@ export type Event =
   | { type: "shipment"; progress: number; docs: { name: string; state: "done" | "working" | "problem" }[] }
   | { type: "checkpoint"; id: string }
   | { type: "dock"; receivedQty: number }
-  | { type: "release"; to: string }
+  /** A release from the order wallet: a stage of the two-stage release (amount computed by the engine). */
+  | { type: "release"; to: string; stage: import("../engine/escrow").Stage }
+  /** A shipment signal arrives (bill of lading, export or import clearance, the attested dock count). */
+  | { type: "signal"; id: import("../engine/escrow").SignalId }
+  /** Money card: show what the two-stage escrow protected. */
+  | { type: "reveal"; what: "protected" }
   | { type: "reclaim" }
   | { type: "phone"; open: boolean }
   | { type: "end_card" }
@@ -145,4 +150,8 @@ export interface WorkspaceState {
   offers: { supplierId: string; unitCents: number; note: string; tone: "success" | "attention" | "alert" }[];
   /** The explainer the drawer is showing, if any. */
   explain: import("./explain").ExplainerId | null;
+  /** Shipment signals received so far, each also a proof. */
+  signals: import("../engine/escrow").SignalId[];
+  /** The Money card shows what the two-stage escrow protected. */
+  protectedShown: boolean;
 }

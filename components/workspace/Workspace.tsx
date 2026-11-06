@@ -317,7 +317,7 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
   const navOpen = navChoice ?? st.scene === 0;
   const synthetic = st.proofs.some((p) => p.synthetic) || (!st.proofs.length && !live.on);
   const endText = scenarioId === "standoff"
-    ? { big: <>PO <N>{PO.number}</N> ended. <N>$0</N> moved.</>, sub: "Haoyun held at +8%, over Astro's limit. Stockbot stopped before committing anything." }
+    ? { big: <>PO <N>{PO.number}</N> ended. <N>$0</N> moved.</>, sub: "Haoyun and QuickShip held at +10%, over Astro's 5% ceiling. Stockbot stopped before committing anything." }
     : { big: <><N>0</N> wires. <N>0</N> days waiting. <N>1</N> human decision.</>, sub: <>Astro Robotics · PO <N>{PO.number}</N> closed in <N>{story.closedInDays}</N> days</> };
   const sceneGrid = scene.grid;
   const gridStyle: React.CSSProperties = gridMode

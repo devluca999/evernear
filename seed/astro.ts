@@ -1,7 +1,9 @@
 // Simulated cast. Astro Robotics, its products, BOM and suppliers are fictional.
-// Numbers follow docs/BUILD.md section 2 exactly.
+// Numbers follow docs/BUILD.md section 2 and the deal Luca set on Nov 6: 500 robots ordered, parts
+// for 450, 50 AM-17 motors short at $1,200, an urgent ceiling of 5%. Rules: policy/astro.json.
 import type { BomLine, Offer, Policy, Supplier } from "../engine/types";
 import { cents } from "../engine/money";
+import rules from "../policy/astro.json";
 
 export const astro = {
   id: "astro",
@@ -13,7 +15,7 @@ export const astro = {
 };
 
 export const products = [
-  { id: "10ma", name: "10MA", kind: "Helper robot", playable: true },
+  { id: "10ma", name: "10MA", kind: "Helper robot", playable: true, priceCents: 950_000 },
   { id: "kip", name: "Kip", kind: "Floor cleaning robot", playable: false },
   { id: "porter", name: "Porter", kind: "Factory delivery cart", playable: false },
 ] as const;
@@ -25,7 +27,7 @@ const line = (n: number, part: string, qty: number, specs: Record<string, string
 export const MOTOR_PART = "Actuator motor";
 
 export const bom10MA: BomLine[] = [
-  line(1, MOTOR_PART, 4, { shaftDiameter: "6 mm", mountingFlange: "NEMA 17", voltage: "48 V", encoderConnector: "Molex" }),
+  line(1, MOTOR_PART, 1, { shaftDiameter: "6 mm", mountingFlange: "NEMA 17", voltage: "48 V", encoderConnector: "Molex" }),
   line(2, "Chassis frame", 1, { material: "6061 aluminium", height: "1,180 mm" }),
   line(3, "Arm servo", 2, { torque: "25 kg cm", voltage: "12 V" }),
   line(4, "Battery pack", 1, { voltage: "48 V", capacity: "20 Ah" }),
@@ -68,8 +70,8 @@ export const bomFor: Record<string, BomLine[]> = { "10ma": bom10MA, kip: bomKip,
 
 /** Sample stock on hand per part (units). The actuator motor count comes from the scenario. */
 export const partStock: Record<string, number> = {
-  "Chassis frame": 9, "Arm servo": 40, "Battery pack": 22, "Controller board": 12, "Camera module": 30, "Encoder harness": 70,
-  "Drive wheel": 26, "Lidar sensor": 11, "Head shell": 14, "Speaker": 19, "Microphone array": 15, "Wiring loom": 13, "Fastener kit": 40,
+  "Chassis frame": 520, "Arm servo": 1_040, "Battery pack": 510, "Controller board": 505, "Camera module": 1_030, "Encoder harness": 2_070,
+  "Drive wheel": 1_020, "Lidar sensor": 515, "Head shell": 540, "Speaker": 525, "Microphone array": 512, "Wiring loom": 530, "Fastener kit": 600,
   "Brush motor": 34, "Suction fan": 12, "Bumper sensor": 80, "Water tank": 17, "Housing": 15, "Hub motor": 20, "Cargo deck": 6,
   "Safety light": 24, "Caster wheel": 18,
 };
@@ -77,17 +79,25 @@ export const partStock: Record<string, number> = {
 export const suppliers: Supplier[] = [
   { id: "ultra", name: "Ultra Motion", city: "Illinois", country: "USA", approved: true, isNew: false, receiveChain: "near", receiveAddress: "ultra-motion.testnet" },
   { id: "haoyun", name: "Haoyun Precision", city: "Shenzhen", country: "China", approved: true, isNew: true, receiveChain: "base", receiveAddress: "0x2003975a521c6fa45238dbc402c9e4adcb8863e0" },
+  { id: "quickship", name: "QuickShip Motion", city: "Busan", country: "South Korea", approved: true, isNew: true, receiveChain: "near", receiveAddress: "quickship-motion.testnet" },
   { id: "kansai", name: "Kansai Servo Works", city: "Osaka", country: "Japan", approved: true, isNew: true, receiveChain: "near", receiveAddress: "kansai-servo.testnet" },
   { id: "rheinwerk", name: "Rheinwerk Antriebstechnik", city: "Stuttgart", country: "Germany", approved: false, isNew: true, receiveChain: "near", receiveAddress: "rheinwerk.testnet" },
   { id: "huaxin", name: "Huaxin Robotics Components", city: "Dongguan", country: "China", approved: true, isNew: true, receiveChain: "near", receiveAddress: "huaxin-robotics.testnet" },
 ];
 
+/** The AM-17's base price before the shortage. */
+export const MOTOR_BASE_CENTS = 120_000;
+
 export const policy: Policy = {
-  autoApproveUnderCents: cents(10_000),
-  approversRequired: 2,
-  priceChangeLimitBps: 300,
-  priceCaps: { [MOTOR_PART]: 1910 },
+  autoApproveUnderCents: cents(rules.auto_approve_under_usd),
+  approversRequired: rules.approvers_required,
+  priceChangeLimitBps: rules.price_change_limit_percent * 100,
+  // The urgent ceiling: base plus the price change limit.
+  priceCaps: { [MOTOR_PART]: MOTOR_BASE_CENTS + (MOTOR_BASE_CENTS * rules.price_change_limit_percent) / 100 },
 };
+
+/** Every 10MA order must ship by this day; a supplier that cannot deliver before it is too late. */
+export const NEED_BY = rules.need_by;
 
 const motor = MOTOR_PART;
 const fits = bom10MA[0].specs;
@@ -103,56 +113,64 @@ const huaxinOverrides: Record<string, Record<string, string>> = {
   "Encoder harness": { connector: "JST-GH" },
   "Battery pack": { voltage: "36 V" },
 };
-const huaxinPrice: Record<string, number> = { "Actuator motor": 1590 };
+const huaxinPrice: Record<string, number> = { "Actuator motor": 110_000 };
 
 export const offers: Offer[] = [
-  { supplierId: "ultra", part: motor, unitCents: 1854, specs: { ...fits } },
-  { supplierId: "haoyun", part: motor, unitCents: 1854, specs: { ...fits } },
-  { supplierId: "kansai", part: motor, unitCents: 1720, specs: { ...fits, shaftDiameter: "8 mm" } },
-  // 2.4x the cap: 1910 x 2.4 = 4584
-  { supplierId: "rheinwerk", part: motor, unitCents: 4584, specs: { ...fits } },
+  { supplierId: "ultra", part: motor, unitCents: MOTOR_BASE_CENTS, specs: { ...fits }, arrives: "2026-12-15" },
+  { supplierId: "haoyun", part: motor, unitCents: MOTOR_BASE_CENTS, specs: { ...fits }, arrives: "2026-11-11" },
+  { supplierId: "quickship", part: motor, unitCents: MOTOR_BASE_CENTS, specs: { ...fits }, arrives: "2026-11-08" },
+  // Fits every spec, but cannot deliver before Dec 14.
+  { supplierId: "kansai", part: motor, unitCents: 118_000, specs: { ...fits }, arrives: "2026-12-22" },
+  // 2.4x the urgent ceiling: 126,000 x 2.4 = 302,400
+  { supplierId: "rheinwerk", part: motor, unitCents: 302_400, specs: { ...fits }, arrives: "2026-11-20" },
   ...huaxinParts.map((part) => ({
     supplierId: "huaxin",
     part,
     unitCents: huaxinPrice[part] ?? 1000,
+    arrives: "2026-11-18",
     specs: { ...specsOf(part), ...(huaxinOverrides[part] ?? {}) },
   })),
 ];
 
 export const PO = {
   number: "1042",
-  quantity: 2000,
-  originalUnitCents: 1854,
-  confirmedUnitCents: 2002,
-  revisedUnitCents: 1900,
-  revisedTotalCents: 2000 * 1900,
-  receivedQty: 1800,
+  quantity: 50,
+  originalUnitCents: MOTOR_BASE_CENTS,
+  /** Both contenders open with a +10% urgent fee. */
+  confirmedUnitCents: 132_000,
+  /** Haoyun's final offer: all 50 by Dec 14 at +5%. */
+  revisedUnitCents: 126_000,
+  revisedTotalCents: 50 * 126_000,
+  receivedQty: 44,
 };
 
 /** A routine reorder under the cap that pays itself: encoder harnesses from an established supplier. */
 export const routineReorder = { supplier: "Pacific Harness Co.", po: "1039", part: "Encoder harness", quantity: 220, unitCents: 1900 };
 
 export const demand = {
-  robotsOrdered: 14,
-  motorsPerRobot: 4,
-  motorsOnHand: 24,
+  robotsOrdered: 500,
+  motorsPerRobot: 1,
+  motorsOnHand: 450,
   customers: [
-    { name: "Harbor and Vine Restaurant Group", so: "3326", robots: 6, due: "20 Nov" },
-    { name: "St. Brennan Hospital", so: "3329", robots: 5, due: "24 Nov" },
-    { name: "Northgate Fulfillment warehouse", so: "3331", robots: 3, due: "1 Dec" },
+    { name: "Harbor and Vine Restaurant Group", so: "3326", robots: 200, due: "30 Nov" },
+    { name: "St. Brennan Hospital", so: "3329", robots: 180, due: "7 Dec" },
+    { name: "Northgate Fulfillment warehouse", so: "3331", robots: 120, due: "14 Dec" },
   ],
 };
 
+/** QuickShip's final offer: about three quarters now at +10%, the rest after Dec 14, and 5% off the next order. */
+export const quickshipOffer = { nowQty: 38, laterQty: 12, unitCents: 132_000, nextOrderDiscountPercent: 5 };
+
 /** The parts the 10MA build plan watches, with their stock codes and how many each robot takes. */
 export const buildPlan = [
-  { part: MOTOR_PART, code: "AM17", perRobot: 4 },
+  { part: MOTOR_PART, code: "AM17", perRobot: 1 },
   { part: "Arm servo", code: "AS25", perRobot: 2 },
   { part: "Encoder harness", code: "EH30", perRobot: 4 },
   { part: "Battery pack", code: "BP48", perRobot: 1 },
 ];
 
 /** Actuator motors on hand, 14 Sep to 2 Nov: the slide that set off the story. */
-export const motorHistory = { from: "14 Sep", to: "2 Nov", reorderPoint: 80, units: [207, 197, 180, 157, 137, 110, 87, 60, 40, 24] };
+export const motorHistory = { from: "14 Sep", to: "2 Nov", reorderPoint: 480, units: [1180, 1110, 1030, 940, 860, 780, 690, 600, 520, 450] };
 
 /** Astro's wallet and spend, simulated. */
 export const wallet = {
@@ -169,6 +187,7 @@ export const wallet = {
 /** Story dates and places shown on screen. */
 export const story = {
   committedAt: "3 Nov 15:04",
+  departedAt: "5 Nov 22:10",
   dockAt: "Wed 11 Nov 08:40 · Dock 3",
   paidAt: "11 Nov 08:42",
   deadline: "11 Dec",

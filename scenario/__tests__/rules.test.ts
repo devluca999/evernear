@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { stateAt, sceneStartMs } from "../runner";
 import { timeline, totalDurationMs } from "../scenes";
-import { policy } from "@/seed/astro";
+import { policy, PO } from "@/seed/astro";
+import { amounts } from "../scenes";
 import { loadPolicy } from "@/components/workspace/rules";
 
 const end = (p = policy) => stateAt(totalDurationMs, timeline, p);
@@ -9,11 +10,11 @@ const end = (p = policy) => stateAt(totalDurationMs, timeline, p);
 describe("the story follows your rules", () => {
   it("Astro's own rules play the whole story with no stop", () => {
     expect(end().halted).toBeNull();
-    expect(end().escrow?.releasedCents).toBe(3_420_000);
+    expect(end().escrow?.releasedCents).toBe(amounts(PO.revisedUnitCents).releaseCents);
   });
   it("a 2% price limit stops PO 1042 before any money is committed", () => {
     const s = end({ ...policy, priceChangeLimitBps: 200 });
-    expect(s.halted?.reason).toBe("Haoyun's price change of +2.5% is over your 2% limit. The PO stops before any money is committed.");
+    expect(s.halted?.reason).toBe("Haoyun's price change of +5% is over your 2% limit. The PO stops before any money is committed.");
     expect(s.escrow).toBeNull();
     expect(s.halted?.scene).toBe(5);
   });
@@ -24,8 +25,8 @@ describe("the story follows your rules", () => {
     expect(s.escrow).toBeNull();
   });
   it("a motor price cap below Haoyun's quote means no supplier passes, and sourcing stops", () => {
-    const s = end({ ...policy, priceCaps: { ...policy.priceCaps, "Actuator motor": 1800 } });
-    expect(s.halted?.reason).toMatch(/^No supplier passes your rules \(motor price cap \$18\)/);
+    const s = end({ ...policy, priceCaps: { ...policy.priceCaps, "Actuator motor": 115_000 } });
+    expect(s.halted?.reason).toMatch(/^No supplier passes your rules \(motor price cap \$1,150\)/);
     expect(s.stage).toBe("sourcing");
   });
   it("a cap below the routine reorder holds it for a person, without stopping PO 1042", () => {
@@ -35,6 +36,8 @@ describe("the story follows your rules", () => {
   });
   it("reads saved rules safely: malformed or out of range values fall back or clamp", () => {
     expect(loadPolicy("not json")).toEqual(policy);
+    // Astro's own rules survive a save and a reload, including the $1,260 motor cap.
+    expect(loadPolicy(JSON.stringify(policy))).toEqual(policy);
     expect(loadPolicy(JSON.stringify({ approversRequired: 9, priceChangeLimitBps: 150 }))).toMatchObject({ approversRequired: 3, priceChangeLimitBps: 150, autoApproveUnderCents: policy.autoApproveUnderCents });
   });
 });

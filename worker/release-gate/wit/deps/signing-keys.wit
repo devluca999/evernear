@@ -1,0 +1,28 @@
+package outlayer:signing-keys@0.1.0;
+
+interface api {
+    /// A NEP-413 signature in the shape a NEAR wallet's `signMessage` answers.
+    record nep413-signature {
+        /// The key's NEAR implicit account: its 32-byte public key, lowercase hex.
+        account-id: string,
+        /// `ed25519:` followed by the base58 of the 32-byte public key.
+        public-key: string,
+        /// The 64-byte ed25519 signature, standard base64 with padding.
+        signature: string,
+    }
+
+    /// ed25519: the 32-byte public key.
+    /// secp256k1: 64 bytes, x || y, the uncompressed SEC1 point without its 0x04 prefix.
+    public-key: func(path: string, vault: option<string>) -> result<list<u8>, string>;
+
+    /// ed25519: RFC 8032 over the raw message bytes, at most 65536; 64 bytes out.
+    /// secp256k1: exactly a 32-byte prehash, signed as it is; 65 bytes out, r || s || v.
+    sign: func(path: string, vault: option<string>, message: list<u8>) -> result<list<u8>, string>;
+
+    /// NEP-413 (NEAR signMessage) with an ed25519 key; the host builds the signed bytes.
+    sign-nep413: func(path: string, vault: option<string>, message: string, recipient: string, nonce: list<u8>, callback-url: option<string>) -> result<nep413-signature, string>;
+}
+
+world signing-keys-host {
+    import api;
+}

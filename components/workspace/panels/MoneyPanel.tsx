@@ -6,6 +6,7 @@ import { PO, policy as seedPolicy, story, suppliers, wallet } from "@/seed/astro
 import { formatInt, formatUsd, formatUsdShort, scaleTestnet, TESTNET_SCALE } from "@/engine/money";
 import { Badge, Dot, N, Panel, Stamp } from "../Panel";
 import { LifecycleStrip } from "../Diagrams";
+import { RELEASE_RULES } from "@/engine/escrow";
 import s from "../shell.module.css";
 
 const haoyun = suppliers.find((x) => x.id === "haoyun")!;
@@ -51,6 +52,37 @@ function Spend({ novCents, height }: { novCents: number; height: number }) {
   );
 }
 
+/**
+ * What the two-stage escrow protected, against the two usual ways to pay an overseas supplier.
+ * The wire and letter-of-credit columns are typical figures, labelled so.
+ */
+function Protected({ heldCents, lockedCents, advanceCents }: { heldCents: number; lockedCents: number; advanceCents: number }) {
+  const lc = (lockedCents * 3) / 100;
+  return (
+    <section className={s.protect} aria-label="What this protected" data-focus="money.protected">
+      <span className="es-micro">What this protected</span>
+      <div className={s.protectGrid}>
+        <span />
+        <span className="es-micro">Prepaid wire, typical</span>
+        <span className="es-micro">Letter of credit, typical</span>
+        <span className="es-micro">Evernear two-stage escrow</span>
+        <span className={s.note}>Money at risk for the missing motors</span>
+        <span><N>{formatUsdShort(heldCents)}</N> already paid, to be chased</span>
+        <span>Paid on documents, <N>{formatUsdShort(heldCents)}</N> to dispute</span>
+        <span className={s.protectWin}><N>{formatUsdShort(heldCents)}</N> never left Astro&apos;s control</span>
+        <span className={s.note}>Cost and time to set up</span>
+        <span>Wire fees, 3 to 5 days</span>
+        <span>About 3% (<N>{formatUsdShort(lc)}</N>), up to 14 days, missing Dec 14</span>
+        <span className={s.protectWin}>Instant</span>
+        <span className={s.note}>Haoyun&apos;s protection</span>
+        <span>Paid in full</span>
+        <span>Bank guarantee</span>
+        <span className={s.protectWin}><N>{formatUsdShort(advanceCents)}</N> on departure, the rest visibly locked</span>
+      </div>
+    </section>
+  );
+}
+
 /** PO 1042's wallet, from created to closed, always on the card once it exists. */
 const Life = ({ e }: { e: NonNullable<WorkspaceState["escrow"]> }) => (
   <div className={s.lines} style={{ gap: 6 }}>
@@ -69,39 +101,59 @@ export function MoneyPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }
   const refusedPay = st.refused.find((r) => r.kind === "wrong_address_release")?.detail.split(":")[0] ?? null;
   const scale = e ? <p className={s.note}>Testnet at 1:<N>{formatInt(TESTNET_SCALE)}</N>: <N>{formatUsd(scaleTestnet(e.lockedCents))}</N> moves for real. A commitment, not a lock: Tidepool enforces the rules, and Astro can change them.</p> : null;
 
+  // The two-stage release: the advance is a fixed share of the commitment, the balance the rest released.
+  const balanceDone = !!e && (e.lifecycle === "balance_released" || e.lifecycle === "settled" || e.lifecycle === "closed");
+  const advanceCents = e && e.releasedCents > 0 ? Math.min(e.releasedCents, (e.lockedCents * RELEASE_RULES.advancePercent) / 100) : 0;
+  const balanceCents = e ? e.releasedCents - advanceCents : 0;
+  const stages = e ? <Cells cols={5} items={[
+    { label: "Committed", cents: e.lockedCents }, { label: "Advance", cents: advanceCents, tone: "success" }, { label: "Balance", cents: balanceCents, tone: "success" },
+    // Before the dock count the rest is still locked for the balance; after it, what stays is held for the missing motors.
+    balanceDone ? { label: "Held", cents: held, tone: "attention" } : { label: "Still locked", cents: held }, { label: "Returned", cents: e.reclaimedCents, tone: "success" },
+  ]} /> : null;
+
   let body: React.ReactNode;
-  if (e && e.releasedCents > 0) {
+  if (e && balanceDone) {
     body = (
       <div className={s.pad} style={{ gap: 11 }}>
         <div className={s.lines} data-focus="money.payout" style={{ gap: 8 }}>
           <div className={s.headRow} style={{ gap: 12 }}><N className={s.big} >{<span style={{ fontSize: 32, fontWeight: 500 }}>{formatUsdShort(e.releasedCents)}</span>}</N><Stamp word="Paid" time={story.paidAt} /></div>
-          <p className={s.sub}>Paid to Haoyun Precision on its own chain. <N className={s.hi}>{formatUsdShort(held || e.reclaimedCents)}</N> {e.reclaimedCents ? "went back to Astro at the deadline." : "held until the deadline."}</p>
+          <p className={s.sub}>Paid to Haoyun Precision on its own chain: <N className={s.hi}>{formatUsdShort(advanceCents)}</N> on departure, <N className={s.hi}>{formatUsdShort(balanceCents)}</N> for what arrived. <N className={s.hi}>{formatUsdShort(held || e.reclaimedCents)}</N> {e.reclaimedCents ? "went back to Astro at the deadline." : "held until the deadline."}</p>
           {refusedPay && <span className={s.line}><Dot tone="alert" />Refused: a payment to <N>{short(refusedPay)}</N>, not on PO <N>{PO.number}</N>&apos;s list</span>}
         </div>
-        <Cells items={[{ label: "Committed", cents: e.lockedCents }, { label: "Released", cents: e.releasedCents, tone: "success" }, { label: "Held", cents: held, tone: "attention" }, { label: "Returned", cents: e.reclaimedCents, tone: "success" }]} />
+        {stages}
         <Life e={e} />
-        <Spend novCents={nov} height={62} />
+        {st.protectedShown && <Protected heldCents={held || e.reclaimedCents} lockedCents={e.lockedCents} advanceCents={advanceCents} />}
+        {!st.protectedShown && <Spend novCents={nov} height={62} />}
         {scale}
       </div>
     );
   } else if (e && st.dock) {
     body = (
       <div className={s.pad} style={{ gap: 12 }}>
+        <div className={s.headRow} style={{ fontSize: 12.5 }}><Dot tone="success" /><span className={s.muted}>Advance paid on departure <N className={s.hi}>{formatUsdShort(advanceCents)}</N></span></div>
         <div className={s.well} style={{ background: "none" }}>
-          <div className={s.headRow}><Dot tone="proposed" /><span className="es-micro">Release</span><span className={`${s.push} ${s.note}`}>proposed</span></div>
+          <div className={s.headRow}><Dot tone="proposed" /><span className="es-micro">Balance</span><span className={`${s.push} ${s.note}`}>proposed</span></div>
           <N><span style={{ fontSize: 30, fontWeight: 500, lineHeight: 1 }}>{formatUsdShort(st.dock.releaseCents)}</span></N>
-          <span className={s.note} style={{ fontSize: 12 }}><N>{formatInt(st.dock.receivedQty)}</N> arrived at <N>{formatUsd(e.lockedCents / PO.quantity)}</N></span>
+          <span className={s.note} style={{ fontSize: 12 }}><N>{formatInt(st.dock.receivedQty)}</N> arrived at <N>{formatUsd(e.lockedCents / PO.quantity)}</N>, minus the advance</span>
         </div>
         <div className={s.well} data-tone="attention">
           <div className={s.headRow}><Dot tone="attention" /><span className="es-micro">Hold</span><span className={`${s.push} ${s.attnInk}`} style={{ fontSize: 11 }}>Held</span></div>
           <N><span style={{ fontSize: 30, fontWeight: 500, lineHeight: 1 }}>{formatUsdShort(st.dock.holdCents)}</span></N>
-          <span className={s.note} style={{ fontSize: 12 }}><N>{formatInt(st.dock.orderedQty - st.dock.receivedQty)}</N> missing · back to Astro <N>{story.deadline}</N></span>
-        </div>
-        <div className={s.headRow} style={{ justifyContent: "space-between", fontSize: 12 }}>
-          <span className={s.muted}>Committed <N className={s.hi}>{formatUsdShort(e.lockedCents)}</N></span>
-          <span className={s.muted}>Returned <N>{formatUsdShort(e.reclaimedCents)}</N></span>
+          <span className={s.note} style={{ fontSize: 12 }}><N>{formatInt(st.dock.orderedQty - st.dock.receivedQty)}</N> missing or damaged · replacements or back to Astro <N>{story.deadline}</N></span>
         </div>
         <Life e={e} />
+      </div>
+    );
+  } else if (e && e.releasedCents > 0) {
+    body = (
+      <div className={s.pad} style={{ gap: 11 }}>
+        <div className={s.lines} data-focus="money.advance" style={{ gap: 8 }}>
+          <div className={s.headRow} style={{ gap: 12 }}><N><span style={{ fontSize: 32, fontWeight: 500, lineHeight: 1 }}>{formatUsdShort(advanceCents)}</span></N><span className={s.push}><Stamp word="Advance paid" time={story.departedAt} /></span></div>
+          <p className={s.sub}>{RELEASE_RULES.advancePercent}% to Haoyun as the motors leave Shenzhen: the bill of lading and the export clearance both came in. <N className={s.hi}>{formatUsdShort(e.lockedCents - e.releasedCents)}</N> stays locked for the dock.</p>
+        </div>
+        {stages}
+        <Life e={e} />
+        {scale}
       </div>
     );
   } else if (e) {
@@ -109,12 +161,12 @@ export function MoneyPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }
       <div className={s.pad}>
         <div className={s.lines} data-focus="money.escrow" style={{ gap: 8 }}>
           <div className={s.headRow} style={{ gap: 10 }}><N><span style={{ fontSize: 32, fontWeight: 500, lineHeight: 1 }}>{formatUsdShort(e.lockedCents)}</span></N><span className={s.push}><Stamp word="Committed" time={story.committedAt} /></span></div>
-          <p className={s.sub}>Committed for PO <N>{PO.number}</N>. Visible to Haoyun. Pays Haoyun or Astro only.</p>
+          <p className={s.sub}>Committed for PO <N>{PO.number}</N>. Visible to Haoyun. Pays Haoyun or Astro only: {RELEASE_RULES.advancePercent}% when the goods leave, the rest for what arrives.</p>
         </div>
-        <Cells items={[{ label: "Committed", cents: e.lockedCents }, { label: "Released", cents: e.releasedCents }, { label: "Held", cents: 0 }, { label: "Returned", cents: e.reclaimedCents }]} />
+        {stages}
         <Life e={e} />
         <CanPay owner={owner} />
-        <Spend novCents={nov} height={110} />
+        <Spend novCents={nov} height={90} />
         {scale}
       </div>
     );

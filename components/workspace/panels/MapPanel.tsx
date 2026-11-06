@@ -19,9 +19,9 @@ const ROUTE = MAP.route as readonly Pt[];
 const CUM = cumulative(ROUTE);
 const ROUTE_D = polyline(ROUTE);
 
-const SUPPLIER_CITY: Record<string, keyof typeof MAP.pins> = { kansai: "Osaka", rheinwerk: "Stuttgart", huaxin: "Dongguan", haoyun: "Shenzhen", ultra: "Rockford" };
+const SUPPLIER_CITY: Record<string, keyof typeof MAP.pins> = { kansai: "Osaka", rheinwerk: "Stuttgart", huaxin: "Dongguan", haoyun: "Shenzhen", quickship: "Busan", ultra: "Rockford" };
 // Where each supplier's icon sits next to its headquarters dot (Shenzhen and Dongguan are neighbours).
-const MARK_AT: Record<string, [number, number]> = { haoyun: [6, 4], huaxin: [-26, -18], kansai: [6, -16], rheinwerk: [6, -16], ultra: [-28, -18] };
+const MARK_AT: Record<string, [number, number]> = { haoyun: [6, 4], huaxin: [-26, -18], kansai: [6, -4], quickship: [-26, -20], rheinwerk: [6, -16], ultra: [-28, -18] };
 type Lanes = Record<string, { place: string; segments: readonly (readonly Pt[])[]; km: number }>;
 const LANE_GEO = MAP.lanes as unknown as Lanes;
 // Where each document sits on the trip, as a share of the route.
@@ -101,7 +101,7 @@ function Typed({ text }: { text: string }) {
   return <><span aria-hidden="true">{text.slice(0, n)}</span><span className="sr-only">{text}</span></>;
 }
 
-const MATCH_ORDER = ["haoyun", "rheinwerk", "huaxin", "kansai"];
+const MATCH_ORDER = ["haoyun", "quickship", "kansai", "rheinwerk", "huaxin"];
 const MATCH_TONE = { fits: "success", partial: "attention", fails: "alert" } as const;
 
 const lanePath = (id: string) => LANE_GEO[id].segments.map((seg) => polyline(seg)).join(" ");

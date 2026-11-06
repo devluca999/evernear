@@ -17,8 +17,9 @@ export function readingFor(text: string): string {
     const unit = Math.round(Number(price[1]) * 100);
     const c = checkPriceChange(PO.originalUnitCents, unit, policy.priceChangeLimitBps);
     const pctText = `${c.bps >= 0 ? "+" : ""}${(c.bps / 100).toFixed(1).replace(/\.0$/, "")}%`;
-    if (kind === "price_change") return c.pass ? `Price change: ${pctText}, inside the limit.` : `Price change: ${pctText}, over the 3% limit.`;
-    if (kind === "confirmed") return c.pass ? `Confirmed at ${pctText}, inside the limit.` : `Confirmed at ${pctText}, over the 3% limit.`;
+    const over = `over the ${policy.priceChangeLimitBps / 100}% limit`;
+    if (kind === "price_change") return c.pass ? `Price change: ${pctText}, inside the limit.` : `Price change: ${pctText}, ${over}.`;
+    if (kind === "confirmed") return c.pass ? `Confirmed at ${pctText}, inside the limit.` : `Confirmed at ${pctText}, ${over}.`;
   }
   return kind === "quoted" ? "Quote received." : kind === "confirmed" ? "Confirmed." : "Price change.";
 }

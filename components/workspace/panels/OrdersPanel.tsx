@@ -10,8 +10,8 @@ import s from "../shell.module.css";
 
 type Tab = "customer" | "purchase";
 const haoyun = suppliers.find((x) => x.id === "haoyun")!;
-const NAME: Record<string, string> = { kansai: "Kansai Servo Works", rheinwerk: "Rheinwerk", huaxin: "Huaxin Robotics", haoyun: "Haoyun Precision" };
-const CITY: Record<string, string> = { kansai: "Osaka", rheinwerk: "Stuttgart", huaxin: "Dongguan", haoyun: "Shenzhen" };
+const NAME: Record<string, string> = { kansai: "Kansai Servo Works", rheinwerk: "Rheinwerk", huaxin: "Huaxin Robotics", haoyun: "Haoyun Precision", quickship: "QuickShip Motion" };
+const CITY: Record<string, string> = { kansai: "Osaka", rheinwerk: "Stuttgart", huaxin: "Dongguan", haoyun: "Shenzhen", quickship: "Busan" };
 
 function Customer({ st }: { st: WorkspaceState }) {
   const cover = Math.floor(st.demand.motorsOnHand / demand.motorsPerRobot) + (st.dock ? Math.floor(st.dock.receivedQty / demand.motorsPerRobot) : 0);
@@ -49,7 +49,7 @@ function Customer({ st }: { st: WorkspaceState }) {
 function Table({ st }: { st: WorkspaceState }) {
   const cols = { gridTemplateColumns: "92px 1fr 104px 72px 64px" };
   const fit = (id: string) => st.fitment.find((f) => f.supplierId === id);
-  const quotes = ["rheinwerk", "kansai", "huaxin"].filter((id) => fit(id));
+  const quotes = ["quickship", "kansai", "rheinwerk", "huaxin"].filter((id) => fit(id));
   const yes = (ok: boolean | null, a: string, b: string) => <span className={s.line} style={{ fontSize: 12 }}><Dot tone={ok === null ? undefined : ok ? "success" : "alert"} />{ok === null ? "Not yet" : ok ? a : b}</span>;
   return (
     <div style={{ padding: "6px 14px" }} className={s.rows} role="table" aria-label="Purchase orders">
@@ -148,7 +148,8 @@ function Dock({ st }: { st: WorkspaceState }) {
         <span className="es-micro" style={{ paddingBottom: 4 }}>Dock check</span>
         {counted ? (
           <>
-            <div className={s.row}><Dot tone="attention" /><span>Cartons counted</span><N className={s.hi}>{d.receivedQty / 100} of {d.orderedQty / 100}</N></div>
+            <div className={s.row}><Dot tone={st.signals.includes("import_cleared") ? "success" : "attention"} /><span>Import customs</span><N className={s.hi}>{st.signals.includes("import_cleared") ? "Cleared" : "Waiting"}</N></div>
+            <div className={s.row}><Dot tone="attention" /><span>Motors counted, attested</span><N className={s.hi}>{formatInt(d.receivedQty)} of {formatInt(d.orderedQty)}</N></div>
             <div className={s.row}><Dot tone="attention" /><span>Packing slip quantity</span><N className={s.hi}>{formatInt(d.receivedQty)}</N></div>
             <div className={s.row}><Dot tone="success" /><span>Spot fitment check</span><N className={s.hi}>12 of 12 pass</N></div>
             <div className={s.row}><Dot tone="success" /><span>Commercial invoice</span><N className={s.hi}>{formatUsd(st.escrow?.lockedCents ?? PO.revisedTotalCents)}</N></div>

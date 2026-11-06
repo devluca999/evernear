@@ -3,6 +3,9 @@ import { SCENARIOS } from "../scenes";
 import { stateAt } from "../runner";
 import { EXPLAINERS, highlightFor, stepKind, type ExplainerId } from "../explain";
 import { closeWallet, createEscrow, release, reclaimHeld } from "../../engine/escrow";
+import { formatInt, formatUsdShort } from "../../engine/money";
+import { amounts } from "../scenes";
+import { PO } from "../../seed/astro";
 
 const happy = SCENARIOS.happy;
 const moments = happy.timeline.filter((b) => b.ev.type === "explain" && b.ev.id);
@@ -23,7 +26,7 @@ describe("the five explainer moments", () => {
     expect(before(0)).toBe("map.search");
     expect(before(2)).toBe("money.escrow");
     expect(before(3)).toBe("dock.count");
-    expect(before(4)).toBe("money.payout");
+    expect(before(4)).toBe("money.protected");
   });
   it("open the drawer on a proof the story already has, and say it in three lines of under 25 words", () => {
     for (const b of moments) {
@@ -38,9 +41,13 @@ describe("the five explainer moments", () => {
   });
   it("take their figures from the engine", () => {
     const at = (id: ExplainerId) => stateAt(moments.find((b) => (b.ev as { id: string }).id === id)!.atMs, happy.timeline);
-    expect(EXPLAINERS.wallet.happened(at("wallet"))).toBe("A wallet was created for PO 1042 only, and $38,000 moved into it.");
-    expect(EXPLAINERS.signed.happened(at("signed"))).toContain("1,800 of 2,000, release $34,200");
-    expect(EXPLAINERS.payout.happened(at("payout"))).toContain("$3,800 waits for the last 200 motors");
+    const a = amounts(PO.revisedUnitCents);
+    expect(EXPLAINERS.wallet.happened(at("wallet"))).toBe(`A wallet was created for PO 1042 only, and ${formatUsdShort(a.lockedCents)} moved into it.`);
+    expect(EXPLAINERS.signed.happened(at("signed"))).toContain(`${formatInt(PO.receivedQty)} of ${formatInt(PO.quantity)}, balance ${formatUsdShort(a.balanceCents)}`);
+    expect(EXPLAINERS.payout.happened(at("payout"))).toContain(`${formatUsdShort(a.holdCents)} waits for the last ${PO.quantity - PO.receivedQty} motors`);
+    // The story's own numbers, as Luca set them.
+    expect(EXPLAINERS.signed.happened(at("signed"))).toContain("44 of 50, balance $36,540");
+    expect(EXPLAINERS.payout.happened(at("payout"))).toContain("$7,560 waits for the last 6 motors");
   });
   it("end when the chapter ends", () => {
     for (const b of moments) {
@@ -71,7 +78,7 @@ describe("the order wallet's lifecycle", () => {
     expect(e1.lifecycle).toBe("funded");
     const r = release(e1, { to: "haoyun", amountCents: 3_420_000, nowMs: 1 });
     if (!r.ok) throw new Error(r.reason);
-    expect(r.escrow.lifecycle).toBe("partly_released");
+    expect(r.escrow.lifecycle).toBe("advance_released");
     const back = reclaimHeld(r.escrow, { to: "astro", nowMs: 2 });
     if (!back.ok) throw new Error(back.reason);
     expect(back.escrow.lifecycle).toBe("settled");

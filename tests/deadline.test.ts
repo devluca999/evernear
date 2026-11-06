@@ -8,6 +8,7 @@ import { API_KEY, testOwner } from "./near/agentFixtures";
 import { EscrowAdapter } from "@/convex/near/escrow";
 import { BASE_USDC, grantToken } from "@/convex/near/agentapi";
 import { cents } from "@/engine/money";
+import type { Id } from "@/convex/_generated/dataModel";
 
 const modules = import.meta.glob("../convex/**/*.ts");
 const HAOYUN = "0x2003975a521c6fa45238dbc402c9e4adcb8863e0";
@@ -32,21 +33,25 @@ async function world(tp = fakeTidepool()) {
 const transfers = (tp: ReturnType<typeof fakeTidepool>) => tp.sent.filter((s) => s.method === "POST" && s.path.endsWith("/transfer")).map((s) => s.body);
 
 async function lockPo(t: ReturnType<typeof convexTest>, po = "1042") {
-  const r = await t.action(internal.near.deadline.lock, { po, supplier: HAOYUN, cents: cents(38000), deadlineMs: T0 + DAY });
+  const r = await t.action(internal.near.deadline.lock, { po, supplier: HAOYUN, cents: cents(63000), orderedQty: 50, deadlineMs: T0 + DAY });
   expect(r.status).toBe("success");
   return r.escrowId!;
 }
+
+/** The advance, then the balance for the 44 counted at the dock. */
+const advance = (t: ReturnType<typeof convexTest>, escrowId: Id<"escrows">) => t.action(internal.near.deadline.releaseStage, { escrowId, stage: "advance", to: HAOYUN });
+const balance = (t: ReturnType<typeof convexTest>, escrowId: Id<"escrows">, dockCount = 44) => t.action(internal.near.deadline.releaseStage, { escrowId, stage: "balance", to: HAOYUN, dockCount });
 
 beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(T0); });
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); for (const k of ENV) delete process.env[k]; });
 
 describe("commit and deadline refund on the Agent API", () => {
-  it("commits $38.00 (1:1,000 of $38,000) into a PO account and stores no token", async () => {
+  it("commits $63.00 (1:1,000 of $63,000) into a PO account and stores no token", async () => {
     const { t, tp, treasuryAccount } = await world();
     const escrowId = await lockPo(t);
     const e = (await t.run((ctx) => ctx.db.get(escrowId)))!;
-    expect(e).toMatchObject({ po: "1042", supplier: HAOYUN, owner: treasuryAccount, lockedCents: cents(38000), scale: 1000, closed: false, lifecycle: "funded" });
-    expect(tp.agents.get(e.agentId)!.balances[BASE_USDC]).toBe(38_000_000n);
+    expect(e).toMatchObject({ po: "1042", supplier: HAOYUN, owner: treasuryAccount, lockedCents: cents(63000), orderedQty: 50, scale: 1000, closed: false, lifecycle: "funded", releasePath: "server" });
+    expect(tp.agents.get(e.agentId)!.balances[BASE_USDC]).toBe(63_000_000n);
     const dump = JSON.stringify(await t.run(async (ctx) => [await ctx.db.query("escrows").collect(), await ctx.db.query("proofs").collect()]));
     expect(dump).not.toContain(API_KEY);
     expect(dump).not.toContain(grantToken(API_KEY, `pool:${e.agentId}`));
@@ -57,8 +62,8 @@ describe("commit and deadline refund on the Agent API", () => {
     const { t, tp, treasuryAccount } = await world();
     const escrowId = await lockPo(t);
     await t.finishAllScheduledFunctions(vi.runAllTimers);
-    expect(transfers(tp).at(-1)).toEqual({ asset: BASE_USDC, amount: "38000000", recipient: treasuryAccount });
-    expect(await t.run((ctx) => ctx.db.get(escrowId))).toMatchObject({ closed: true, lifecycle: "closed", reclaimedCents: cents(38000), releasedCents: 0, outcome: "refunded" });
+    expect(transfers(tp).at(-1)).toEqual({ asset: BASE_USDC, amount: "63000000", recipient: treasuryAccount });
+    expect(await t.run((ctx) => ctx.db.get(escrowId))).toMatchObject({ closed: true, lifecycle: "closed", reclaimedCents: cents(63000), releasedCents: 0, outcome: "refunded" });
     const proofs = await t.query(api.proofs.latest, {});
     expect(proofs.find((p) => p.kind === "refund")).toMatchObject({ network: "testnet", synthetic: false, codePath: "convex/near/escrow.ts#refund" });
   });
@@ -72,22 +77,49 @@ describe("commit and deadline refund on the Agent API", () => {
     expect(tp.sent.length).toBe(n);
   });
 
-  it("refunds the unreclaimed held part to Astro at the deadline after a partial release", async () => {
+  it("pays the advance and the balance, then refunds the $7,560 held for the 6 missing to Astro at the deadline", async () => {
     const { t, tp, treasuryAccount } = await world();
     const escrowId = await lockPo(t);
-    vi.advanceTimersByTime(DAY / 2);
-    expect(await t.action(internal.near.deadline.release, { escrowId, to: HAOYUN, cents: cents(34200) })).toEqual({ ok: true, walletClosed: false });
-    expect((await t.run((ctx) => ctx.db.get(escrowId)))!.lifecycle).toBe("partly_released");
-    expect(tp.payouts).toEqual([expect.objectContaining({ chain: "base", recipient: HAOYUN, amount: 34_200_000n })]);
+    vi.advanceTimersByTime(DAY / 4);
+    expect(await advance(t, escrowId)).toEqual({ ok: true, walletClosed: false, amountCents: cents(18900), releasePath: "server" });
+    expect((await t.run((ctx) => ctx.db.get(escrowId)))!.lifecycle).toBe("advance_released");
+    vi.advanceTimersByTime(DAY / 4);
+    expect(await balance(t, escrowId)).toEqual({ ok: true, walletClosed: false, amountCents: cents(36540), releasePath: "server" });
+    expect((await t.run((ctx) => ctx.db.get(escrowId)))!.lifecycle).toBe("balance_released");
+    expect(tp.payouts.map((p) => [p.chain, p.recipient, p.amount])).toEqual([["base", HAOYUN, 18_900_000n], ["base", HAOYUN, 36_540_000n]]);
     await t.finishAllScheduledFunctions(vi.runAllTimers);
-    expect(transfers(tp).at(-1)).toEqual({ asset: BASE_USDC, amount: "3800000", recipient: treasuryAccount });
-    expect(await t.run((ctx) => ctx.db.get(escrowId))).toMatchObject({ releasedCents: cents(34200), reclaimedCents: cents(3800), closed: true, lifecycle: "closed", outcome: "refunded" });
+    expect(transfers(tp).at(-1)).toEqual({ asset: BASE_USDC, amount: "7560000", recipient: treasuryAccount });
+    expect(await t.run((ctx) => ctx.db.get(escrowId))).toMatchObject({ releasedCents: cents(55440), reclaimedCents: cents(7560), closed: true, lifecycle: "closed", outcome: "refunded" });
   });
 
-  it("cancels the refund and closes the wallet once the whole amount was released", async () => {
+  it("refuses a stage whose signal is missing before any call, and records the refusal with its name", async () => {
     const { t, tp } = await world();
     const escrowId = await lockPo(t);
-    expect(await t.action(internal.near.deadline.release, { escrowId, to: HAOYUN, cents: cents(38000) })).toEqual({ ok: true, walletClosed: true });
+    await advance(t, escrowId);
+    const n = tp.sent.length;
+    // No dock count yet: the balance waits for it.
+    expect(await t.action(internal.near.deadline.releaseStage, { escrowId, stage: "balance", to: HAOYUN })).toMatchObject({ ok: false, reason: "missing_signal", missing: ["dock_count"] });
+    expect(tp.sent.length).toBe(n);
+    expect(tp.payouts).toHaveLength(1);
+    const refusal = (await t.query(api.proofs.latest, {})).find((p) => p.kind === "refusal");
+    expect(refusal).toMatchObject({ label: "Balance refused before any call: missing dock_count", response: { missing: ["dock_count"] } });
+  });
+
+  it("records the simulated feed's signals as proofs, labelled so", async () => {
+    const { t } = await world();
+    const escrowId = await lockPo(t);
+    await advance(t, escrowId);
+    await balance(t, escrowId);
+    const signals = (await t.query(api.proofs.latest, { limit: 50 })).filter((p) => p.kind === "signal").map((p) => p.response.event).sort();
+    expect(signals).toEqual(["bill_of_lading", "dock_count", "export_cleared", "import_cleared"]);
+    expect((await t.query(api.proofs.latest, { limit: 50 })).filter((p) => p.kind === "signal").every((p) => p.label.endsWith("(simulated feed)"))).toBe(true);
+  });
+
+  it("cancels the refund and closes the wallet once the whole order arrived and was paid", async () => {
+    const { t, tp } = await world();
+    const escrowId = await lockPo(t);
+    await advance(t, escrowId);
+    expect(await balance(t, escrowId, 50)).toEqual({ ok: true, walletClosed: true, amountCents: cents(44100), releasePath: "server" });
     await t.finishAllScheduledFunctions(vi.runAllTimers);
     const e = (await t.run((ctx) => ctx.db.get(escrowId)))!;
     expect(e).toMatchObject({ closed: true, lifecycle: "closed", outcome: "released" });
@@ -99,20 +131,21 @@ describe("commit and deadline refund on the Agent API", () => {
     expect(tp.sent.length).toBe(n);
   });
 
-  it("reclaims the held part, which closes the escrow", async () => {
+  it("reclaims the held $7,560, which closes the escrow", async () => {
     const { t, tp, treasuryAccount } = await world();
     const escrowId = await lockPo(t);
-    await t.action(internal.near.deadline.release, { escrowId, to: HAOYUN, cents: cents(34200) });
+    await advance(t, escrowId);
+    await balance(t, escrowId);
     expect(await t.action(internal.near.deadline.reclaim, { escrowId })).toEqual({ ok: true, walletClosed: true });
-    expect(transfers(tp).at(-1)).toEqual({ asset: BASE_USDC, amount: "3800000", recipient: treasuryAccount });
+    expect(transfers(tp).at(-1)).toEqual({ asset: BASE_USDC, amount: "7560000", recipient: treasuryAccount });
     expect(await t.run((ctx) => ctx.db.get(escrowId))).toMatchObject({ closed: true, lifecycle: "closed", outcome: "reclaimed" });
   });
 
   it("refuses a wrong address twice: in code, and live in the PO account's policy", async () => {
     const { t, tp } = await world();
     const escrowId = await lockPo(t);
-    expect(await t.action(internal.near.deadline.release, { escrowId, to: "0x000000000000000000000000000000000000dEaD", cents: cents(34200) })).toEqual({ ok: false, reason: "address_not_allowed" });
-    expect(await t.action(internal.near.deadline.policyRefusal, { escrowId, to: "0x000000000000000000000000000000000000dEaD", cents: cents(34200) })).toEqual({ refused: true, code: "policy_destination_denied" });
+    expect(await t.action(internal.near.deadline.releaseStage, { escrowId, stage: "advance", to: "0x000000000000000000000000000000000000dEaD" })).toMatchObject({ ok: false, reason: "address_not_allowed" });
+    expect(await t.action(internal.near.deadline.policyRefusal, { escrowId, to: "0x000000000000000000000000000000000000dEaD", cents: cents(36540) })).toEqual({ refused: true, code: "policy_destination_denied" });
     expect(tp.payouts).toEqual([]);
     const refusals = (await t.query(api.proofs.latest, {})).filter((p) => p.kind === "refusal");
     expect(refusals.map((p) => p.codePath).sort()).toEqual(["convex/near/escrow.ts#policyRefusal", "convex/near/escrow.ts#release"]);
@@ -121,7 +154,8 @@ describe("commit and deadline refund on the Agent API", () => {
   it("gives each order its own account: a closed order's account is never handed to a later one", async () => {
     const { t, tp } = await world();
     const first = await lockPo(t, "1042");
-    await t.action(internal.near.deadline.release, { escrowId: first, to: HAOYUN, cents: cents(38000) });
+    await advance(t, first);
+    await balance(t, first, 50);
     const agents = tp.agents.size;
     const second = await lockPo(t, "1043");
     const [a, b] = await t.run(async (ctx) => [await ctx.db.get(first), await ctx.db.get(second)]);
@@ -146,20 +180,22 @@ describe("commit and deadline refund on the Agent API", () => {
     await lockPo(t, "1042");
     await lockPo(t, "1043");
     const n = tp.agents.size;
-    expect(await t.action(internal.near.deadline.lock, { po: "1099", supplier: HAOYUN, cents: cents(100), deadlineMs: T0 + DAY })).toEqual({ status: "refused", reason: "accounts_full" });
+    expect(await t.action(internal.near.deadline.lock, { po: "1099", supplier: HAOYUN, cents: cents(100), orderedQty: 1, deadlineMs: T0 + DAY })).toEqual({ status: "refused", reason: "accounts_full" });
     expect(tp.agents.size).toBe(n);
     const refusal = (await t.query(api.proofs.latest, {})).find((p) => p.codePath === "convex/near/escrow.ts#open" && p.kind === "refusal");
     expect(refusal).toMatchObject({ scene: 6, label: "This key has used all 3 order wallets; a new Tidepool key is needed", response: { reason: "accounts_full", limit: 3, used: 3 } });
     expect(await t.run((ctx) => ctx.db.query("escrows").collect())).toHaveLength(2);
   });
 
-  it("records the Wallet closed proof once settled, and walks the lifecycle funded, partly released, closed", async () => {
+  it("records the Wallet closed proof once settled, and walks the lifecycle funded, advance released, balance released, closed", async () => {
     const { t, tp } = await world();
     const escrowId = await lockPo(t);
     const life = async () => (await t.run((ctx) => ctx.db.get(escrowId)))!.lifecycle;
     expect(await life()).toBe("funded");
-    await t.action(internal.near.deadline.release, { escrowId, to: HAOYUN, cents: cents(34200) });
-    expect(await life()).toBe("partly_released");
+    await advance(t, escrowId);
+    expect(await life()).toBe("advance_released");
+    await balance(t, escrowId);
+    expect(await life()).toBe("balance_released");
     await t.action(internal.near.deadline.reclaim, { escrowId });
     expect(await life()).toBe("closed");
     const proofs = await t.query(api.proofs.latest, {});
@@ -169,13 +205,15 @@ describe("commit and deadline refund on the Agent API", () => {
     expect(tp.agents.get(e.agentId)!.grants).toEqual([]);
   });
 
-  it("a closed escrow refuses release, reclaim, refund, the off-list probe and the kill switch, with no API call", async () => {
+  it("a closed escrow refuses both stages, reclaim, refund, the off-list probe and the kill switch, with no API call", async () => {
     const { t, tp } = await world();
     const escrowId = await lockPo(t);
-    await t.action(internal.near.deadline.release, { escrowId, to: HAOYUN, cents: cents(38000) });
+    await advance(t, escrowId);
+    await balance(t, escrowId, 50);
     const n = tp.sent.length;
     vi.advanceTimersByTime(2 * DAY);
-    expect(await t.action(internal.near.deadline.release, { escrowId, to: HAOYUN, cents: cents(1) })).toEqual({ ok: false, reason: "closed" });
+    expect(await advance(t, escrowId)).toMatchObject({ ok: false, reason: "closed" });
+    expect(await balance(t, escrowId)).toMatchObject({ ok: false, reason: "closed" });
     expect(await t.action(internal.near.deadline.reclaim, { escrowId })).toEqual({ ok: false, reason: "closed" });
     expect(await t.action(internal.near.deadline.refundAtDeadline, { escrowId })).toEqual({ ok: false, reason: "closed" });
     expect(await t.action(internal.near.deadline.policyRefusal, { escrowId, to: HAOYUN, cents: cents(1) })).toEqual({ refused: false, code: "closed" });
@@ -189,7 +227,8 @@ describe("commit and deadline refund on the Agent API", () => {
     const escrowId = await lockPo(t);
     const realFetch = tp.fetch;
     vi.stubGlobal("fetch", (u: string, i?: RequestInit) => (i?.body && String(i.body).includes("agent_freeze") ? Promise.reject(new Error("network down")) : realFetch(u, i)));
-    const r = await t.action(internal.near.deadline.release, { escrowId, to: HAOYUN, cents: cents(38000) });
+    await advance(t, escrowId);
+    const r = await balance(t, escrowId, 50);
     expect(r).toMatchObject({ ok: true, walletClosed: false, reason: expect.stringContaining("close_failed") });
     expect((await t.run((ctx) => ctx.db.get(escrowId)))!).toMatchObject({ closed: true, lifecycle: "settled" });
     vi.stubGlobal("fetch", realFetch);
@@ -207,7 +246,7 @@ describe("commit and deadline refund on the Agent API", () => {
     await t.finishAllScheduledFunctions(vi.runAllTimers);
     const e = (await t.run((ctx) => ctx.db.get(escrowId)))!;
     expect(e.closed).toBe(false);
-    expect(tp.agents.get(e.agentId)!.balances[BASE_USDC]).toBe(38_000_000n);
+    expect(tp.agents.get(e.agentId)!.balances[BASE_USDC]).toBe(63_000_000n);
     expect((await t.query(api.proofs.latest, {})).find((p) => p.kind === "refusal")).toMatchObject({ response: { code: "wallet_frozen" } });
   });
 

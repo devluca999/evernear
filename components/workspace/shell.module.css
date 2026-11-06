@@ -378,7 +378,10 @@ button.chip:hover { color: var(--text-primary); border-color: var(--line-focus);
 @container (max-width: 520px) { .mapShip { grid-template-columns: 1fr; } }
 
 /* Negotiation: offers side by side, Haoyun's thread in full. */
-.threads { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr) minmax(0, 1fr); gap: 12px; padding: 14px; }
+.threadsWrap { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 12px; padding: 14px; }
+.threads { min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+.compare { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--bg-raised); min-height: 0; overflow: auto; }
+.compareGrid { display: grid; grid-template-columns: auto 1fr 1fr; gap: 6px 10px; font-size: 12.5px; align-items: baseline; }
 .thread { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border: 1px solid var(--line-hairline); border-radius: 10px; background: var(--bg-sunken); min-height: 0; overflow: auto; }
 .thread[data-main="true"] { background: var(--bg-raised); border-color: var(--line-strong); }
 .threadMail { display: flex; flex-direction: column; gap: 4px; padding-top: 8px; border-top: 1px solid var(--line-hairline); }
@@ -470,3 +473,13 @@ button.chip:hover { color: var(--text-primary); border-color: var(--line-focus);
 .lifeStep[data-state="current"] { color: var(--text-primary); font-weight: 600; }
 .lifeStep[data-state="current"] i { background: var(--state-active); }
 .lifeNote { font-size: 11px; font-weight: 400; color: var(--text-faint); line-height: 1.3; }
+.lifeCheck { font-size: 11px; font-weight: 400; color: var(--text-faint); line-height: 1.3; padding-left: 14px; position: relative; }
+.lifeCheck::before { content: ""; position: absolute; left: 0; top: 3px; width: 8px; height: 5px; border-left: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(-45deg); }
+.lifeCheck[data-on="true"] { color: var(--text-secondary); }
+.lifeCheck[data-on="true"]::before { color: var(--state-success); }
+
+/* Money: what the two-stage escrow protected, against the usual ways to pay. */
+.protect { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--bg-sunken); }
+.protectGrid { display: grid; grid-template-columns: 1.1fr 1fr 1fr 1.15fr; gap: 6px 12px; font-size: 12.5px; align-items: baseline; }
+.protectGrid > span { min-width: 0; }
+.protectWin { color: var(--text-primary); font-weight: 500; }

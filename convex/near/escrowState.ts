@@ -6,7 +6,7 @@ import { internalMutation, internalQuery } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { v } from "convex/values";
 import { TESTNET_SCALE } from "../../engine/money";
-import { lifecycle } from "../schema";
+import { lifecycle, releasePath } from "../schema";
 
 export const get = internalQuery({
   args: { escrowId: v.id("escrows") },
@@ -18,6 +18,7 @@ export const locked = internalMutation({
   args: {
     restockId: v.optional(v.id("restocks")), po: v.string(), ref: v.string(), supplier: v.string(), owner: v.string(),
     lockedCents: v.number(), deadlineMs: v.number(), escrowAccount: v.string(), agentId: v.string(), grantHash: v.string(), grantId: v.optional(v.string()),
+    orderedQty: v.optional(v.number()), releasePath: v.optional(releasePath), gatePublicKey: v.optional(v.string()),
   },
   handler: async (ctx, a) => {
     const escrowId = await ctx.db.insert("escrows", { ...a, scale: TESTNET_SCALE, releasedCents: 0, reclaimedCents: 0, closed: false, lifecycle: "funded" });

@@ -70,7 +70,8 @@ export const grantHash = (token: string) => hex(sha256(utf8(token)));
 export interface ExecDetails { agent_id?: string; tx_hash?: string | null; destination_tx_hash?: string | null; destination_tx_url?: string | null; transaction_hash?: string | null; intent_hash?: string | null; [k: string]: unknown }
 export interface Exec { correlation_id: string; status: string; failure_code: string | null; details?: ExecDetails }
 export type ActResult = { ok: true; exec: Exec } | { ok: false; code: string; layer?: string; status: number };
-export interface ProofMeta { kind: string; label: string; codePath: string }
+/** `note` is merged into the proof row's response, e.g. which path sent a release. */
+export interface ProofMeta { kind: string; label: string; codePath: string; note?: Record<string, unknown> }
 
 const TERMINAL = new Set(["SUCCESS", "FAILED", "REFUNDED", "UNCERTAIN", "NEEDS_REVIEW"]);
 
@@ -97,7 +98,16 @@ export class AgentApiClient {
     const d = exec?.details ?? {};
     const hash = d.destination_tx_hash ?? d.tx_hash ?? d.transaction_hash ?? d.intent_hash ?? exec?.correlation_id ?? "none";
     const explorerUrl = d.destination_tx_url ?? (d.tx_hash ? TESTNET_EXPLORER + d.tx_hash : undefined);
-    await this.o.sink({ kind: m.kind, label: m.label, call, codePath: m.codePath, network: this.network, hash, explorerUrl, response: redact(response), replay: false, synthetic: false });
+    const r = m.note && response && typeof response === "object" ? { ...m.note, ...(response as Record<string, unknown>) } : response;
+    await this.o.sink({ kind: m.kind, label: m.label, call, codePath: m.codePath, network: this.network, hash, explorerUrl, response: redact(r), replay: false, synthetic: false });
+  }
+
+  /** Waits for an action accepted elsewhere (the release gate's withdraw) to settle, and records it like `act` does. */
+  async settled(correlationId: string, call: string, m: ProofMeta, request: unknown): Promise<ActResult> {
+    const exec = await this.settle(correlationId);
+    await this.proof(exec.status === "SUCCESS" ? m : { ...m, kind: "failed", label: `${m.label}: ${exec.status}` }, call, exec, { request, status: exec.status, failure_code: exec.failure_code, details: exec.details });
+    if (exec.status !== "SUCCESS") return { ok: false, code: exec.failure_code ?? exec.status, layer: "execution", status: 202 };
+    return { ok: true, exec };
   }
 
   /** An owner intent: generate, sign with Astro's owner key, submit, wait. Throws unless it succeeds. */
@@ -122,7 +132,7 @@ export class AgentApiClient {
       accepted = (await (api[kind] as (a: string, b: unknown, o: unknown) => Promise<unknown>).call(api, agentId, body, { idempotencyKey })) as Exec;
     } catch (e) {
       if (!(e instanceof AgentApiError)) throw e;
-      await this.o.sink({ kind: "refusal", label: `${m.label}: refused`, call, codePath: m.codePath, network: this.network, hash: "none", response: { request: body, status: e.status, code: e.code, layer: e.layer }, replay: false, synthetic: false });
+      await this.o.sink({ kind: "refusal", label: `${m.label}: refused`, call, codePath: m.codePath, network: this.network, hash: "none", response: { ...m.note, request: body, status: e.status, code: e.code, layer: e.layer }, replay: false, synthetic: false });
       return { ok: false, code: e.code ?? "error", layer: e.layer, status: e.status };
     }
     const exec = TERMINAL.has(accepted.status) ? accepted : await this.settle(accepted.correlation_id);

@@ -8,7 +8,7 @@ const gate = (id: string) => gates.find((g) => g.gate!.id === id)!;
 
 describe("gates", () => {
   it("waits at every human moment, in story order, with the approvals after the negotiation", () => {
-    expect(gates.map((g) => g.gate!.id)).toEqual(["start_sourcing", "price_limit", "approve_luca", "approve_jordy", "packing_slip", "approve_release"]);
+    expect(gates.map((g) => g.gate!.id)).toEqual(["start_sourcing", "pick_supplier", "approve_luca", "approve_jordy", "packing_slip"]);
   });
   it("stops the clock 1 ms before a gate and asks", () => {
     const g = gates[0];
@@ -37,11 +37,11 @@ describe("gates", () => {
 });
 
 describe("live holds", () => {
-  it("names the four money steps in story order", async () => {
+  it("names the five money steps in story order", async () => {
     const { liveStepOf } = await import("../gates");
     const { suppliers } = await import("@/seed/astro");
     const addr = suppliers.find((x) => x.id === "haoyun")!.receiveAddress;
-    expect(timeline.map((b) => liveStepOf(b, addr)).filter(Boolean)).toEqual(["commit", "refuse", "pay", "reclaim"]);
+    expect(timeline.map((b) => liveStepOf(b, addr)).filter(Boolean)).toEqual(["commit", "advance", "pay", "refuse", "reclaim"]);
   });
   it("holds the clock before a live step until it is done, then lets it pass", async () => {
     const { stepClockWith, heldAt, liveStepOf } = await import("../gates");
@@ -65,13 +65,18 @@ describe("present mode stops", () => {
     expect(stops.length).toBeGreaterThan(25);
     expect(stops.map(say)).toEqual(expect.arrayContaining([
       "Switch to the 10MA", "Highlight the actuator motor", "Search for a replacement motor", "Check every match against the 10MA BOM",
-      "Lay the offers side by side", "Deliver Haoyun's reply", "Up to 3%", "Send PO 1042 for approval", "YES, approve as Luca", "YES, approve as Jordy",
-      "Commit the PO total", "Explain what just happened", "Ship to Chicago", "Count the delivery at the dock", "YES, release $34,200",
-      "Try a payment to a wrong address", "Pay Haoyun for what arrived", "At the deadline, return the rest to Astro",
+      "Lay the offers side by side", "Deliver Haoyun's reply", "Choose Haoyun", "Send PO 1042 for approval", "YES, approve as Luca", "YES, approve as Jordy",
+      "Commit the PO total", "Explain what just happened", "Ship from Shenzhen", "Release the advance as the motors leave", "Send packing slip photo",
+      "Count the delivery at the dock", "Pay Haoyun the balance for what arrived", "Try a payment to a wrong address", "Show what this protected",
+      "At the deadline, return the rest to Astro",
     ]));
     // The negotiation comes before the approvals.
     const said = stops.map(say);
-    expect(said.indexOf("Up to 3%")).toBeLessThan(said.indexOf("YES, approve as Luca"));
+    expect(said.indexOf("Choose Haoyun")).toBeLessThan(said.indexOf("YES, approve as Luca"));
+    // The advance goes before the dock count, the balance after it; no YES releases money.
+    expect(said.indexOf("Release the advance as the motors leave")).toBeLessThan(said.indexOf("Count the delivery at the dock"));
+    expect(said.indexOf("Count the delivery at the dock")).toBeLessThan(said.indexOf("Pay Haoyun the balance for what arrived"));
+    expect(said.some((x) => x.startsWith("YES, release"))).toBe(false);
     // Only the first fitment check stops (it carries the "Pins resolve" focus); the rest animate.
     const fits = timeline.filter((b) => b.ev.type === "fitment");
     expect(fits.filter(isStop)).toEqual([fits[0]]);

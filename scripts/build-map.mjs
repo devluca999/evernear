@@ -16,10 +16,10 @@ const borders = mesh(world, world.objects.countries, (a, b) => a !== b);
 // [lon, lat]
 const PLACES = {
   Stuttgart: [9.18, 48.78], Osaka: [135.5, 34.69], Shenzhen: [114.27, 22.57], Dongguan: [113.75, 23.02], Chicago: [-87.63, 41.88],
-  Rockford: [-89.09, 42.27],
+  Rockford: [-89.09, 42.27], Busan: [129.04, 35.18],
 };
 // Each supplier's headquarters. The lane to Chicago is a great circle (air), or a road for Ultra Motion.
-const SUPPLIER_PLACE = { ultra: "Rockford", haoyun: "Shenzhen", kansai: "Osaka", rheinwerk: "Stuttgart", huaxin: "Dongguan" };
+const SUPPLIER_PLACE = { ultra: "Rockford", haoyun: "Shenzhen", quickship: "Busan", kansai: "Osaka", rheinwerk: "Stuttgart", huaxin: "Dongguan" };
 // Air freight: Haoyun's dock to Shenzhen Bao'an (SZX) by truck, SZX to O'Hare (ORD) by air, ORD to Astro's dock by truck.
 const SZX = [113.81, 22.64], ORD = [-87.9, 41.98];
 

@@ -3,7 +3,11 @@ import { describe, expect, it, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent, within } from "@testing-library/react";
 import { Workspace } from "../workspace/Workspace";
 import { sceneStartMs } from "@/scenario/runner";
-import { scenes, timeline } from "@/scenario/scenes";
+import { amounts, scenes, timeline } from "@/scenario/scenes";
+import { PO } from "@/seed/astro";
+import { formatUsdShort } from "@/engine/money";
+
+const a = amounts(PO.revisedUnitCents);
 
 afterEach(cleanup);
 const at = (ms: number) => render(<Workspace initialMs={ms} autoplay={false} />);
@@ -14,8 +18,8 @@ describe("V2 design rules", () => {
     const list = screen.getByRole("list", { name: "Chapters" });
     const buttons = within(list).getAllByRole("button");
     expect(buttons).toHaveLength(8);
-    fireEvent.click(within(list).getByRole("button", { name: /Day 9 · Chicago dock$/ }));
-    expect(within(screen.getByRole("complementary", { name: "Demo mode" })).getByRole("heading", { name: "Day 9 · Chicago dock" })).toBeTruthy();
+    fireEvent.click(within(list).getByRole("button", { name: /Shenzhen to the Chicago dock$/ }));
+    expect(within(screen.getByRole("complementary", { name: "Demo mode" })).getByRole("heading", { name: "Shenzhen to the Chicago dock" })).toBeTruthy();
     expect(buttons.slice(0, 6).every((x) => x.querySelector(".es-dot-success"))).toBe(true);
     expect(buttons[6].querySelector(".es-dot-active.es-dot-pulse")).toBeTruthy();
     expect(buttons[7].querySelector(".es-dot")!.className).toBe("es-dot");
@@ -43,14 +47,14 @@ describe("V2 design rules", () => {
     at(lock + 1000);
     const money = () => screen.getByRole("region", { name: "Money" });
     expect(within(money()).getByRole("status").textContent).toBe("Committed3 Nov 15:04");
-    expect(within(money()).getByText(/^Testnet at 1:/).textContent).toBe("Testnet at 1:1,000: $38.00 moves for real. A commitment, not a lock: Tidepool enforces the rules, and Astro can change them.");
+    expect(within(money()).getByText(/^Testnet at 1:/).textContent).toBe("Testnet at 1:1,000: $63.00 moves for real. A commitment, not a lock: Tidepool enforces the rules, and Astro can change them.");
     cleanup();
     at(sceneStartMs(7) + 4000);
     expect(within(money()).getByRole("status").textContent).toBe("Paid11 Nov 08:42");
-    expect(within(money()).getByText(/^Paid to Haoyun Precision/).textContent).toBe("Paid to Haoyun Precision on its own chain. $3,800 held until the deadline.");
+    expect(within(money()).getByText(/^Paid to Haoyun Precision/).textContent).toBe(`Paid to Haoyun Precision on its own chain: ${formatUsdShort(a.advanceCents)} on departure, ${formatUsdShort(a.balanceCents)} for what arrived. ${formatUsdShort(a.holdCents)} held until the deadline.`);
     cleanup();
-    at(sceneStartMs(7) + 11000);
-    expect(within(money()).getByText(/^Paid to Haoyun Precision/).textContent).toBe("Paid to Haoyun Precision on its own chain. $3,800 went back to Astro at the deadline.");
+    at(timeline.find((b) => b.ev.type === "reclaim")!.atMs + 300);
+    expect(within(money()).getByText(/^Paid to Haoyun Precision/).textContent).toBe(`Paid to Haoyun Precision on its own chain: ${formatUsdShort(a.advanceCents)} on departure, ${formatUsdShort(a.balanceCents)} for what arrived. ${formatUsdShort(a.holdCents)} went back to Astro at the deadline.`);
   });
   it("states exactly what YES does on the approval card", () => {
     const card1 = timeline.find((b) => b.ev.type === "message" && b.ev.message.card === "approval")!.atMs;
@@ -58,7 +62,7 @@ describe("V2 design rules", () => {
     const card = within(screen.getByRole("group", { name: "Approval card" }));
     expect(card.getByText("YES signs approval 1 of 2. No money moves until both have signed.")).toBeTruthy();
     expect(card.getByText("1042 · Haoyun Precision")).toBeTruthy();
-    expect(card.getByText("2,000 AM17")).toBeTruthy();
-    expect(card.getByText("$38,000")).toBeTruthy();
+    expect(card.getByText("50 AM17")).toBeTruthy();
+    expect(card.getByText("$63,000")).toBeTruthy();
   });
 });

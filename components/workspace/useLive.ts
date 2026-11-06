@@ -1,6 +1,9 @@
 "use client";
-// Live mode: as the story reaches each money step (scenario/gates.ts liveStepOf), the clock holds
-// while convex/live.ts runs the real step on Tidepool testnet; the drawer then shows the real proof.
+// Live mode: as the story reaches each money step (scenario/gates.ts liveStepOf: commit, advance,
+// refuse, pay, reclaim), the clock holds while convex/live.ts runs the real step on Tidepool testnet;
+// the drawer then shows the real proof. `releasePath` says who sent the releases: "gate" (the
+// release gate in OutLayer's enclave) or "server" (Evernear's server, the gate not deployed). Every
+// release proof's label and response say the same.
 // Only available when NEXT_PUBLIC_CONVEX_URL is set; demo mode keeps the replay.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ConvexClient } from "convex/browser";
@@ -13,11 +16,17 @@ const URL = process.env.NEXT_PUBLIC_CONVEX_URL;
 
 interface LiveProofRow { _id: string; at: number; kind: string; label: string; call: string; codePath: string; network: Proof["network"]; hash: string; explorerUrl?: string; response: unknown; scene: number }
 
-/** Which scene proof a live call stands in for. */
-export function liveKeyOf(p: { codePath: string; kind: string }): string | null {
+export type ReleasePath = "gate" | "server";
+const SIGNAL_KEYS = new Set(["bill_of_lading", "export_cleared", "import_cleared"]);
+
+/** Which scene proof a live call stands in for. The advance and the balance are told apart by the stage in the response. */
+export function liveKeyOf(p: { codePath: string; kind: string; response?: unknown }): string | null {
+  const r = (p.response ?? {}) as { stage?: unknown; event?: unknown };
   if (p.codePath.endsWith("escrow.ts#lock") && p.kind === "escrow") return "escrow_wallet";
   if (p.codePath.endsWith("escrow.ts#policyRefusal") && p.kind === "refusal") return "refused_release";
-  if (p.codePath.endsWith("escrow.ts#release") && p.kind === "payout") return "intents_payout";
+  if (p.codePath.endsWith("escrow.ts#release") && p.kind === "payout") return r.stage === "advance" ? "advance_payout" : "intents_payout";
+  if (p.codePath.endsWith("escrow.ts#close") && p.kind === "wallet") return "wallet_closed";
+  if (p.codePath.endsWith("tracking.ts#signal") && p.kind === "signal" && typeof r.event === "string" && SIGNAL_KEYS.has(r.event)) return `signal_${r.event}`;
   return null;
 }
 
@@ -36,6 +45,7 @@ export function useLive() {
   const [proofs, setProofs] = useState<LiveProofRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState<LiveStep | null>(null);
+  const [releasePath, setReleasePath] = useState<ReleasePath | null>(null);
   const starting = useRef<Promise<Id<"liveRuns"> | null> | null>(null);
 
   useEffect(() => {
@@ -44,6 +54,7 @@ export function useLive() {
       if (!r) return;
       setDone(r.run.done as LiveStep[]);
       setProofs(r.proofs as unknown as LiveProofRow[]);
+      setReleasePath(r.releasePath);
       if (r.run.error) setError(r.run.error);
     });
   }, [client, runId]);
@@ -75,7 +86,7 @@ export function useLive() {
     }
   }, [client, pending, error, ensureRun]);
 
-  const reset = useCallback(() => { setRunId(null); setDone([]); setProofs([]); setError(null); setPending(null); starting.current = null; }, []);
+  const reset = useCallback(() => { setRunId(null); setDone([]); setProofs([]); setError(null); setPending(null); setReleasePath(null); starting.current = null; }, []);
 
   /** Live proofs keyed like the scene proofs. */
   const byKey = useMemo(() => {
@@ -87,5 +98,5 @@ export function useLive() {
     return out;
   }, [proofs]);
 
-  return { available: !!client, on: on && !!client, setOn: (v: boolean) => { setOn(v); reset(); }, done, pending, error, run, byKey, reset };
+  return { available: !!client, on: on && !!client, setOn: (v: boolean) => { setOn(v); reset(); }, done, pending, error, run, byKey, reset, releasePath };
 }

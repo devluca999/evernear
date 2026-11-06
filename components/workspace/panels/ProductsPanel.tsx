@@ -6,12 +6,12 @@ import { useEffect, useState } from "react";
 import type { WorkspaceState } from "@/scenario/types";
 import { bomFor, demand, MOTOR_PART, partStock, products, suppliers } from "@/seed/astro";
 import { formatInt } from "@/engine/money";
-import { matchKind, mismatchText } from "../format";
+import { matchKind, matchReason, mismatchText } from "../format";
 import { Badge, Dot, N, Panel } from "../Panel";
 import { ExplodedView, MotorCloseUp } from "../figures/ExplodedView";
 import s from "../shell.module.css";
 
-const ORDER = ["haoyun", "kansai", "rheinwerk", "huaxin"];
+const ORDER = ["haoyun", "quickship", "kansai", "rheinwerk", "huaxin"];
 const label = (k: string) => k.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase());
 
 export function ProductsPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }) {
@@ -55,9 +55,9 @@ export function ProductsPanel({ st, pulse }: { st: WorkspaceState; pulse: boolea
           <>
             <div className={s.field} style={{ gap: 4 }}>
               <p className={s.big} style={{ fontSize: 19, letterSpacing: "-0.012em" }}>
-                {winner && results.length === ORDER.length ? `${suppliers.find((x) => x.id === winner.supplierId)!.name} fits every spec` : "Checking alternatives against the BOM"}
+                {winner && results.length === ORDER.length ? `${results.filter((f) => f.pass).map((f) => suppliers.find((x) => x.id === f.supplierId)!.name.split(" ")[0]).join(" and ")} fit every spec, on time` : "Checking alternatives against the BOM"}
               </p>
-              <span className={s.sub} style={{ fontSize: 13 }}><N>{results.filter((f) => !f.pass).length}</N> of <N>{results.length}</N> alternatives fail on a spec or on policy</span>
+              <span className={s.sub} style={{ fontSize: 13 }}><N>{results.filter((f) => !f.pass).length}</N> of <N>{results.length}</N> alternatives fail on a spec, on policy or on the date</span>
             </div>
             <ul className={s.rows} aria-label="Fitment" style={{ listStyle: "none", margin: 0, padding: 0 }}>
               {results.map((f) => {
@@ -72,7 +72,8 @@ export function ProductsPanel({ st, pulse }: { st: WorkspaceState; pulse: boolea
                     </div>
                     {f.pass && <span className={s.note} style={{ paddingLeft: 16, fontSize: 12 }}><N>Shaft {specs.shaftDiameter}</N> · <N>{specs.mountingFlange}</N> · <N>{specs.encoderConnector}</N> · <N>{specs.voltage}</N></span>}
                     {f.mismatches.map((m) => <span key={m.line + m.spec} className={s.alertInk} style={{ paddingLeft: 16, fontSize: 12 }}>{mismatchText(m)}</span>)}
-                    {f.policyFailures.length > 0 && f.mismatches.length === 0 && (
+                    {matchKind(f) === "partial" && <span className={s.attnInk} style={{ paddingLeft: 16, fontSize: 12 }}>{matchReason(f, bomFor["10ma"].length)}</span>}
+                    {matchKind(f) === "fails" && f.policyFailures.length > 0 && f.mismatches.length === 0 && (
                       <span className={s.alertInk} style={{ paddingLeft: 16, fontSize: 12 }}>{[f.policyFailures.includes("not_approved") && "Not approved", f.policyFailures.includes("over_price_cap") && `${f.priceCapMultiple}x price cap`].filter(Boolean).join(", ")}</span>
                     )}
                   </li>

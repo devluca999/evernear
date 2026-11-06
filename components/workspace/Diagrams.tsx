@@ -41,7 +41,7 @@ function Enclave() {
       <text x={187} y={108} textAnchor="middle" className={s.dgLabel}>Enclave</text>
       <text x={187} y={140} textAnchor="middle" className={s.dgSub}>Nobody can see in</text>
       <Arrow d="M244 80 L268 80" tone="ok" />
-      <Box x={272} y={58} w={84} h={44} label="Answer" sub="1 fits" tone="ok" />
+      <Box x={272} y={58} w={84} h={44} label="Answer" sub="2 fit" tone="ok" />
     </svg>
   );
 }
@@ -99,22 +99,28 @@ function Signed() {
   );
 }
 
-const STATES: { id: Lifecycle; label: string }[] = [
-  { id: "created", label: "Created" }, { id: "funded", label: "Funded" }, { id: "partly_released", label: "Partly released" },
-  { id: "settled", label: "Settled" }, { id: "closed", label: "Closed" },
+const STATES: { id: Lifecycle; label: string; signals?: string[] }[] = [
+  { id: "created", label: "Created" }, { id: "funded", label: "Funded", signals: ["Two approvals"] },
+  { id: "advance_released", label: "Advance released", signals: ["Bill of lading", "Export cleared"] },
+  { id: "balance_released", label: "Balance released", signals: ["Import cleared", "Dock count"] },
+  { id: "closed", label: "Closed" },
 ];
+/** Settled (nothing left, not yet closed) shows as the balance done and Closed next. */
+const shown = (at: Lifecycle | null) => (at === "settled" ? "balance_released" : at);
 
 /** The order wallet's lifecycle: done states jade, the current one blue. */
 export function LifecycleStrip({ at, focus = false }: { at: Lifecycle | null; focus?: boolean }) {
-  const cur = at ? STATES.findIndex((x) => x.id === at) : -1;
+  const settled = at === "settled";
+  const cur = at ? STATES.findIndex((x) => x.id === shown(at)) : -1;
   return (
     <ol className={s.life} aria-label="Order wallet lifecycle" data-focus={focus ? "money.lifecycle" : undefined}>
       {STATES.map((x, i) => {
-        const state = i < cur || (i === cur && x.id === "closed") ? "done" : i === cur ? "current" : "pending";
+        const state = i < cur || (i === cur && (x.id === "closed" || settled)) ? "done" : i === cur ? "current" : "pending";
         return (
           <li key={x.id} className={s.lifeStep} data-state={state} aria-current={state === "current" ? "step" : undefined}>
             <i aria-hidden="true" />
             <span>{x.label}</span>
+            {x.signals?.map((g) => <span key={g} className={s.lifeCheck} data-on={state === "done" || state === "current"}>{g}</span>)}
             {x.id === "closed" && <span className={s.lifeNote}>frozen, key revoked, kept as receipt</span>}
           </li>
         );

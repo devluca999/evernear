@@ -1,5 +1,13 @@
 // Simulated: the shipment's checkpoints for PO 1042, air freight Shenzhen to Chicago.
 // Day 0 is the day funds were locked. Each checkpoint records who acknowledged it and how.
+import { PO } from "../seed/astro";
+import { formatInt, formatUsdShort } from "../engine/money";
+import { RELEASE_RULES } from "../engine/escrow";
+
+const unit = PO.revisedUnitCents;
+const advance = (PO.quantity * unit * RELEASE_RULES.advancePercent) / 100;
+const balance = PO.receivedQty * unit - advance;
+const held = (PO.quantity - PO.receivedQty) * unit;
 export type PhotoId = "pallets_origin" | "awb_label" | "packing_slip" | "pallets_dock";
 export type Stop = "origin" | "szx" | "ord" | "dock";
 
@@ -20,12 +28,12 @@ export interface Checkpoint {
 }
 
 export const CHECKPOINTS: Record<string, Checkpoint> = {
-  packed: { id: "packed", day: 2, time: "16:20", zone: "Shenzhen", title: "Packed and sealed", place: "Haoyun Precision, Shenzhen", stop: "origin", ackBy: "Haoyun dock team", source: "Supplier photo", detail: "9 pallets, 1,800 units. Packing list says 1,800 of 2,000.", photos: ["pallets_origin"], proofId: "inference_attestation", state: "attention" },
-  handover: { id: "handover", day: 4, time: "09:05", zone: "Shenzhen", title: "Handed to forwarder", place: "Shenzhen Bao'an Airport, SZX", stop: "szx", ackBy: "Forwarder cargo desk", source: "Forwarder scan", detail: "Air waybill issued, 9 pieces, 1,180 kg.", photos: ["awb_label"], state: "done" },
+  packed: { id: "packed", day: 2, time: "16:20", zone: "Shenzhen", title: "Packed and sealed", place: "Haoyun Precision, Shenzhen", stop: "origin", ackBy: "Haoyun dock team", source: "Supplier photo", detail: `5 cartons, ${formatInt(PO.receivedQty)} units. Packing list says ${formatInt(PO.receivedQty)} of ${formatInt(PO.quantity)}.`, photos: ["pallets_origin"], proofId: "inference_attestation", state: "attention" },
+  handover: { id: "handover", day: 4, time: "09:05", zone: "Shenzhen", title: "Handed to forwarder", place: "Shenzhen Bao'an Airport, SZX", stop: "szx", ackBy: "Forwarder cargo desk", source: "Forwarder scan", detail: "Air waybill issued, 5 pieces, 1,180 kg.", photos: ["awb_label"], state: "done" },
   departed: { id: "departed", day: 5, time: "01:40", zone: "Shenzhen", title: "Departed SZX", place: "Shenzhen Bao'an Airport, SZX", stop: "szx", ackBy: "Carrier", source: "Carrier tracking", detail: "Cargo flight to Chicago O'Hare.", photos: [], state: "done" },
-  arrived: { id: "arrived", day: 5, time: "04:55", zone: "Chicago", title: "Arrived ORD", place: "Chicago O'Hare, ORD", stop: "ord", ackBy: "Carrier", source: "Carrier tracking", detail: "9 pieces received at the cargo terminal.", photos: [], state: "done" },
+  arrived: { id: "arrived", day: 5, time: "04:55", zone: "Chicago", title: "Arrived ORD", place: "Chicago O'Hare, ORD", stop: "ord", ackBy: "Carrier", source: "Carrier tracking", detail: "5 pieces received at the cargo terminal.", photos: [], state: "done" },
   customs: { id: "customs", day: 7, time: "14:30", zone: "Chicago", title: "Cleared customs", place: "Chicago O'Hare, ORD", stop: "ord", ackBy: "US Customs broker", source: "Customs", detail: "Entry released. Duty paid by Astro.", photos: [], state: "done" },
-  dock: { id: "dock", day: 9, time: "08:42", zone: "Chicago", title: "Received at dock", place: "Astro Robotics, Chicago", stop: "dock", ackBy: "Astro receiving (Luca)", source: "Dock photo", detail: "1,800 of 2,000 counted. Release $34,200, hold $3,800.", photos: ["packing_slip", "pallets_dock"], proofId: "dock_attestation", state: "attention" },
+  dock: { id: "dock", day: 9, time: "08:42", zone: "Chicago", title: "Received at dock", place: "Astro Robotics, Chicago", stop: "dock", ackBy: "Astro receiving (Luca)", source: "Dock photo", detail: `${formatInt(PO.receivedQty)} of ${formatInt(PO.quantity)} counted. Balance ${formatUsdShort(balance)} after the ${formatUsdShort(advance)} advance, hold ${formatUsdShort(held)}.`, photos: ["packing_slip", "pallets_dock"], proofId: "dock_attestation", state: "attention" },
 };
 
 /** Where each photo comes from: a credited stock photo, or a document drawn from the scenario. Never presented as Astro's own. */

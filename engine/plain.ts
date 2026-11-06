@@ -35,7 +35,7 @@ export const plainEngine: Engine = {
     return { kind: "offer", unitCents: price ? Math.round(Number(price) * 100) : null, specs };
   },
 
-  scoreFitment(bom, offers, supplier, policy): FitmentResult {
+  scoreFitment(bom, offers, supplier, policy, needBy): FitmentResult {
     const mismatches: Mismatch[] = [];
     const policyFailures: PolicyFailure[] = [];
     let priceCapMultiple: number | null = null;
@@ -53,6 +53,7 @@ export const plainEngine: Engine = {
         priceCapMultiple = Math.round((offer.unitCents / cap) * 10) / 10;
         if (offer.unitCents > cap && !policyFailures.includes("over_price_cap")) policyFailures.push("over_price_cap");
       }
+      if (needBy && offer.arrives && offer.arrives > needBy && !policyFailures.includes("too_late")) policyFailures.push("too_late");
     }
     if (!supplier.approved) policyFailures.unshift("not_approved");
     return {
@@ -71,7 +72,7 @@ export const plainEngine: Engine = {
   classifyReply(text): ReplyKind {
     const t = text.toLowerCase();
     if (/(price (is )?now|price change|increase|revised price|is now usd|surcharge)/.test(t)) return "price_change";
-    if (/\b(confirm|confirmed|accept|accepted)\b/.test(t)) return "confirmed";
+    if (/\b(confirm|confirmed|accept|accepted|agreed)\b/.test(t)) return "confirmed";
     return "quoted";
   },
 };

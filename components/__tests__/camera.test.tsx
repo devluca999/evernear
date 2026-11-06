@@ -16,7 +16,7 @@ afterEach(() => { cleanup(); vi.useRealTimers(); });
 const stage = () => document.querySelector<HTMLElement>("[data-camera] > div")!;
 const view = (request: { seq: number; focus: { id: string; zoom: number } } | null, holdNext = false) => (
   <Camera on follow={false} request={request} fullSeq={0} holdNext={holdNext}>
-    <div data-focus="money.escrow">$38,000</div>
+    <div data-focus="money.escrow">$63,000</div>
   </Camera>
 );
 

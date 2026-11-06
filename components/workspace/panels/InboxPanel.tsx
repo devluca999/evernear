@@ -2,13 +2,14 @@
 // drafts; what it may agree to is checked against the rules in code. A decision the story waits
 // for can be answered here (Start sourcing).
 import type { Message, WorkspaceState } from "@/scenario/types";
-import { PO, routineReorder, suppliers } from "@/seed/astro";
-import { formatUsd, formatUsdShort } from "@/engine/money";
+import { demand, PO, quickshipOffer, routineReorder, suppliers } from "@/seed/astro";
+import { formatInt, formatUsd, formatUsdShort } from "@/engine/money";
+import { comparison } from "@/scenario/scenes";
 import { useActions } from "../actions";
 import { Dot, N, Panel, Stamp } from "../Panel";
 import s from "../shell.module.css";
 
-const SENDER: Record<string, string> = { "orders@ultra-motion.example": "Ultra Motion", "sales@haoyun-precision.example": "Haoyun Precision" };
+const SENDER: Record<string, string> = { "orders@ultra-motion.example": "Ultra Motion", "sales@haoyun-precision.example": "Haoyun Precision", "orders@quickship-motion.example": "QuickShip Motion" };
 const who = (m: Message) => (m.direction === "out" ? m.from : SENDER[m.from] ?? m.from);
 
 /** Figures in an email render in Geist Mono. */
@@ -17,42 +18,69 @@ function Figures({ text }: { text: string }) {
   return <>{parts.map((x, i) => (i % 2 ? <N key={i} className={x.startsWith("$") || x.startsWith("+") ? s.hi : undefined}>{x}</N> : x))}</>;
 }
 
-const THREAD_ORDER = ["haoyun", "rheinwerk", "huaxin"];
+const THREAD_ORDER = ["haoyun", "quickship"];
 const TONE = { success: "success", attention: "attention", alert: "alert" } as const;
 
-/** Negotiation: one column per supplier with an offer, Haoyun's thread in full beside the others. */
-function Threads({ st, thread }: { st: WorkspaceState; thread: Message[] }) {
+/** Stockbot's recommendation, once both final offers are in: QuickShip's discount against the late robots. */
+function Compare({ st }: { st: WorkspaceState }) {
+  const h = st.offers.find((o) => o.supplierId === "haoyun"), q = st.offers.find((o) => o.supplierId === "quickship");
+  if (!h || !q || h.tone !== "success" || q.tone !== "alert") return null;
+  const c = comparison;
+  return (
+    <section className={s.compare} aria-label="Stockbot's comparison" data-focus="negotiation.compare">
+      <div className={s.headRow}><Dot tone="active" /><span className="es-micro">Stockbot compares</span></div>
+      <div className={s.compareGrid}>
+        <span />
+        <span className="es-micro">Haoyun</span>
+        <span className="es-micro">QuickShip</span>
+        <span className={s.note}>Price</span><N>{formatUsd(h.unitCents)}</N><N>{formatUsd(q.unitCents)}</N>
+        <span className={s.note}>Within the 5% ceiling</span><span>Yes</span><span>No, needs an exception</span>
+        <span className={s.note}>Robots on time</span><N>{formatInt(demand.robotsOrdered)} of {formatInt(demand.robotsOrdered)}</N><N>{formatInt(demand.robotsOrdered - c.lateRobots)} of {formatInt(demand.robotsOrdered)}</N>
+        <span className={s.note}>Extra</span><span>No discount</span><span>{quickshipOffer.nextOrderDiscountPercent}% off next order, about <N>{formatUsdShort(c.discountCents)}</N></span>
+      </div>
+      <p className={s.botText} style={{ maxWidth: "none", fontSize: 13 }}>
+        The discount is worth about <N>{formatUsdShort(c.discountCents)}</N>; <N>{c.lateRobots}</N> late robots put <N>{formatUsdShort(c.atRiskCents)}</N> of orders at risk. Haoyun ships everything on time within the rules.
+      </p>
+    </section>
+  );
+}
+
+/** Negotiation: one column per contender, each with its own email thread, the offer on top. */
+function Threads({ st, mail }: { st: WorkspaceState; mail: Message[] }) {
   const cols = THREAD_ORDER.map((id) => st.offers.find((o) => o.supplierId === id)).filter((o) => o !== undefined);
   return (
-    <div className={s.threads} data-focus="negotiation.threads">
-      {cols.map((o) => {
-        const sup = suppliers.find((x) => x.id === o.supplierId)!;
-        const mine = o.supplierId === "haoyun";
-        return (
-          <section key={o.supplierId} className={s.thread} data-main={mine} aria-label={`${sup.name} offer`} data-focus={mine ? "negotiation.haoyun" : undefined}>
-            <div className={s.headRow} style={{ alignItems: "baseline" }}>
-              <span style={{ fontSize: 13.5, fontWeight: 600 }}>{sup.name}</span>
-              <span className={`${s.note} ${s.push}`} style={{ fontSize: 12 }}>{sup.city}</span>
-            </div>
-            <div className={s.headRow} style={{ gap: 8 }}>
-              <N><span style={{ fontSize: 22, fontWeight: 500 }}>{formatUsd(o.unitCents)}</span></N>
-              <span className={s.note} style={{ fontSize: 12 }}>a unit</span>
-            </div>
-            <span className={s.line} style={{ fontSize: 12.5 }}><Dot tone={TONE[o.tone]} />{o.note}</span>
-            {mine && thread.map((m) => (
-              <div key={m.id} className={s.threadMail}>
-                <div className={s.headRow} style={{ alignItems: "baseline" }}>
-                  <span style={{ fontSize: 12.5, fontWeight: 600 }}>{who(m)}</span>
-                  {m.kind && <span className={s.note} style={{ fontSize: 12 }}>{m.kind}</span>}
-                  {m.time && <N className={`${s.push} ${s.faint}`}><span style={{ fontSize: 11 }}>{m.time}</span></N>}
-                </div>
-                <p className={s.sub} style={{ fontSize: 12.5 }}><Figures text={m.text} /></p>
-                {m.reading && <p className={s.botText} style={{ fontSize: 12, maxWidth: "none" }}><span className="es-micro">Stockbot read </span><Figures text={m.reading} /></p>}
+    <div className={s.threadsWrap}>
+      <div className={s.threads} data-focus="negotiation.threads">
+        {cols.map((o) => {
+          const sup = suppliers.find((x) => x.id === o.supplierId)!;
+          const thread = mail.filter((m) => m.from.includes(o.supplierId) || m.to?.includes(o.supplierId));
+          return (
+            <section key={o.supplierId} className={s.thread} data-main={o.supplierId === "haoyun"} aria-label={`${sup.name} offer`} data-focus={o.supplierId === "haoyun" ? "negotiation.haoyun" : undefined}>
+              <div className={s.headRow} style={{ alignItems: "baseline" }}>
+                <span style={{ fontSize: 13.5, fontWeight: 600 }}>{sup.name}</span>
+                <span className={`${s.note} ${s.push}`} style={{ fontSize: 12 }}>{sup.city}</span>
               </div>
-            ))}
-          </section>
-        );
-      })}
+              <div className={s.headRow} style={{ gap: 8 }}>
+                <N><span style={{ fontSize: 22, fontWeight: 500 }}>{formatUsd(o.unitCents)}</span></N>
+                <span className={s.note} style={{ fontSize: 12 }}>a unit</span>
+              </div>
+              <span className={s.line} style={{ fontSize: 12.5 }}><Dot tone={TONE[o.tone]} />{o.note}</span>
+              {thread.map((m) => (
+                <div key={m.id} className={s.threadMail}>
+                  <div className={s.headRow} style={{ alignItems: "baseline" }}>
+                    <span style={{ fontSize: 12.5, fontWeight: 600 }}>{who(m)}</span>
+                    {m.kind && <span className={s.note} style={{ fontSize: 12 }}>{m.kind}</span>}
+                    {m.time && <N className={`${s.push} ${s.faint}`}><span style={{ fontSize: 11 }}>{m.time}</span></N>}
+                  </div>
+                  <p className={s.sub} style={{ fontSize: 12.5 }}><Figures text={m.text} /></p>
+                  {m.reading && <p className={s.botText} style={{ fontSize: 12, maxWidth: "none" }}><span className="es-micro">Stockbot read </span><Figures text={m.reading} /></p>}
+                </div>
+              ))}
+            </section>
+          );
+        })}
+      </div>
+      <Compare st={st} />
     </div>
   );
 }
@@ -71,7 +99,7 @@ export function InboxPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }
     <Panel id="inbox" title="Inbox" pulse={pulse}
       meta={<>{unread > 0 && <span className="es-count es-count-attention" aria-label={`${unread} needs you`}>{unread}</span>}{thread.length > 0 && <span>PO <N>{PO.number}</N> · Haoyun Precision</span>}</>}>
       {shown.length === 0 && !routinePaid && st.offers.length < 2 && <p className={`${s.pad} ${s.note}`}>No new mail.</p>}
-      {st.offers.length >= 2 ? <Threads st={st} thread={thread} /> : (
+      {st.offers.length >= 2 ? <Threads st={st} mail={mail} /> : (
       <div className={s.inbox}>
         {shown.map((m, i) => {
           const last = i === shown.length - 1;

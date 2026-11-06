@@ -26,6 +26,8 @@ export interface Offer {
   part: string;
   unitCents: number;
   specs: Specs;
+  /** The day this supplier can have the part in Chicago (YYYY-MM-DD), when known. */
+  arrives?: string;
 }
 
 export interface Policy {
@@ -46,7 +48,7 @@ export interface Mismatch {
   offered: string;
 }
 
-export type PolicyFailure = "not_approved" | "over_price_cap";
+export type PolicyFailure = "not_approved" | "over_price_cap" | "too_late";
 
 export interface FitmentResult {
   supplierId: string;
@@ -76,7 +78,8 @@ export type DocumentInput = { kind: DocumentRead["kind"]; text: string };
 /** The reference engine. Deterministic: amounts and thresholds are computed here only. */
 export interface Engine {
   readDocument(doc: DocumentInput): DocumentRead;
-  scoreFitment(bom: BomLine[], offers: Offer[], supplier: Supplier, policy: Policy): FitmentResult;
+  /** `needBy`: the day the parts must be in Chicago; an offer arriving later fails with too_late. */
+  scoreFitment(bom: BomLine[], offers: Offer[], supplier: Supplier, policy: Policy, needBy?: string): FitmentResult;
   matchReceipt(input: { orderedQty: number; receivedQty: number; unitCents: number }): ReceiptMatch;
   classifyReply(text: string): ReplyKind;
 }

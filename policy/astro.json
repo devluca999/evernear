@@ -1,0 +1,14 @@
+{
+  "_note": "Astro's spending rules and the order wallet's release rules. Read by seed/astro.ts and engine/escrow.ts; the worker in worker/release-gate enforces the same rules inside the enclave.",
+  "auto_approve_under_usd": 10000,
+  "approvers_required": 2,
+  "price_change_limit_percent": 5,
+  "need_by": "2026-12-14",
+  "escrow": {
+    "advance_percent": 30,
+    "releases": {
+      "advance": { "requires": ["bill_of_lading", "export_cleared"] },
+      "balance": { "requires": ["import_cleared", "dock_count"] }
+    }
+  }
+}

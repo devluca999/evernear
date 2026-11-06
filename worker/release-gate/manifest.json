@@ -1,0 +1,14 @@
+{
+  "signing_keys": [
+    {"path": "result", "type": "ed25519", "bind": "wasm"}
+  ],
+  "encryption_keys": [
+    {"path": "grant", "bind": "wasm"}
+  ],
+  "callers": {
+    "direct": "allow",
+    "contract": "deny",
+    "https": "deny",
+    "meta_tx": "deny"
+  }
+}

@@ -1,0 +1,551 @@
+//! Evernear release gate. Holds the escrow grant token only inside an attested OutLayer run
+//! and releases money from a per-order Tidepool agent only when the stage's signals are present.
+//!
+//! Everything here is pure: the host calls (mac, sign, public key, env, HTTP) sit behind the
+//! `Host` trait, so `cargo test` runs natively. `src/main.rs` implements `Host` on OutLayer.
+//! Amounts are integer US cents. The arithmetic refuses rather than rounds.
+
+use base64::Engine;
+use serde::Deserialize;
+use serde_json::{json, Map, Value};
+use sha2::{Digest, Sha256};
+use std::collections::BTreeMap;
+
+/// The only host the module sends to. Tidepool, the testnet copy of the Agent API.
+pub const TIDEPOOL_HOST: &str = "www.usetidepool.tech";
+/// Base Sepolia USDC as Tidepool names it on NEAR testnet (6 decimals).
+pub const ASSET: &str = "nep141:base-0x38d81431b9f76d9699af7517040d5221d9dea252.tp-omft.testnet";
+pub const CHAIN: &str = "base";
+/// Declared in manifest.json: the encryption key used only through `mac`.
+pub const GRANT_KEY_PATH: &str = "grant";
+/// Declared in manifest.json: the ed25519 key that signs every release result.
+pub const RESULT_KEY_PATH: &str = "result";
+/// Every signed message starts with this; the module composes the rest itself.
+pub const SIGN_PREFIX: &[u8] = b"evernear-release-gate:v1:";
+/// The grant token is the MAC of this prefix plus the agent id.
+pub const GRANT_PREFIX: &[u8] = b"tidepool-grant:v1:";
+/// The env var (an OutLayer secret) holding Evernear's Tidepool API key.
+pub const API_KEY_ENV: &str = "AGENT_API_KEY";
+/// An on-chain run's output must fit in this many bytes.
+pub const MAX_OUTPUT_BYTES: usize = 900;
+
+pub const ADVANCE_SIGNALS: [&str; 2] = ["bill_of_lading", "export_cleared"];
+pub const BALANCE_SIGNALS: [&str; 2] = ["import_cleared", "dock_count"];
+
+const MAX_ID_LEN: usize = 48;
+const MAX_TX_FIELD_LEN: usize = 80;
+
+/// The host functions the module needs. On OutLayer these are the `outlayer:encryption-keys`
+/// and `outlayer:signing-keys` imports, the run's env, and wasi-http.
+pub trait Host {
+    fn mac(&self, path: &str, data: &[u8]) -> Result<Vec<u8>, String>;
+    fn sign(&self, path: &str, message: &[u8]) -> Result<Vec<u8>, String>;
+    fn public_key(&self, path: &str) -> Result<Vec<u8>, String>;
+    fn env(&self, name: &str) -> Option<String>;
+    /// Send a POST. Called only with a request `check_url` accepted.
+    fn post(&self, request: &HttpRequest) -> Result<HttpResponse, String>;
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct HttpRequest {
+    pub url: String,
+    pub headers: Vec<(String, String)>,
+    pub body: Vec<u8>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct HttpResponse {
+    pub status: u16,
+    pub body: Vec<u8>,
+}
+
+// ---------- input ----------
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct ReleaseInput {
+    pub stage: String,
+    pub po: String,
+    pub agent_id: String,
+    pub to: String,
+    pub unit_cents: u64,
+    pub ordered_qty: u64,
+    pub locked_cents: u64,
+    pub released_cents: u64,
+    pub advance_percent: u64,
+    #[serde(default)]
+    pub received_qty: Option<u64>,
+    #[serde(default)]
+    pub signals: BTreeMap<String, Value>,
+    /// Accepted for compatibility. The module always sends its own key (`idempotency_key`).
+    #[serde(default)]
+    pub idempotency_key: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(tag = "mode", rename_all = "snake_case")]
+enum Input {
+    Enroll { agent_id: String },
+    Release(ReleaseInput),
+}
+
+// ---------- the decision ----------
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Decision {
+    Release { amount_cents: u64, held_cents: u64, signal_ids: Vec<String> },
+    Refuse { reason: &'static str, missing: Vec<String> },
+}
+
+fn refuse(reason: &'static str) -> Decision {
+    Decision::Refuse { reason, missing: vec![] }
+}
+
+/// Short identifiers that end up in signed output and in URLs: a fixed safe alphabet.
+pub fn valid_id(s: &str) -> bool {
+    !s.is_empty()
+        && s.len() <= MAX_ID_LEN
+        && s.bytes().all(|b| b.is_ascii_alphanumeric() || matches!(b, b'_' | b'-' | b'.' | b':'))
+}
+
+/// Tidepool agent ids look like `agent_fe8606f9c6dc60f3f1768ed9`. The id goes into the URL
+/// path, so anything else is refused.
+pub fn valid_agent_id(s: &str) -> bool {
+    match s.strip_prefix("agent_") {
+        Some(rest) => !rest.is_empty() && rest.len() <= 40 && rest.bytes().all(|b| b.is_ascii_alphanumeric()),
+        None => false,
+    }
+}
+
+/// An EVM address: `0x` and 40 hex digits.
+pub fn valid_evm_address(s: &str) -> bool {
+    s.len() == 42 && s.starts_with("0x") && s[2..].bytes().all(|b| b.is_ascii_hexdigit())
+}
+
+/// The id of one evidence object, or None when the evidence does not count: it must be a
+/// non-empty object with a string `id` (safe alphabet) and an `at`.
+pub fn evidence_id(evidence: &Value) -> Option<String> {
+    let obj = evidence.as_object()?;
+    if obj.is_empty() {
+        return None;
+    }
+    let id = obj.get("id")?.as_str()?;
+    let at = obj.get("at")?;
+    let at_ok = match at {
+        Value::String(s) => !s.is_empty(),
+        Value::Number(_) => true,
+        _ => false,
+    };
+    (valid_id(id) && at_ok).then(|| id.to_string())
+}
+
+pub fn required_signals(stage: &str) -> Option<&'static [&'static str; 2]> {
+    match stage {
+        "advance" => Some(&ADVANCE_SIGNALS),
+        "balance" => Some(&BALANCE_SIGNALS),
+        _ => None,
+    }
+}
+
+/// Decide one release. Pure: no host, no clock.
+pub fn decide(r: &ReleaseInput) -> Decision {
+    let Some(required) = required_signals(&r.stage) else { return refuse("bad_stage") };
+    if !valid_agent_id(&r.agent_id) {
+        return refuse("bad_agent_id");
+    }
+    if !valid_evm_address(&r.to) {
+        return refuse("bad_recipient");
+    }
+    if r.unit_cents == 0 || r.ordered_qty == 0 {
+        return refuse("bad_terms");
+    }
+    // The order's wallet holds the full order value: locked must be ordered x unit exactly.
+    match r.ordered_qty.checked_mul(r.unit_cents) {
+        Some(total) if total == r.locked_cents => {}
+        _ => return refuse("locked_mismatch"),
+    }
+    if r.released_cents > r.locked_cents {
+        return refuse("over_locked");
+    }
+
+    // Every required signal, all reported at once.
+    let mut missing = Vec::new();
+    let mut signal_ids = Vec::new();
+    for name in required.iter() {
+        match r.signals.get(*name).and_then(evidence_id) {
+            Some(id) => signal_ids.push(id),
+            None => missing.push(name.to_string()),
+        }
+    }
+    if !missing.is_empty() {
+        return Decision::Refuse { reason: "missing_signals", missing };
+    }
+
+    let amount: u64 = match r.stage.as_str() {
+        "advance" => {
+            if r.released_cents != 0 {
+                return refuse("already_released");
+            }
+            if r.advance_percent == 0 || r.advance_percent > 100 {
+                return refuse("bad_percent");
+            }
+            let Some(product) = r.locked_cents.checked_mul(r.advance_percent) else {
+                return refuse("bad_terms");
+            };
+            if product % 100 != 0 {
+                return refuse("inexact_amount");
+            }
+            product / 100
+        }
+        _ => {
+            let Some(received) = r.received_qty else { return refuse("missing_received_qty") };
+            if received > r.ordered_qty {
+                return refuse("received_over_ordered");
+            }
+            // The dock count evidence must state the same count the release is computed from.
+            let counted = r.signals.get("dock_count").and_then(|e| e.get("count")).and_then(Value::as_u64);
+            if counted != Some(received) {
+                return refuse("count_mismatch");
+            }
+            let due = (received as i128) * (r.unit_cents as i128) - (r.released_cents as i128);
+            if due <= 0 {
+                return refuse("nothing_due");
+            }
+            due as u64
+        }
+    };
+    if amount == 0 {
+        return refuse("nothing_due");
+    }
+    match r.released_cents.checked_add(amount) {
+        Some(total) if total <= r.locked_cents => Decision::Release {
+            amount_cents: amount,
+            held_cents: r.locked_cents - total,
+            signal_ids,
+        },
+        _ => refuse("over_locked"),
+    }
+}
+
+// ---------- token, scale, canonical JSON ----------
+
+/// `ngt_` + base64url without padding of the 32 MAC bytes: 47 characters.
+pub fn grant_token_from_mac(mac: &[u8]) -> Result<String, String> {
+    if mac.len() != 32 {
+        return Err(format!("mac must be 32 bytes, got {}", mac.len()));
+    }
+    Ok(format!("ngt_{}", base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(mac)))
+}
+
+/// Tidepool's rule for a grant token: `^ngt_[A-Za-z0-9_-]{43}$`.
+pub fn valid_grant_token(t: &str) -> bool {
+    t.len() == 47
+        && t.starts_with("ngt_")
+        && t[4..].bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
+}
+
+/// What `grant_issue` registers: sha256 hex of the token string (the SDK's `grantCommitment`).
+pub fn grant_hash(token: &str) -> String {
+    hex::encode(Sha256::digest(token.as_bytes()))
+}
+
+pub fn grant_mac_input(agent_id: &str) -> Vec<u8> {
+    let mut data = GRANT_PREFIX.to_vec();
+    data.extend_from_slice(agent_id.as_bytes());
+    data
+}
+
+/// Story cents to Base USDC base units at the testnet scale of 1:1,000.
+/// cents / 100 dollars, / 1000 scale, x 10^6 base units = cents x 10. Always exact.
+pub fn cents_to_base_units(cents: u64) -> String {
+    ((cents as u128) * 10).to_string()
+}
+
+/// The module's own idempotency key: one per agent, order and stage, so a repeated run of
+/// the same stage replays the first result instead of paying again.
+pub fn idempotency_key(agent_id: &str, po: &str, stage: &str) -> String {
+    let digest = Sha256::digest(format!("evernear-release-gate:v1:idem:{agent_id}:{po}:{stage}").as_bytes());
+    format!("rg1-{stage}-{}", &hex::encode(digest)[..32])
+}
+
+/// Canonical JSON: object keys sorted by their UTF-8 bytes, no whitespace, strings and
+/// numbers as serde_json writes them (the same as JavaScript `JSON.stringify` for the
+/// values this module emits: ASCII strings and integers).
+pub fn canonical(v: &Value) -> String {
+    let mut out = String::new();
+    write_canonical(v, &mut out);
+    out
+}
+
+fn write_canonical(v: &Value, out: &mut String) {
+    match v {
+        Value::Object(map) => {
+            let mut keys: Vec<&String> = map.keys().collect();
+            keys.sort();
+            out.push('{');
+            for (i, k) in keys.iter().enumerate() {
+                if i > 0 {
+                    out.push(',');
+                }
+                out.push_str(&serde_json::to_string(k).expect("string"));
+                out.push(':');
+                write_canonical(&map[*k], out);
+            }
+            out.push('}');
+        }
+        Value::Array(items) => {
+            out.push('[');
+            for (i, item) in items.iter().enumerate() {
+                if i > 0 {
+                    out.push(',');
+                }
+                write_canonical(item, out);
+            }
+            out.push(']');
+        }
+        other => out.push_str(&serde_json::to_string(other).expect("scalar")),
+    }
+}
+
+/// The exact bytes the `result` key signs: the prefix, then the canonical JSON of the
+/// result without its `signature` member.
+pub fn signed_message(result: &Value) -> Vec<u8> {
+    let mut unsigned = result.clone();
+    if let Value::Object(map) = &mut unsigned {
+        map.remove("signature");
+    }
+    let mut msg = SIGN_PREFIX.to_vec();
+    msg.extend_from_slice(canonical(&unsigned).as_bytes());
+    msg
+}
+
+pub fn evidence_sha256(r: &ReleaseInput) -> String {
+    let mut used = Map::new();
+    if let Some(required) = required_signals(&r.stage) {
+        for name in required.iter() {
+            if let Some(e) = r.signals.get(*name) {
+                used.insert(name.to_string(), e.clone());
+            }
+        }
+    }
+    hex::encode(Sha256::digest(canonical(&Value::Object(used)).as_bytes()))
+}
+
+// ---------- the request ----------
+
+/// Accept only `https://www.usetidepool.tech/v1/agents/...`. No other scheme, no port, no
+/// user info, no other host (in particular never the mainnet `api.agentsonintents.com`).
+pub fn check_url(url: &str) -> Result<(), String> {
+    let rest = url.strip_prefix("https://").ok_or("only https is allowed")?;
+    let (authority, path) = match rest.find('/') {
+        Some(i) => (&rest[..i], &rest[i..]),
+        None => (rest, ""),
+    };
+    if authority != TIDEPOOL_HOST {
+        return Err(format!("host not allowed: {authority}"));
+    }
+    if !path.starts_with("/v1/agents/") || path.contains("..") || path.contains('?') || path.contains('#') {
+        return Err("path not allowed".into());
+    }
+    Ok(())
+}
+
+pub fn withdraw_url(agent_id: &str) -> String {
+    format!("https://{TIDEPOOL_HOST}/v1/agents/{agent_id}/withdraw")
+}
+
+pub fn withdraw_body(amount_cents: u64, to: &str) -> String {
+    canonical(&json!({
+        "asset": ASSET,
+        "amount": cents_to_base_units(amount_cents),
+        "chain": CHAIN,
+        "recipient": to,
+    }))
+}
+
+pub fn build_withdraw(agent_id: &str, po: &str, stage: &str, amount_cents: u64, to: &str, api_key: &str, grant_token: &str) -> Result<HttpRequest, String> {
+    let url = withdraw_url(agent_id);
+    check_url(&url)?;
+    Ok(HttpRequest {
+        url,
+        headers: vec![
+            ("x-api-key".into(), api_key.into()),
+            ("x-grant-token".into(), grant_token.into()),
+            ("idempotency-key".into(), idempotency_key(agent_id, po, stage)),
+            ("content-type".into(), "application/json".into()),
+        ],
+        body: withdraw_body(amount_cents, to).into_bytes(),
+    })
+}
+
+fn short(v: Option<&Value>) -> Option<Value> {
+    let s = v?.as_str()?;
+    let s: String = s.chars().take(MAX_TX_FIELD_LEN).collect();
+    Some(Value::String(s))
+}
+
+/// The identifying fields of Tidepool's answer (a `StatusResponse`, or an `ErrorDocument`).
+pub fn tx_fields(status: u16, body: &[u8]) -> Value {
+    let parsed: Value = serde_json::from_slice(body).unwrap_or(Value::Null);
+    let mut tx = Map::new();
+    tx.insert("http_status".into(), json!(status));
+    for k in ["correlation_id", "status", "failure_code"] {
+        if let Some(v) = short(parsed.get(k)) {
+            tx.insert(k.into(), v);
+        }
+    }
+    if let Some(details) = parsed.get("details") {
+        for k in ["tx_hash", "transaction_hash", "intent_hash", "destination_tx_hash"] {
+            if let Some(v) = short(details.get(k)) {
+                tx.insert(k.into(), v);
+            }
+        }
+    }
+    if let Some(err) = parsed.get("errors").and_then(|e| e.get(0)) {
+        if let Some(v) = short(err.get("code")) {
+            tx.insert("error_code".into(), v);
+        }
+        if let Some(v) = short(err.get("layer")) {
+            tx.insert("error_layer".into(), v);
+        }
+    }
+    Value::Object(tx)
+}
+
+// ---------- the run ----------
+
+fn sign_result(host: &dyn Host, mut result: Map<String, Value>) -> String {
+    let public_key = match host.public_key(RESULT_KEY_PATH) {
+        Ok(pk) => hex::encode(pk),
+        Err(e) => return canonical(&json!({"ok": false, "reason": "signing_unavailable", "detail": e})),
+    };
+    result.insert("public_key".into(), Value::String(public_key));
+    let unsigned = Value::Object(result);
+    match host.sign(RESULT_KEY_PATH, &signed_message(&unsigned)) {
+        Ok(sig) => {
+            let mut signed = unsigned;
+            signed["signature"] = Value::String(hex::encode(sig));
+            canonical(&signed)
+        }
+        Err(e) => canonical(&json!({"ok": false, "reason": "signing_unavailable", "detail": e})),
+    }
+}
+
+fn derive_token(host: &dyn Host, agent_id: &str) -> Result<String, String> {
+    let mac = host.mac(GRANT_KEY_PATH, &grant_mac_input(agent_id))?;
+    let token = grant_token_from_mac(&mac)?;
+    if !valid_grant_token(&token) {
+        return Err("derived token has the wrong shape".into());
+    }
+    Ok(token)
+}
+
+pub fn enroll(host: &dyn Host, agent_id: &str) -> String {
+    if !valid_agent_id(agent_id) {
+        return canonical(&json!({"ok": false, "mode": "enroll", "reason": "bad_agent_id"}));
+    }
+    let token = match derive_token(host, agent_id) {
+        Ok(t) => t,
+        Err(e) => return canonical(&json!({"ok": false, "mode": "enroll", "reason": "mac_unavailable", "detail": e})),
+    };
+    let public_key = match host.public_key(RESULT_KEY_PATH) {
+        Ok(pk) => hex::encode(pk),
+        Err(e) => return canonical(&json!({"ok": false, "mode": "enroll", "reason": "signing_unavailable", "detail": e})),
+    };
+    // The token itself never leaves this function.
+    canonical(&json!({
+        "mode": "enroll",
+        "agent_id": agent_id,
+        "grant_hash": grant_hash(&token),
+        "public_key": public_key,
+    }))
+}
+
+fn refusal(r: &ReleaseInput, reason: &str, missing: Vec<String>, extra: Option<(&str, Value)>) -> Map<String, Value> {
+    let mut m = Map::new();
+    m.insert("ok".into(), json!(false));
+    m.insert("stage".into(), json!(r.stage));
+    m.insert("po".into(), json!(r.po));
+    m.insert("agent_id".into(), json!(r.agent_id));
+    m.insert("reason".into(), json!(reason));
+    m.insert("missing".into(), json!(missing));
+    m.insert("evidence_sha256".into(), json!(evidence_sha256(r)));
+    if let Some((k, v)) = extra {
+        m.insert(k.into(), v);
+    }
+    m
+}
+
+pub fn release(host: &dyn Host, r: &ReleaseInput) -> String {
+    // stage, po and agent_id are echoed into signed output: check their alphabet first.
+    if !valid_id(&r.stage) || !valid_id(&r.po) || !valid_agent_id(&r.agent_id) {
+        return canonical(&json!({"ok": false, "reason": "bad_input", "detail": "stage, po or agent_id is malformed"}));
+    }
+    let (amount, held, signal_ids) = match decide(r) {
+        Decision::Refuse { reason, missing } => return sign_result(host, refusal(r, reason, missing, None)),
+        Decision::Release { amount_cents, held_cents, signal_ids } => (amount_cents, held_cents, signal_ids),
+    };
+    let Some(api_key) = host.env(API_KEY_ENV).filter(|k| !k.is_empty()) else {
+        return sign_result(host, refusal(r, "api_key_missing", vec![], None));
+    };
+    let token = match derive_token(host, &r.agent_id) {
+        Ok(t) => t,
+        Err(_) => return sign_result(host, refusal(r, "mac_unavailable", vec![], None)),
+    };
+    let request = match build_withdraw(&r.agent_id, &r.po, &r.stage, amount, &r.to, &api_key, &token) {
+        Ok(req) => req,
+        Err(_) => return sign_result(host, refusal(r, "host_not_allowed", vec![], None)),
+    };
+    let response = match host.post(&request) {
+        Ok(resp) => resp,
+        // Maybe sent, maybe not: run again with the same input; the idempotency key replays.
+        Err(_) => return sign_result(host, refusal(r, "withdraw_unknown", vec![], Some(("amount_cents", json!(amount))))),
+    };
+    let tx = tx_fields(response.status, &response.body);
+    let status = tx.get("status").and_then(Value::as_str).unwrap_or("");
+    let accepted = (200..300).contains(&response.status)
+        && !matches!(status, "FAILED" | "REFUNDED" | "NEEDS_REVIEW" | "");
+    if !accepted {
+        return fit_signed(host, refusal(r, "withdraw_refused", vec![], Some(("tx", tx))));
+    }
+    let mut m = Map::new();
+    m.insert("ok".into(), json!(true));
+    m.insert("stage".into(), json!(r.stage));
+    m.insert("po".into(), json!(r.po));
+    m.insert("agent_id".into(), json!(r.agent_id));
+    m.insert("amount_cents".into(), json!(amount));
+    m.insert("held_cents".into(), json!(held));
+    m.insert("to".into(), json!(r.to));
+    m.insert("tx".into(), tx);
+    m.insert("signals".into(), json!(signal_ids));
+    m.insert("evidence_sha256".into(), json!(evidence_sha256(r)));
+    fit_signed(host, m)
+}
+
+/// Sign, and if the output would not fit an on-chain answer, drop the least needed tx
+/// fields (never `correlation_id` or `status`) and sign again.
+fn fit_signed(host: &dyn Host, mut m: Map<String, Value>) -> String {
+    const DROP_ORDER: [&str; 7] = ["transaction_hash", "intent_hash", "failure_code", "destination_tx_hash", "tx_hash", "error_layer", "http_status"];
+    let mut out = sign_result(host, m.clone());
+    for field in DROP_ORDER {
+        if out.len() <= MAX_OUTPUT_BYTES {
+            break;
+        }
+        if let Some(Value::Object(tx)) = m.get_mut("tx") {
+            tx.remove(field);
+        }
+        out = sign_result(host, m.clone());
+    }
+    out
+}
+
+/// The whole run: input JSON in, output JSON out. Never panics on bad input.
+pub fn run(host: &dyn Host, input: &str) -> String {
+    match serde_json::from_str::<Input>(input) {
+        Ok(Input::Enroll { agent_id }) => enroll(host, &agent_id),
+        Ok(Input::Release(r)) => release(host, &r),
+        Err(e) => canonical(&json!({"ok": false, "reason": "bad_input", "detail": e.to_string()})),
+    }
+}
+
+#[cfg(test)]
+mod tests;

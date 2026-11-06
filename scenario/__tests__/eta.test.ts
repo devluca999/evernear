@@ -14,7 +14,7 @@ describe("arrival estimate", () => {
     expect(eta("haoyun", "2026-11-05", "2026-11-20")).toMatchObject({ ship: "2026-11-20", arrive: "2026-11-24", totalDays: 19, movedUp: false });
   });
   it("cannot ship before the supplier is ready: an earlier date is moved up and says so", () => {
-    expect(eta("kansai", "2026-11-05", "2026-11-06")).toMatchObject({ ship: "2026-11-12", movedUp: true });
+    expect(eta("kansai", "2026-11-05", "2026-11-06")).toMatchObject({ ship: "2026-12-21", movedUp: true });
   });
   it("shows why Ultra Motion does not help: six weeks out", () => {
     expect(eta("ultra", "2026-11-05").totalDays).toBe(43);

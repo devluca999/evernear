@@ -25,7 +25,7 @@ export function loadPolicy(raw: string | null): Policy {
       autoApproveUnderCents: num(p.autoApproveUnderCents, defaultPolicy.autoApproveUnderCents, 0, 10_000_000_00),
       approversRequired: num(p.approversRequired, defaultPolicy.approversRequired, 1, 3),
       priceChangeLimitBps: num(p.priceChangeLimitBps, defaultPolicy.priceChangeLimitBps, 0, 5_000),
-      priceCaps: { ...defaultPolicy.priceCaps, [MOTOR_PART]: num(p.priceCaps?.[MOTOR_PART], defaultPolicy.priceCaps[MOTOR_PART], 1, 1_000_00) },
+      priceCaps: { ...defaultPolicy.priceCaps, [MOTOR_PART]: num(p.priceCaps?.[MOTOR_PART], defaultPolicy.priceCaps[MOTOR_PART], 1, 10_000_00) },
     };
   } catch { return defaultPolicy; }
 }
@@ -58,7 +58,7 @@ export function RulesEditor() {
           {field("AUTO APPROVE UNDER", policy.autoApproveUnderCents / 100, 1000, 0, 1_000_000, (n) => setPolicy({ ...policy, autoApproveUnderCents: Math.round(n * 100) }), "$")}
           {field("APPROVERS OVER THE CAP", policy.approversRequired, 1, 1, 3, (n) => setPolicy({ ...policy, approversRequired: Math.min(3, Math.max(1, Math.round(n))) }), "")}
           {field("PRICE CHANGE LIMIT", policy.priceChangeLimitBps / 100, 0.5, 0, 50, (n) => setPolicy({ ...policy, priceChangeLimitBps: Math.round(n * 100) }), "%")}
-          {field("MOTOR PRICE CAP", policy.priceCaps[MOTOR_PART] / 100, 0.1, 1, 1000, (n) => setPolicy({ ...policy, priceCaps: { ...policy.priceCaps, [MOTOR_PART]: Math.round(n * 100) } }), "$")}
+          {field("MOTOR PRICE CAP", policy.priceCaps[MOTOR_PART] / 100, 10, 1, 10_000, (n) => setPolicy({ ...policy, priceCaps: { ...policy.priceCaps, [MOTOR_PART]: Math.round(n * 100) } }), "$")}
           <p className={s.faint}>The story replays on these rules. A stricter rule stops PO 1042 where it applies.</p>
         </div>
       )}

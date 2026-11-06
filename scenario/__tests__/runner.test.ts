@@ -1,15 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { scenes, timeline, totalDurationMs } from "../scenes";
+import { amounts, scenes, timeline, totalDurationMs } from "../scenes";
 import { stateAt, sceneStartMs } from "../runner";
-import { cents } from "../../engine/money";
+import { PO } from "../../seed/astro";
 import { recordedKeys } from "../proofs";
 
 const end = stateAt(totalDurationMs);
+const a = amounts(PO.revisedUnitCents);
 
 describe("scenario runner", () => {
   it("has chapters 0 to 7, from the 10MA to Paid", () => {
     expect(scenes.map((s) => s.id)).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
-    expect(scenes.map((s) => s.title)).toEqual(["The 10MA", "The gap", "Ultra's reply", "Search", "Negotiation", "Approve and commit", "Day 9 · Chicago dock", "Paid"]);
+    expect(scenes.map((s) => s.title)).toEqual(["The 10MA", "The gap", "Ultra's reply", "Search", "Negotiation", "Approve and commit", "Shenzhen to the Chicago dock", "Paid"]);
   });
   it("starts at Low with nothing done", () => {
     const s = stateAt(0);
@@ -28,29 +29,31 @@ describe("scenario runner", () => {
   });
   it("shows the gap numbers", () => {
     const s = stateAt(sceneStartMs(2) - 1);
-    expect(s.demand.headline).toBe("14 robots ordered, motors for 6");
+    expect(s.demand.headline).toBe("500 robots ordered, motors for 450");
   });
-  it("scores fitment through the engine: 3 fail, Haoyun passes", () => {
+  it("scores fitment through the engine: Haoyun and QuickShip pass, Kansai is too late, 2 fail", () => {
     const s = stateAt(sceneStartMs(4));
     expect(s.fitment.filter((f) => !f.pass).map((f) => f.supplierId).sort()).toEqual(["huaxin", "kansai", "rheinwerk"]);
-    expect(s.fitment.find((f) => f.supplierId === "haoyun")!.pass).toBe(true);
+    expect(s.fitment.filter((f) => f.pass).map((f) => f.supplierId).sort()).toEqual(["haoyun", "quickship"]);
+    expect(s.fitment.find((f) => f.supplierId === "kansai")!.policyFailures).toEqual(["too_late"]);
   });
   it("collects 2 approvals before funds lock", () => {
     const lockAt = timeline.find((b) => b.ev.type === "lock_funds")!.atMs;
     const before = stateAt(lockAt - 1);
     expect(before.approvals).toHaveLength(2);
     expect(before.escrow).toBeNull();
-    expect(stateAt(lockAt).escrow!.lockedCents).toBe(cents(38000));
+    expect(stateAt(lockAt).escrow!.lockedCents).toBe(a.lockedCents);
   });
-  it("stops at +8% and passes at +2.5%", () => {
-    const s = stateAt(sceneStartMs(6));
-    expect(s.price.history.map((h) => [h.unitCents, h.pass])).toEqual([[2002, false], [1900, true]]);
+  it("stops at +10% and passes at +5%", () => {
+    const s = stateAt(sceneStartMs(5));
+    expect(s.price.history.map((h) => [h.unitCents, h.bps, h.pass])).toEqual([[PO.confirmedUnitCents, 1000, false], [PO.revisedUnitCents, 500, true]]);
     expect(s.refused.some((r) => r.kind === "offlist_email")).toBe(true);
   });
-  it("ends paid: $34,200 released, $3,800 held and reclaimed, wrong address refused", () => {
+  it("ends paid: $18,900 advance and $36,540 balance released, $7,560 held and reclaimed, wrong address refused", () => {
     expect(end.stage).toBe("closed");
-    expect(end.escrow).toMatchObject({ lockedCents: cents(38000), releasedCents: cents(34200), reclaimedCents: cents(3800) });
-    expect(end.dock).toMatchObject({ receivedQty: 1800, orderedQty: 2000 });
+    expect(end.escrow).toMatchObject({ lockedCents: a.lockedCents, releasedCents: a.advanceCents + a.balanceCents, reclaimedCents: a.holdCents });
+    expect([a.advanceCents, a.balanceCents, a.holdCents]).toEqual([1_890_000, 3_654_000, 756_000]);
+    expect(end.dock).toMatchObject({ receivedQty: 44, orderedQty: 50 });
     expect(end.refused.some((r) => r.kind === "wrong_address_release")).toBe(true);
     expect(end.endCard).toBe(true);
   });

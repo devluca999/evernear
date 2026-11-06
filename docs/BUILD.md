@@ -28,19 +28,32 @@ The 10MA BOM has 14 lines in total; seed the other 13 with plausible parts (fram
 | Supplier | Where | Offers | Outcome |
 | --- | --- | --- | --- |
 | Ultra Motion | Illinois, USA | Motor | Usual supplier; routine reorder passes, then out for 6 weeks |
-| Haoyun Precision | Shenzhen, China | Motor | Fits and passes policy; wins the order |
-| Kansai Servo Works | Osaka, Japan | Motor | Fails fitment: 8 mm shaft |
+| Haoyun Precision | Shenzhen, China | Motor | Precision motor maker. Fits; opens at +10%, final offer all 50 by Dec 14 at +5%; wins the order |
+| QuickShip Motion | Busan, South Korea | Motor | Fast shipping. Fits; opens at +10%, final offer 38 now at +10%, 12 after Dec 14, 5% off the next order |
+| Kansai Servo Works | Osaka, Japan | Motor | Fits every spec, but delivers 22 Dec, after Dec 14 (orange on the map) |
 | Rheinwerk Antriebstechnik | Stuttgart, Germany | Motor | Fits, but not on the approved list and 2.4x the price cap |
 | Huaxin Robotics Components | Dongguan, China | 11 of the 14 BOM lines | Fails 3 lines: motor flange NEMA 23, encoder connector JST-GH, battery pack 36 V |
 
 **Numbers (use exactly these)**
 
-- Order: 2,000 motors. Original quote $18.54 each.
-- Haoyun's confirmation comes back at +8% ($20.02). Buyer's limit: +3%. Revised at +2.5%: $19.00 each, **$38,000 total**.
-- Dock: 1,800 of 2,000 arrive. Release **$34,200**, hold **$3,800**.
-- Testnet runs at 1:1,000 and the screen labels it: $38.00 committed, $34.20 paid, $3.80 back to Astro. The faucet drips 100 test USDC an hour, so full amounts cannot be funded (decided with Luca, Nov 5 2026).
+These numbers supersede the earlier ones (Luca, Nov 6 2026). Rules live in `policy/astro.json`.
 
-**People.** Buyer (Luca) texts Stockbot, sets the 3% limit, photographs the packing slip. Second approver (Jordy) signs on his phone.
+| Item | Value |
+| --- | --- |
+| 10MA customer orders | 500, all due to ship by Dec 14 |
+| Buildable from parts on hand | 450 |
+| Short | 50 AM-17 actuator motors (1 per robot) |
+| 10MA selling price | $9,500 |
+| AM-17 base price | $1,200 a motor ($60,000 for 50) |
+| Urgent ceiling | up to 5% over base to ship on time |
+| Rules | auto-approve under $10,000; over that or a new supplier needs 2 approvers |
+
+- Both contenders open at a +10% urgent fee ($1,320). Haoyun's final offer: all 50 by Dec 14 at +5%, $1,260 a motor, **$63,000**. QuickShip's: 38 now at +10% ($1,320, $50,160), the other 12 after Dec 14, 5% off the next order: over the ceiling, and 12 robots late. Stockbot's comparison: the discount is worth about $3,000 on a $60,000 order, but 12 late robots put $114,000 of orders at risk. Luca picks Haoyun.
+- Two-stage escrow, same order wallet, same two allowed destinations: commit $63,000 after two approvals; release 1, the advance (30%), **$18,900** once the bill of lading AND export clearance are in; release 2, the balance, once import customs cleared AND the attested dock count: 44 of 50 arrived, 44 x $1,260 = $55,440, minus the advance = **$36,540**; **$7,560** held for 6 missing or damaged motors, paid when replacements arrive or refunded to Astro at the deadline; then the wallet closes (frozen, grant revoked). Check: $18,900 + $36,540 = $55,440; $55,440 + $7,560 = $63,000.
+- Bad path: Haoyun also holds at +10%; both over the ceiling; nothing moves. Adjusted: Luca raises the ceiling to 10% with two approvals; Haoyun's all-50 offer goes through at $1,320 ($66,000) with the same two-stage release ($19,800 advance, $38,280 balance, $7,920 held).
+- Testnet runs at 1:1,000 and the screen labels it: $63.00 committed, $18.90 advance, $36.54 balance, $7.56 back to Astro. The faucet drips 100 test USDC an hour, so full amounts cannot be funded (decided with Luca, Nov 5 2026).
+
+**People.** Buyer (Luca) texts Stockbot, picks the supplier, photographs the packing slip. Second approver (Jordy) signs on his phone.
 
 ## 3. The workspace (the whole demo happens here)
 
@@ -52,25 +65,24 @@ A composable workspace: pinnable panels on one dashboard. A scenario runner snap
 | Shipment map (mini) | Shipment moving Shenzhen to Chicago; document icons on the route (jade done, orange in progress, crimson problem) |
 | Supplier inbox | Email threads with suppliers, with the agent's reading beside each |
 | Order and BOM | 10MA exploded view (Anatomy figure) and per-supplier fitment, mismatches in crimson naming the exact spec |
-| Rules and approvals | Live meters: auto-approve under $10K, new supplier needs 2 approvers, price change up to 3%; 2 approval slots |
+| Rules and approvals | Live meters: auto-approve under $10K, new supplier needs 2 approvers, price change up to 5%; 2 approval slots |
 | Developer drawer | Stripe-style pull-up: the call that just ran, its code path, response, hash and explorer link |
 | Phone | Stockbot chat in a generic phone frame (no Apple device art), pull-up only, mirrors the real phone |
 
 Layout rules: at most 3 panels at once; the presenter camera is overlaid top right when recording (no placeholder on screen); the phone docks bottom left and the developer drawer runs from it to the right edge, with a chevron to expand or collapse; the drawer opens about 3 s per proof moment; a panel pulses when a Stockbot message refers to it; a journey rail across the top (Low, Sourcing, Approval, Confirmed, Funds locked, Shipped, Dock, Paid) shows progress as segmented steps.
 
-## 4. Scenes
+## 4. Chapters
 
-| # | Scene | What happens | Proof shown |
+| # | Chapter | What happens | Proof shown |
 | --- | --- | --- | --- |
-| 0 | Onboarding | Astro signs up; its wallet appears; owner keys stay with Astro; the agent gets a capped key | Wallet address, policy |
-| 1 | Bottleneck | Orders arrive, stock falls: "14 robots ordered, motors for 6"; Ultra is out | — |
-| 2 | Routine reorder (8 s) | A small Ultra reorder under the cap runs green end to end | Payment receipt |
-| 3 | Sourcing and fitment | 4 alternatives scanned against the BOM; 3 fail with the exact spec; Haoyun passes | Private-inference attestation |
-| 4 | Approval | $38K and a new supplier: over the cap, 2 approvals needed; both arrive | Approval records |
-| 5 | Negotiation | +8% arrives; buyer says "up to 3%"; agent counters by email; +2.5% revision passes | Connector receipt; refused email to an off-list address |
-| 6 | Funds committed | $38,000 (at 1:1,000) moves into this PO's own Agent API account, visible to Haoyun | PO account policy and the commit transfer |
-| 7 | Dock | Packing-slip photo: 1,800 of 2,000; attested dock check computes $34,200 | Attestation over code, input, output |
-| 8 | Paid | Release to Haoyun on Base Sepolia; $3,800 back to Astro; a withdraw to a wrong address is refused live by the account's policy | Base Sepolia tx and explorer link; the refusal |
+| 1 | The 10MA | Astro's wallet and rules; the product and its AM-17 actuator motor | Wallet address, policy |
+| 2 | The gap | 500 robots ordered for Dec 14, motors for 450; a routine reorder under the cap pays itself | Payment receipt |
+| 3 | Ultra's reply | Out for 6 weeks; Luca starts sourcing | — |
+| 4 | Search | Five suppliers against the BOM and Dec 14: Haoyun and QuickShip fit, Kansai is late, Rheinwerk and Huaxin fail | Private-inference attestation |
+| 5 | Negotiation | Two email threads side by side; both ask +10%; Stockbot counters within 5%; Haoyun +5% all 50, QuickShip 38 now at +10%; Luca picks Haoyun | Connector receipt; refused email to an off-list address |
+| 6 | Approve and commit | $63,000 and a new supplier: 2 approvals, then the commit into this PO's own Agent API account (1:1,000) | Approval records; PO account policy and the commit |
+| 7 | Shenzhen to the Chicago dock | Bill of lading and export clearance release the $18,900 advance; import customs and the attested count (44 of 50) release the $36,540 balance; $7,560 held | Signals; attestation over code, input, output; both payouts |
+| 8 | Paid | A withdraw to a wrong address refused live; what the escrow protected; the held $7,560 back to Astro at the deadline; the wallet closes | The refusal; Base Sepolia txs; wallet closed |
 | 9 | End card | "0 wires. 0 days waiting. 1 human decision." + repo link | — |
 
 ## 5. Architecture
@@ -110,17 +122,17 @@ Stages: `low`, `sourcing`, `approval`, `confirmed`, `funds_locked`, `shipped`, `
 | Testnet | OutLayer testnet key, NEAR AI key, a Tidepool key with Astro's testnet owner and treasury, Convex | Development, rehearsal and the recorded demo |
 | Mainnet (optional, later) | `AGENT_API_BASE_URL` switched to the mainnet Agent API, with Luca's explicit yes | Not used; no real assets are sent anywhere |
 
-Simulated, and named so in the README: Astro, its customers (`scenarios/demand.ts`), and the suppliers (`scenarios/suppliers.ts` replies from each supplier mailbox with fixture text and PDFs). The negotiation is not canned: the simulator sends the +2.5% revision only if the agent's counter stayed within the 3% limit.
+Simulated, and named so in the README: Astro, its customers (`scenarios/demand.ts`), and the suppliers (`scenarios/suppliers.ts` replies from each supplier mailbox with fixture text and PDFs). The negotiation is not canned: the simulator sends Haoyun's +5% all-50 offer only if the agent's counter stayed within the 5% ceiling; QuickShip answers with 38 now at +10% and the rest late. Shipment signals come from a simulated tracking feed (`scenarios/tracking.ts`).
 
 ## 8. Acceptance checks (each is a test)
 
 - Routine reorder under the cap pays with no human step.
-- Fitment: Kansai fails on shaft, Rheinwerk on policy, Huaxin on exactly 3 lines, Haoyun passes.
+- Fitment: Haoyun and QuickShip pass, Kansai is too late, Rheinwerk fails on policy, Huaxin on exactly 3 lines.
 - No leak: no plain-text BOM or supplier list in any outbound call except to private inference.
-- Approval: the $38K order cannot commit funds before 2 approvals.
-- Price limit: +8% stops; +2.5% passes; +4% would not.
+- Approval: the $63K order cannot commit funds before 2 approvals.
+- Ceiling: +10% stops; +5% passes; QuickShip's final offer is flagged as over the ceiling.
 - Off-list email is refused by the connector policy.
-- Short shipment: 1,800 of 2,000 releases exactly $34,200 and holds $3,800.
+- Two-stage release: the advance is refused without the bill of lading; the balance is refused without import customs or without the attested count; 44 of 50 releases exactly $18,900 + $36,540 and holds $7,560; the wallet never pays out more than $63,000.
 - Three exits only: a release to any address but Haoyun's or Astro's is refused, in code and live by the PO account's policy (shown in the drawer).
 - Deadline: no release by the deadline refunds Astro; after a partial release, the unreclaimed held part goes back to Astro.
 - Attested release: a release request not from the approved dock-check build is refused.

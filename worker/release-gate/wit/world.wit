@@ -1,0 +1,6 @@
+package evernear:release-gate;
+
+world guest {
+    import outlayer:encryption-keys/api@0.1.0;
+    import outlayer:signing-keys/api@0.1.0;
+}

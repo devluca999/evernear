@@ -23,14 +23,16 @@ export const pct = (bps: number) => `${+(bps / 100).toFixed(1)}%`;
  */
 export function matchKind(f: { pass: boolean; mismatches: unknown[]; policyFailures: unknown[]; linesOffered: number }): "fits" | "partial" | "fails" {
   if (f.pass) return "fits";
-  if (f.linesOffered > 1 || (f.mismatches.length === 0 && f.policyFailures.length > 0)) return "partial";
+  // Close: fits every spec and every rule, but cannot deliver in time.
+  if (f.mismatches.length === 0 && f.policyFailures.length === 1 && f.policyFailures[0] === "too_late") return "partial";
   return "fails";
 }
 
 /** The one line of reasons beside a result. */
 export function matchReason(f: { pass: boolean; mismatches: { spec: string; offered: string; required: string; line?: string }[]; policyFailures: string[]; linesOffered: number; priceCapMultiple: number | null }, bomLines: number): string {
-  if (f.pass) return "Fits every spec and passes your rules";
+  if (f.pass) return "Fits every spec, passes your rules, delivers before Dec 14";
   const rules = [f.policyFailures.includes("not_approved") && "not approved", f.policyFailures.includes("over_price_cap") && `${f.priceCapMultiple}x the price cap`].filter(Boolean).join(", ");
+  if (f.mismatches.length === 0 && f.policyFailures.length === 1 && f.policyFailures[0] === "too_late") return "Fits every spec, but delivers after Dec 14";
   if (f.linesOffered > 1) return `Offers ${f.linesOffered} of ${bomLines} BOM lines; ${f.mismatches.length} fail: ${f.mismatches.map(mismatchText).join("; ")}`;
   if (f.mismatches.length === 0) return `Fits every spec, but ${rules}`;
   return f.mismatches.map(mismatchText).join("; ");

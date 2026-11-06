@@ -4,12 +4,14 @@
 // so it is tested with mocks (tests/rehearse.test.ts); scripts/rehearse.ts wires the real ones.
 import { Custody, policyHandoffUrl } from "../../convex/near/custody";
 import { Approvals, approvalMessage } from "../../convex/near/approval";
-import { EscrowAdapter } from "../../convex/near/escrow";
+import { EscrowAdapter, type ReleasePath, type SignalEvidence } from "../../convex/near/escrow";
+import { releaseGateFromEnv } from "../../convex/near/releaseGate";
 import { agentApiBase, ownerFromPkcs8, TIDEPOOL_BASE } from "../../convex/near/agentapi";
 import { Gmail } from "../../convex/near/gmail";
 import { Inference } from "../../convex/near/inference";
 import { NEARAI_BASE, OUTLAYER_TESTNET, type Fetch, type ProofSink } from "../../convex/near/http";
-import { createEscrow, type Escrow } from "../../engine/escrow";
+import { createEscrow, RELEASE_RULES, type Escrow, type Stage } from "../../engine/escrow";
+import { dockEvidence, evidenceFrom, simulatedTracking } from "../../scenarios/tracking";
 import { PO, routineReorder } from "../../seed/astro";
 import { quotes } from "../../scenarios/suppliers";
 import { createRecorder, type ProofKey, type Recorder } from "./recorder";
@@ -35,7 +37,7 @@ export const REQUIRED_ENV = [
 ] as const;
 
 /** Every value that must never be printed or written. */
-export const SECRET_ENV = ["OUTLAYER_API_KEY", "OUTLAYER_PAYMENT_KEY", "NEARAI_API_KEY", "TELEGRAM_BOT_TOKEN", "TELEGRAM_WEBHOOK_SECRET", "INBOUND_EMAIL_SECRET", "AGENT_API_KEY", "AGENT_OWNER_PRIVATE_KEY_PKCS8", "HAOYUN_BASE_PRIVATE_KEY"];
+export const SECRET_ENV = ["OUTLAYER_API_KEY", "OUTLAYER_PAYMENT_KEY", "NEARAI_API_KEY", "TELEGRAM_BOT_TOKEN", "TELEGRAM_WEBHOOK_SECRET", "INBOUND_EMAIL_SECRET", "AGENT_API_KEY", "AGENT_OWNER_PRIVATE_KEY_PKCS8", "HAOYUN_BASE_PRIVATE_KEY", "RELEASE_GATE_WALLET_KEY"];
 
 const ALLOWED_HOSTS = [new URL(OUTLAYER_TESTNET).host, new URL(NEARAI_BASE).host, new URL(TIDEPOOL_BASE).host];
 
@@ -76,7 +78,10 @@ export interface Ctx {
   /** Divides every amount, so a wallet with little fake USDC can rehearse. Default 1. */
   scale: number;
   now: () => number;
-  state: { escrowAccount?: string; escrowApiKey?: string; lockRequestId?: string; approved?: boolean; po?: { agentId: string; account: string; ref: string; treasury: string; grantId?: string; settled?: Escrow } };
+  state: {
+    escrowAccount?: string; escrowApiKey?: string; lockRequestId?: string; approved?: boolean;
+    po?: { agentId: string; account: string; ref: string; treasury: string; grantId?: string; path: ReleasePath; gatePublicKey?: string; escrow: Escrow; settled?: Escrow };
+  };
   /** Values the recorder must scrub. A derived key is added the moment it exists. */
   secrets: string[];
 }
@@ -89,12 +94,38 @@ const skipped = (reason: string): StepResult => ({ status: "skipped", reason });
 const amount = (c: Ctx, cents: number) => Math.max(1, Math.round(cents / c.scale));
 const custody = (c: Ctx, sink: ProofSink = c.rec.sink, apiKey = c.env.OUTLAYER_API_KEY) => new Custody({ fetch: c.fetch, apiKey, sink });
 const allowlist = (c: Ctx) => [c.env.REHEARSE_HAOYUN_EMAIL!];
-/** The per-PO escrow on the Tidepool Agent API, with Astro's owner key. Amounts are story cents; it runs them at 1:1,000. */
+/**
+ * The per-PO escrow on the Tidepool Agent API, with Astro's owner key, and the release gate when
+ * RELEASE_GATE_* is set (otherwise the server sends each stage, and every release proof says so).
+ * Amounts are story cents; it runs them at 1:1,000.
+ */
 const escrow = (c: Ctx, sink: ProofSink = c.rec.sink) => new EscrowAdapter({
   fetch: c.fetch, apiKey: c.env.AGENT_API_KEY, baseUrl: agentApiBase(c.env.AGENT_API_BASE_URL), sink, treasuryId: c.env.AGENT_TREASURY_ID,
   owner: ownerFromPkcs8({ accountId: c.env.AGENT_OWNER_ACCOUNT_ID!, publicKey: c.env.AGENT_OWNER_PUBLIC_KEY!, pkcs8Base64: c.env.AGENT_OWNER_PRIVATE_KEY_PKCS8! }),
+  gate: releaseGateFromEnv(c.env, c.fetch), gatePublicKey: c.env.RELEASE_GATE_PUBLIC_KEY?.trim() || undefined,
 });
-const HAOYUN_PAID = 3_420_000; // 1,800 of 2,000 motors at $19.00
+const OFF_LIST = "0x000000000000000000000000000000000000dead";
+
+/** A stage's evidence: the simulated tracking feed, and for the balance the dock count (simulated until the dock check runs). */
+async function evidenceFor(stage: Stage): Promise<SignalEvidence> {
+  const all = evidenceFrom(await simulatedTracking().events(PO.number));
+  const ev: SignalEvidence = {};
+  for (const s of RELEASE_RULES.requires[stage]) if (all[s]) ev[s] = all[s];
+  if (stage === "balance") ev.dock_count = dockEvidence(PO.number, PO.receivedQty, "2026-11-11T08:40:00Z");
+  return ev;
+}
+
+/** Runs one stage for the committed PO and keeps the new escrow state. */
+async function stage(c: Ctx, st: Stage) {
+  const po = c.state.po!;
+  const to = c.env.HAOYUN_BASE_ADDRESS!.toLowerCase();
+  const r = await escrow(c).releaseStage({
+    escrow: po.escrow, agentId: po.agentId, stage: st, to, evidence: await evidenceFor(st), unitCents: PO.revisedUnitCents,
+    po: PO.number, ref: po.ref, nowMs: c.now(), path: po.path, gatePublicKey: po.gatePublicKey, payee: "Haoyun",
+  });
+  if (r.ok) po.escrow = r.escrow;
+  return r;
+}
 
 async function waitFor(c: Ctx, instructions: string[]): Promise<boolean> {
   for (const l of instructions) c.log(l);
@@ -201,8 +232,18 @@ export const steps: Step[] = [
       const ref = `rehearse-${PO.number}-${c.now()}`;
       const r = await escrow(c).lock({ po: PO.number, ref, agentId: acct.agentId, account: acct.account, cents: PO.revisedTotalCents });
       if (!r.ok) return skipped(`commit refused (${r.code})`);
-      c.state.po = { agentId: acct.agentId, account: acct.account, ref, treasury, grantId: acct.grantId };
+      const start = createEscrow({ supplier: c.env.HAOYUN_BASE_ADDRESS!.toLowerCase(), owner: treasury, lockedCents: PO.revisedTotalCents, deadlineMs: c.now() + 86_400_000 });
+      c.state.po = { agentId: acct.agentId, account: acct.account, ref, treasury, grantId: acct.grantId, path: acct.releasePath, gatePublicKey: acct.gatePublicKey, escrow: start };
       return done();
+    },
+  },
+  {
+    keys: ["signal_bill_of_lading", "signal_export_cleared", "advance_payout"],
+    title: "Scene 7: the motors leave: bill of lading and export clearance in, pay Haoyun the 30% advance, $18.90 on Base Sepolia (1:1,000)",
+    run: async (c) => {
+      if (!c.state.po) return skipped("nothing committed (the commit step was skipped)");
+      const r = await stage(c, "advance");
+      return r.ok ? done() : skipped(`advance refused (${r.reason})`);
     },
   },
   {
@@ -232,24 +273,31 @@ export const steps: Step[] = [
     run: async () => skipped("the dock check worker is not deployed yet (worker/dock-check); record it once it runs on OutLayer testnet"),
   },
   {
-    keys: ["refused_release"], title: "Scene 8: a withdraw to a wrong address is refused by the PO account's policy, live",
+    keys: ["refused_release"], title: "Scene 8: a withdraw to a wrong address is refused, in code and then by the PO account, live",
     run: async (c) => {
       const po = c.state.po;
       if (!po) return skipped("nothing committed (the commit step was skipped)");
-      const r = await escrow(c).policyRefusal({ agentId: po.agentId, to: "0x000000000000000000000000000000000000dead", cents: HAOYUN_PAID, po: PO.number, ref: po.ref });
+      const wrong = await escrow(c, () => {}).releaseStage({
+        escrow: po.escrow, agentId: po.agentId, stage: "balance", to: OFF_LIST, evidence: await evidenceFor("balance"), unitCents: PO.revisedUnitCents,
+        po: PO.number, ref: po.ref, nowMs: c.now(), path: po.path, gatePublicKey: po.gatePublicKey,
+      });
+      if (wrong.ok) throw new Error("the engine released to an off-list address");
+      const due = PO.receivedQty * PO.revisedUnitCents - po.escrow.releasedCents;
+      const r = await escrow(c).policyRefusal({ agentId: po.agentId, to: OFF_LIST, cents: due, po: PO.number, ref: po.ref, path: po.path });
       if (r.ok) throw new Error("the PO account paid an off-list address: its policy is wrong");
       return done();
     },
   },
   {
-    keys: ["intents_payout"], title: "Scene 8: pay Haoyun $34.20 on Base Sepolia, return the held $3.80 to Astro (1:1,000)",
+    keys: ["signal_import_cleared", "intents_payout"],
+    title: "Scene 8: customs cleared and 44 of 50 counted: pay Haoyun the balance, $36.54, and return the held $7.56 to Astro (1:1,000)",
     run: async (c) => {
       const po = c.state.po;
       if (!po) return skipped("nothing committed (the commit step was skipped)");
-      const start = createEscrow({ supplier: c.env.HAOYUN_BASE_ADDRESS!.toLowerCase(), owner: po.treasury, lockedCents: PO.revisedTotalCents, deadlineMs: c.now() + 86_400_000 });
-      const paid = await escrow(c).release({ escrow: start, agentId: po.agentId, to: c.env.HAOYUN_BASE_ADDRESS!.toLowerCase(), cents: HAOYUN_PAID, po: PO.number, ref: po.ref, nowMs: c.now() });
-      if (!paid.ok) return skipped(`payout refused (${paid.reason})`);
-      const back = await escrow(c, () => {}).reclaim({ escrow: paid.escrow, agentId: po.agentId, po: PO.number, ref: po.ref, nowMs: c.now() });
+      if (po.escrow.releasedCents === 0) return skipped("no advance was paid (the advance step was skipped)");
+      const paid = await stage(c, "balance");
+      if (!paid.ok) return skipped(`balance refused (${paid.reason})`);
+      const back = await escrow(c, () => {}).reclaim({ escrow: po.escrow, agentId: po.agentId, po: PO.number, ref: po.ref, nowMs: c.now(), path: po.path });
       if (!back.ok) return skipped(`held part not returned (${back.reason})`);
       po.settled = back.escrow;
       return done();

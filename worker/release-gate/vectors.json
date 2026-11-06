@@ -1,0 +1,989 @@
+{
+  "about": "Shared test vectors for worker/release-gate (Rust, cargo test) and its TypeScript twin. Amounts are integer US cents at story scale; base_units are Base USDC base units (6 decimals) at the testnet scale of 1:1,000, so base_units = cents x 10.",
+  "constants": {
+    "host": "www.usetidepool.tech",
+    "asset": "nep141:base-0x38d81431b9f76d9699af7517040d5221d9dea252.tp-omft.testnet",
+    "chain": "base",
+    "sign_prefix": "evernear-release-gate:v1:",
+    "grant_prefix": "tidepool-grant:v1:",
+    "max_output_bytes": 900
+  },
+  "release_cases": [
+    {
+      "name": "advance at $1260",
+      "input": {
+        "mode": "release",
+        "stage": "advance",
+        "po": "1042",
+        "agent_id": "agent_fe8606f9c6dc60f3f1768ed9",
+        "to": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+        "unit_cents": 126000,
+        "ordered_qty": 50,
+        "locked_cents": 6300000,
+        "released_cents": 0,
+        "advance_percent": 30,
+        "signals": {
+          "bill_of_lading": {
+            "id": "bol-HY-1042",
+            "at": "2026-11-08T09:00:00Z",
+            "source": "simulated"
+          },
+          "export_cleared": {
+            "id": "exp-CN-1042",
+            "at": "2026-11-08T12:00:00Z",
+            "source": "simulated"
+          }
+        },
+        "idempotency_key": "ignored-by-module"
+      },
+      "expect": {
+        "ok": true,
+        "amount_cents": 1890000,
+        "held_cents": 4410000,
+        "base_units": "18900000",
+        "signals": [
+          "bol-HY-1042",
+          "exp-CN-1042"
+        ]
+      }
+    },
+    {
+      "name": "balance at $1260",
+      "input": {
+        "mode": "release",
+        "stage": "balance",
+        "po": "1042",
+        "agent_id": "agent_fe8606f9c6dc60f3f1768ed9",
+        "to": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+        "unit_cents": 126000,
+        "ordered_qty": 50,
+        "locked_cents": 6300000,
+        "released_cents": 1890000,
+        "advance_percent": 30,
+        "signals": {
+          "import_cleared": {
+            "id": "imp-US-1042",
+            "at": "2026-11-20T15:00:00Z",
+            "source": "simulated"
+          },
+          "dock_count": {
+            "id": "dock-1042",
+            "at": "2026-11-21T10:00:00Z",
+            "count": 44,
+            "source": "simulated"
+          }
+        },
+        "idempotency_key": "ignored-by-module",
+        "received_qty": 44
+      },
+      "expect": {
+        "ok": true,
+        "amount_cents": 3654000,
+        "held_cents": 756000,
+        "base_units": "36540000",
+        "signals": [
+          "imp-US-1042",
+          "dock-1042"
+        ]
+      }
+    },
+    {
+      "name": "advance at $1320",
+      "input": {
+        "mode": "release",
+        "stage": "advance",
+        "po": "1042",
+        "agent_id": "agent_fe8606f9c6dc60f3f1768ed9",
+        "to": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+        "unit_cents": 132000,
+        "ordered_qty": 50,
+        "locked_cents": 6600000,
+        "released_cents": 0,
+        "advance_percent": 30,
+        "signals": {
+          "bill_of_lading": {
+            "id": "bol-HY-1042",
+            "at": "2026-11-08T09:00:00Z",
+            "source": "simulated"
+          },
+          "export_cleared": {
+            "id": "exp-CN-1042",
+            "at": "2026-11-08T12:00:00Z",
+            "source": "simulated"
+          }
+        },
+        "idempotency_key": "ignored-by-module"
+      },
+      "expect": {
+        "ok": true,
+        "amount_cents": 1980000,
+        "held_cents": 4620000,
+        "base_units": "19800000",
+        "signals": [
+          "bol-HY-1042",
+          "exp-CN-1042"
+        ]
+      }
+    },
+    {
+      "name": "balance at $1320",
+      "input": {
+        "mode": "release",
+        "stage": "balance",
+        "po": "1042",
+        "agent_id": "agent_fe8606f9c6dc60f3f1768ed9",
+        "to": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+        "unit_cents": 132000,
+        "ordered_qty": 50,
+        "locked_cents": 6600000,
+        "released_cents": 1980000,
+        "advance_percent": 30,
+        "signals": {
+          "import_cleared": {
+            "id": "imp-US-1042",
+            "at": "2026-11-20T15:00:00Z",
+            "source": "simulated"
+          },
+          "dock_count": {
+            "id": "dock-1042",
+            "at": "2026-11-21T10:00:00Z",
+            "count": 44,
+            "source": "simulated"
+          }
+        },
+        "idempotency_key": "ignored-by-module",
+        "received_qty": 44
+      },
+      "expect": {
+        "ok": true,
+        "amount_cents": 3828000,
+        "held_cents": 792000,
+        "base_units": "38280000",
+        "signals": [
+          "imp-US-1042",
+          "dock-1042"
+        ]
+      }
+    },
+    {
+      "name": "advance without bill of lading",
+      "input": {
+        "mode": "release",
+        "stage": "advance",
+        "po": "1042",
+        "agent_id": "agent_fe8606f9c6dc60f3f1768ed9",
+        "to": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+        "unit_cents": 126000,
+        "ordered_qty": 50,
+        "locked_cents": 6300000,
+        "released_cents": 0,
+        "advance_percent": 30,
+        "signals": {
+          "export_cleared": {
+            "id": "exp-CN-1042",
+            "at": "2026-11-08T12:00:00Z",
+            "source": "simulated"
+          }
+        },
+        "idempotency_key": "ignored-by-module"
+      },
+      "expect": {
+        "ok": false,
+        "reason": "missing_signals",
+        "missing": [
+          "bill_of_lading"
+        ]
+      }
+    },
+    {
+      "name": "advance without export clearance",
+      "input": {
+        "mode": "release",
+        "stage": "advance",
+        "po": "1042",
+        "agent_id": "agent_fe8606f9c6dc60f3f1768ed9",
+        "to": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+        "unit_cents": 126000,
+        "ordered_qty": 50,
+        "locked_cents": 6300000,
+        "released_cents": 0,
+        "advance_percent": 30,
+        "signals": {
+          "bill_of_lading": {
+            "id": "bol-HY-1042",
+            "at": "2026-11-08T09:00:00Z",
+            "source": "simulated"
+          }
+        },
+        "idempotency_key": "ignored-by-module"
+      },
+      "expect": {
+        "ok": false,
+        "reason": "missing_signals",
+        "missing": [
+          "export_cleared"
+        ]
+      }
+    },
+    {
+      "name": "advance with no signals",
+      "input": {
+        "mode": "release",
+        "stage": "advance",
+        "po": "1042",
+        "agent_id": "agent_fe8606f9c6dc60f3f1768ed9",
+        "to": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+        "unit_cents": 126000,
+        "ordered_qty": 50,
+        "locked_cents": 6300000,
+        "released_cents": 0,
+        "advance_percent": 30,
+        "signals": {},
+        "idempotency_key": "ignored-by-module"
+      },
+      "expect": {
+        "ok": false,
+        "reason": "missing_signals",
+        "missing": [
+          "bill_of_lading",
+          "export_cleared"
+        ]
+      }
+    },
+    {
+      "name": "advance with empty bill of lading",
+      "input": {
+        "mode": "release",
+        "stage": "advance",
+        "po": "1042",
+        "agent_id": "agent_fe8606f9c6dc60f3f1768ed9",
+        "to": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+        "unit_cents": 126000,
+        "ordered_qty": 50,
+        "locked_cents": 6300000,
+        "released_cents": 0,
+        "advance_percent": 30,
+        "signals": {
+          "bill_of_lading": {},
+          "export_cleared": {
+            "id": "exp-CN-1042",
+            "at": "2026-11-08T12:00:00Z",
+            "source": "simulated"
+          }
+        },
+        "idempotency_key": "ignored-by-module"
+      },
+      "expect": {
+        "ok": false,
+        "reason": "missing_signals",
+        "missing": [
+          "bill_of_lading"
+        ]
+      }
+    },
+    {
+      "name": "advance with export clearance missing at",
+      "input": {
+        "mode": "release",
+        "stage": "advance",
+        "po": "1042",
+        "agent_id": "agent_fe8606f9c6dc60f3f1768ed9",
+        "to": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+        "unit_cents": 126000,
+        "ordered_qty": 50,
+        "locked_cents": 6300000,
+        "released_cents": 0,
+        "advance_percent": 30,
+        "signals": {
+          "bill_of_lading": {
+            "id": "bol-HY-1042",
+            "at": "2026-11-08T09:00:00Z",
+            "source": "simulated"
+          },
+          "export_cleared": {
+            "id": "exp-CN-1042",
+            "source": "simulated"
+          }
+        },
+        "idempotency_key": "ignored-by-module"
+      },
+      "expect": {
+        "ok": false,
+        "reason": "missing_signals",
+        "missing": [
+          "export_cleared"
+        ]
+      }
+    },
+    {
+      "name": "balance signals do not release the advance",
+      "input": {
+        "mode": "release",
+        "stage": "advance",
+        "po": "1042",
+        "agent_id": "agent_fe8606f9c6dc60f3f1768ed9",
+        "to": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+        "unit_cents": 126000,
+        "ordered_qty": 50,
+        "locked_cents": 6300000,
+        "released_cents": 0,
+        "advance_percent": 30,
+        "signals": {
+          "import_cleared": {
+            "id": "imp-US-1042",
+            "at": "2026-11-20T15:00:00Z",
+            "source": "simulated"
+          },
+          "dock_count": {
+            "id": "dock-1042",
+            "at": "2026-11-21T10:00:00Z",
+            "count": 44,
+            "source": "simulated"
+          }
+        },
+        "idempotency_key": "ignored-by-module"
+      },
+      "expect": {
+        "ok": false,
+        "reason": "missing_signals",
+        "missing": [
+          "bill_of_lading",
+          "export_cleared"
+        ]
+      }
+    },
+    {
+      "name": "balance without import clearance",
+      "input": {
+        "mode": "release",
+        "stage": "balance",
+        "po": "1042",
+        "agent_id": "agent_fe8606f9c6dc60f3f1768ed9",
+        "to": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+        "unit_cents": 126000,
+        "ordered_qty": 50,
+        "locked_cents": 6300000,
+        "released_cents": 1890000,
+        "advance_percent": 30,
+        "signals": {
+          "dock_count": {
+            "id": "dock-1042",
+            "at": "2026-11-21T10:00:00Z",
+            "count": 44,
+            "source": "simulated"
+          }
+        },
+        "idempotency_key": "ignored-by-module",
+        "received_qty": 44
+      },
+      "expect": {
+        "ok": false,
+        "reason": "missing_signals",
+        "missing": [
+          "import_cleared"
+        ]
+      }
+    },
+    {
+      "name": "balance without dock count",
+      "input": {
+        "mode": "release",
+        "stage": "balance",
+        "po": "1042",
+        "agent_id": "agent_fe8606f9c6dc60f3f1768ed9",
+        "to": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+        "unit_cents": 126000,
+        "ordered_qty": 50,
+        "locked_cents": 6300000,
+        "released_cents": 1890000,
+        "advance_percent": 30,
+        "signals": {
+          "import_cleared": {
+            "id": "imp-US-1042",
+            "at": "2026-11-20T15:00:00Z",
+            "source": "simulated"
+          }
+        },
+        "idempotency_key": "ignored-by-module",
+        "received_qty": 44
+      },
+      "expect": {
+        "ok": false,
+        "reason": "missing_signals",
+        "missing": [
+          "dock_count"
+        ]
+      }
+    },
+    {
+      "name": "advance paid twice",
+      "input": {
+        "mode": "release",
+        "stage": "advance",
+        "po": "1042",
+        "agent_id": "agent_fe8606f9c6dc60f3f1768ed9",
+        "to": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+        "unit_cents": 126000,
+        "ordered_qty": 50,
+        "locked_cents": 6300000,
+        "released_cents": 1890000,
+        "advance_percent": 30,
+        "signals": {
+          "bill_of_lading": {
+            "id": "bol-HY-1042",
+            "at": "2026-11-08T09:00:00Z",
+            "source": "simulated"
+          },
+          "export_cleared": {
+            "id": "exp-CN-1042",
+            "at": "2026-11-08T12:00:00Z",
+            "source": "simulated"
+          }
+        },
+        "idempotency_key": "ignored-by-module"
+      },
+      "expect": {
+        "ok": false,
+        "reason": "already_released",
+        "missing": []
+      }
+    },
+    {
+      "name": "received over ordered",
+      "input": {
+        "mode": "release",
+        "stage": "balance",
+        "po": "1042",
+        "agent_id": "agent_fe8606f9c6dc60f3f1768ed9",
+        "to": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+        "unit_cents": 126000,
+        "ordered_qty": 50,
+        "locked_cents": 6300000,
+        "released_cents": 1890000,
+        "advance_percent": 30,
+        "signals": {
+          "import_cleared": {
+            "id": "imp-US-1042",
+            "at": "2026-11-20T15:00:00Z",
+            "source": "simulated"
+          },
+          "dock_count": {
+            "id": "dock-1042",
+            "at": "2026-11-21T10:00:00Z",
+            "count": 51,
+            "source": "simulated"
+          }
+        },
+        "idempotency_key": "ignored-by-module",
+        "received_qty": 51
+      },
+      "expect": {
+        "ok": false,
+        "reason": "received_over_ordered",
+        "missing": []
+      }
+    },
+    {
+      "name": "dock count disagrees with received",
+      "input": {
+        "mode": "release",
+        "stage": "balance",
+        "po": "1042",
+        "agent_id": "agent_fe8606f9c6dc60f3f1768ed9",
+        "to": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+        "unit_cents": 126000,
+        "ordered_qty": 50,
+        "locked_cents": 6300000,
+        "released_cents": 1890000,
+        "advance_percent": 30,
+        "signals": {
+          "import_cleared": {
+            "id": "imp-US-1042",
+            "at": "2026-11-20T15:00:00Z",
+            "source": "simulated"
+          },
+          "dock_count": {
+            "id": "dock-1042",
+            "at": "2026-11-21T10:00:00Z",
+            "count": 44,
+            "source": "simulated"
+          }
+        },
+        "idempotency_key": "ignored-by-module",
+        "received_qty": 50
+      },
+      "expect": {
+        "ok": false,
+        "reason": "count_mismatch",
+        "missing": []
+      }
+    },
+    {
+      "name": "nothing due: received worth less than released",
+      "input": {
+        "mode": "release",
+        "stage": "balance",
+        "po": "1042",
+        "agent_id": "agent_fe8606f9c6dc60f3f1768ed9",
+        "to": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+        "unit_cents": 126000,
+        "ordered_qty": 50,
+        "locked_cents": 6300000,
+        "released_cents": 1890000,
+        "advance_percent": 30,
+        "signals": {
+          "import_cleared": {
+            "id": "imp-US-1042",
+            "at": "2026-11-20T15:00:00Z",
+            "source": "simulated"
+          },
+          "dock_count": {
+            "id": "dock-1042",
+            "at": "2026-11-21T10:00:00Z",
+            "count": 10,
+            "source": "simulated"
+          }
+        },
+        "idempotency_key": "ignored-by-module",
+        "received_qty": 10
+      },
+      "expect": {
+        "ok": false,
+        "reason": "nothing_due",
+        "missing": []
+      }
+    },
+    {
+      "name": "balance already paid",
+      "input": {
+        "mode": "release",
+        "stage": "balance",
+        "po": "1042",
+        "agent_id": "agent_fe8606f9c6dc60f3f1768ed9",
+        "to": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+        "unit_cents": 126000,
+        "ordered_qty": 50,
+        "locked_cents": 6300000,
+        "released_cents": 5544000,
+        "advance_percent": 30,
+        "signals": {
+          "import_cleared": {
+            "id": "imp-US-1042",
+            "at": "2026-11-20T15:00:00Z",
+            "source": "simulated"
+          },
+          "dock_count": {
+            "id": "dock-1042",
+            "at": "2026-11-21T10:00:00Z",
+            "count": 44,
+            "source": "simulated"
+          }
+        },
+        "idempotency_key": "ignored-by-module",
+        "received_qty": 44
+      },
+      "expect": {
+        "ok": false,
+        "reason": "nothing_due",
+        "missing": []
+      }
+    },
+    {
+      "name": "released above locked",
+      "input": {
+        "mode": "release",
+        "stage": "balance",
+        "po": "1042",
+        "agent_id": "agent_fe8606f9c6dc60f3f1768ed9",
+        "to": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+        "unit_cents": 126000,
+        "ordered_qty": 50,
+        "locked_cents": 6300000,
+        "released_cents": 6300001,
+        "advance_percent": 30,
+        "signals": {
+          "import_cleared": {
+            "id": "imp-US-1042",
+            "at": "2026-11-20T15:00:00Z",
+            "source": "simulated"
+          },
+          "dock_count": {
+            "id": "dock-1042",
+            "at": "2026-11-21T10:00:00Z",
+            "count": 44,
+            "source": "simulated"
+          }
+        },
+        "idempotency_key": "ignored-by-module",
+        "received_qty": 44
+      },
+      "expect": {
+        "ok": false,
+        "reason": "over_locked",
+        "missing": []
+      }
+    },
+    {
+      "name": "balance with no advance pays the full order, never above locked",
+      "input": {
+        "mode": "release",
+        "stage": "balance",
+        "po": "1042",
+        "agent_id": "agent_fe8606f9c6dc60f3f1768ed9",
+        "to": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+        "unit_cents": 126000,
+        "ordered_qty": 50,
+        "locked_cents": 6300000,
+        "released_cents": 0,
+        "advance_percent": 30,
+        "signals": {
+          "import_cleared": {
+            "id": "imp-US-1042",
+            "at": "2026-11-20T15:00:00Z",
+            "source": "simulated"
+          },
+          "dock_count": {
+            "id": "dock-1042",
+            "at": "2026-11-21T10:00:00Z",
+            "count": 50,
+            "source": "simulated"
+          }
+        },
+        "idempotency_key": "ignored-by-module",
+        "received_qty": 50
+      },
+      "expect": {
+        "ok": true,
+        "amount_cents": 6300000,
+        "held_cents": 0,
+        "base_units": "63000000",
+        "signals": [
+          "imp-US-1042",
+          "dock-1042"
+        ]
+      }
+    },
+    {
+      "name": "locked is not ordered x unit",
+      "input": {
+        "mode": "release",
+        "stage": "advance",
+        "po": "1042",
+        "agent_id": "agent_fe8606f9c6dc60f3f1768ed9",
+        "to": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+        "unit_cents": 126000,
+        "ordered_qty": 50,
+        "locked_cents": 9999999,
+        "released_cents": 0,
+        "advance_percent": 30,
+        "signals": {
+          "bill_of_lading": {
+            "id": "bol-HY-1042",
+            "at": "2026-11-08T09:00:00Z",
+            "source": "simulated"
+          },
+          "export_cleared": {
+            "id": "exp-CN-1042",
+            "at": "2026-11-08T12:00:00Z",
+            "source": "simulated"
+          }
+        },
+        "idempotency_key": "ignored-by-module"
+      },
+      "expect": {
+        "ok": false,
+        "reason": "locked_mismatch",
+        "missing": []
+      }
+    },
+    {
+      "name": "30 percent not exact to the cent",
+      "input": {
+        "mode": "release",
+        "stage": "advance",
+        "po": "1042",
+        "agent_id": "agent_fe8606f9c6dc60f3f1768ed9",
+        "to": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+        "unit_cents": 3333,
+        "ordered_qty": 1,
+        "locked_cents": 3333,
+        "released_cents": 0,
+        "advance_percent": 30,
+        "signals": {
+          "bill_of_lading": {
+            "id": "bol-HY-1042",
+            "at": "2026-11-08T09:00:00Z",
+            "source": "simulated"
+          },
+          "export_cleared": {
+            "id": "exp-CN-1042",
+            "at": "2026-11-08T12:00:00Z",
+            "source": "simulated"
+          }
+        },
+        "idempotency_key": "ignored-by-module"
+      },
+      "expect": {
+        "ok": false,
+        "reason": "inexact_amount",
+        "missing": []
+      }
+    },
+    {
+      "name": "bad recipient",
+      "input": {
+        "mode": "release",
+        "stage": "advance",
+        "po": "1042",
+        "agent_id": "agent_fe8606f9c6dc60f3f1768ed9",
+        "to": "0xdead",
+        "unit_cents": 126000,
+        "ordered_qty": 50,
+        "locked_cents": 6300000,
+        "released_cents": 0,
+        "advance_percent": 30,
+        "signals": {
+          "bill_of_lading": {
+            "id": "bol-HY-1042",
+            "at": "2026-11-08T09:00:00Z",
+            "source": "simulated"
+          },
+          "export_cleared": {
+            "id": "exp-CN-1042",
+            "at": "2026-11-08T12:00:00Z",
+            "source": "simulated"
+          }
+        },
+        "idempotency_key": "ignored-by-module"
+      },
+      "expect": {
+        "ok": false,
+        "reason": "bad_recipient",
+        "missing": []
+      }
+    },
+    {
+      "name": "percent over 100",
+      "input": {
+        "mode": "release",
+        "stage": "advance",
+        "po": "1042",
+        "agent_id": "agent_fe8606f9c6dc60f3f1768ed9",
+        "to": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+        "unit_cents": 126000,
+        "ordered_qty": 50,
+        "locked_cents": 6300000,
+        "released_cents": 0,
+        "advance_percent": 101,
+        "signals": {
+          "bill_of_lading": {
+            "id": "bol-HY-1042",
+            "at": "2026-11-08T09:00:00Z",
+            "source": "simulated"
+          },
+          "export_cleared": {
+            "id": "exp-CN-1042",
+            "at": "2026-11-08T12:00:00Z",
+            "source": "simulated"
+          }
+        },
+        "idempotency_key": "ignored-by-module"
+      },
+      "expect": {
+        "ok": false,
+        "reason": "bad_percent",
+        "missing": []
+      }
+    },
+    {
+      "name": "balance without received_qty",
+      "input": {
+        "mode": "release",
+        "stage": "balance",
+        "po": "1042",
+        "agent_id": "agent_fe8606f9c6dc60f3f1768ed9",
+        "to": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+        "unit_cents": 126000,
+        "ordered_qty": 50,
+        "locked_cents": 6300000,
+        "released_cents": 1890000,
+        "advance_percent": 30,
+        "signals": {
+          "import_cleared": {
+            "id": "imp-US-1042",
+            "at": "2026-11-20T15:00:00Z",
+            "source": "simulated"
+          },
+          "dock_count": {
+            "id": "dock-1042",
+            "at": "2026-11-21T10:00:00Z",
+            "count": 44,
+            "source": "simulated"
+          }
+        },
+        "idempotency_key": "ignored-by-module"
+      },
+      "expect": {
+        "ok": false,
+        "reason": "missing_received_qty",
+        "missing": []
+      }
+    },
+    {
+      "name": "unknown stage",
+      "input": {
+        "mode": "release",
+        "stage": "bonus",
+        "po": "1042",
+        "agent_id": "agent_fe8606f9c6dc60f3f1768ed9",
+        "to": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+        "unit_cents": 126000,
+        "ordered_qty": 50,
+        "locked_cents": 6300000,
+        "released_cents": 0,
+        "advance_percent": 30,
+        "signals": {
+          "bill_of_lading": {
+            "id": "bol-HY-1042",
+            "at": "2026-11-08T09:00:00Z",
+            "source": "simulated"
+          },
+          "export_cleared": {
+            "id": "exp-CN-1042",
+            "at": "2026-11-08T12:00:00Z",
+            "source": "simulated"
+          }
+        },
+        "idempotency_key": "ignored-by-module"
+      },
+      "expect": {
+        "ok": false,
+        "reason": "bad_stage",
+        "missing": []
+      }
+    }
+  ],
+  "token_cases": [
+    {
+      "mac_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "token": "ngt_AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+      "grant_hash": "ee2e53e411abad355553a54216c4d28372e872ed654d80d5bc480c2b0b918158"
+    },
+    {
+      "mac_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "token": "ngt___________________________________________8",
+      "grant_hash": "cd26620c49ecfd6d3b0c574e18a8c77d0e2760e506742bc350fd1351f97e5058"
+    }
+  ],
+  "host_cases": [
+    {
+      "url": "https://www.usetidepool.tech/v1/agents/agent_fe8606f9c6dc60f3f1768ed9/withdraw",
+      "allowed": true
+    },
+    {
+      "url": "https://api.agentsonintents.com/v1/agents/agent_fe8606f9c6dc60f3f1768ed9/withdraw",
+      "allowed": false
+    },
+    {
+      "url": "http://www.usetidepool.tech/v1/agents/agent_fe8606f9c6dc60f3f1768ed9/withdraw",
+      "allowed": false
+    },
+    {
+      "url": "https://usetidepool.tech/v1/agents/agent_fe8606f9c6dc60f3f1768ed9/withdraw",
+      "allowed": false
+    },
+    {
+      "url": "https://www.usetidepool.tech.evil.example/v1/agents/agent_fe8606f9c6dc60f3f1768ed9/withdraw",
+      "allowed": false
+    },
+    {
+      "url": "https://www.usetidepool.tech@evil.example/v1/agents/agent_fe8606f9c6dc60f3f1768ed9/withdraw",
+      "allowed": false
+    },
+    {
+      "url": "https://www.usetidepool.tech:8443/v1/agents/agent_fe8606f9c6dc60f3f1768ed9/withdraw",
+      "allowed": false
+    },
+    {
+      "url": "https://www.usetidepool.tech/v1/keys",
+      "allowed": false
+    },
+    {
+      "url": "https://www.usetidepool.tech/v1/agents/../keys",
+      "allowed": false
+    },
+    {
+      "url": "https://testnet-api.outlayer.ai/v1/agents/x/withdraw",
+      "allowed": false
+    }
+  ],
+  "scale_cases": [
+    {
+      "cents": 1890000,
+      "base_units": "18900000"
+    },
+    {
+      "cents": 3654000,
+      "base_units": "36540000"
+    },
+    {
+      "cents": 756000,
+      "base_units": "7560000"
+    },
+    {
+      "cents": 1980000,
+      "base_units": "19800000"
+    },
+    {
+      "cents": 3828000,
+      "base_units": "38280000"
+    },
+    {
+      "cents": 792000,
+      "base_units": "7920000"
+    },
+    {
+      "cents": 6300000,
+      "base_units": "63000000"
+    },
+    {
+      "cents": 1,
+      "base_units": "10"
+    }
+  ],
+  "idempotency_cases": [
+    {
+      "agent_id": "agent_fe8606f9c6dc60f3f1768ed9",
+      "po": "1042",
+      "stage": "advance",
+      "key": "rg1-advance-2baf9f38ce6eb3cf17c1fce1eb554c7d"
+    },
+    {
+      "agent_id": "agent_fe8606f9c6dc60f3f1768ed9",
+      "po": "1042",
+      "stage": "balance",
+      "key": "rg1-balance-3b688b75d5bac1cf057b804ec177e9b3"
+    }
+  ],
+  "signature_case": {
+    "input_case": "advance without bill of lading",
+    "message": "evernear-release-gate:v1:{\"agent_id\":\"agent_fe8606f9c6dc60f3f1768ed9\",\"evidence_sha256\":\"e96f3b1c4fb7b40902528915e02a142ae43a9859a86ab572448be255f325dec6\",\"missing\":[\"bill_of_lading\"],\"ok\":false,\"po\":\"1042\",\"public_key\":\"ea4a6c63e29c520abef5507b132ec5f9954776aebebe7b92421eea691446d22c\",\"reason\":\"missing_signals\",\"stage\":\"advance\"}",
+    "output": {
+      "agent_id": "agent_fe8606f9c6dc60f3f1768ed9",
+      "evidence_sha256": "e96f3b1c4fb7b40902528915e02a142ae43a9859a86ab572448be255f325dec6",
+      "missing": [
+        "bill_of_lading"
+      ],
+      "ok": false,
+      "po": "1042",
+      "public_key": "ea4a6c63e29c520abef5507b132ec5f9954776aebebe7b92421eea691446d22c",
+      "reason": "missing_signals",
+      "signature": "e28c24e96f6b5de4f5d7e314da6cdf827e2157ac0419bcdb6b6c5e76a412b2cb36bc5cbdc72370729f0ec41d3cac991bbb4f09f07e2bfed90ccba7b61a969e0d",
+      "stage": "advance"
+    },
+    "public_key_hex": "ea4a6c63e29c520abef5507b132ec5f9954776aebebe7b92421eea691446d22c",
+    "seed_hex": "0707070707070707070707070707070707070707070707070707070707070707",
+    "signature_hex": "e28c24e96f6b5de4f5d7e314da6cdf827e2157ac0419bcdb6b6c5e76a412b2cb36bc5cbdc72370729f0ec41d3cac991bbb4f09f07e2bfed90ccba7b61a969e0d",
+    "note": "Test-only key: ed25519 seed of 32 bytes of 0x07. message is the exact signed bytes: sign_prefix + canonical JSON of output without signature."
+  }
+}

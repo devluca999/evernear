@@ -1,0 +1,18 @@
+package outlayer:encryption-keys@0.1.0;
+
+interface api {
+    /// Seal plaintext under the declared key at path, bound to aad.
+    /// 0x01 || nonce (24 bytes) || ciphertext || tag (16 bytes); at most 262144 bytes of plaintext and of aad.
+    encrypt: func(path: string, vault: option<string>, plaintext: list<u8>, aad: list<u8>) -> result<list<u8>, string>;
+
+    /// Open what encrypt sealed under the same path, vault and aad.
+    /// Every failure to open is err("decryption failed").
+    decrypt: func(path: string, vault: option<string>, ciphertext: list<u8>, aad: list<u8>) -> result<list<u8>, string>;
+
+    /// HMAC-SHA256 of data (32 bytes) under a subkey of the declared key; deterministic.
+    mac: func(path: string, vault: option<string>, data: list<u8>) -> result<list<u8>, string>;
+}
+
+world encryption-keys-host {
+    import api;
+}

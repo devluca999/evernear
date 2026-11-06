@@ -74,17 +74,19 @@ export function RulesPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }
     const quote = st.price.history.find((h) => h.unitCents > PO.originalUnitCents && h.bps > seedPolicy.priceChangeLimitBps);
     const qBps = quote ? Math.round(((quote.unitCents - PO.originalUnitCents) / PO.originalUnitCents) * 10_000) : 800;
     const newTotal = (quote?.unitCents ?? PO.confirmedUnitCents) * PO.quantity;
+    // The new limit is the held quote's change, in whole percent.
+    const newLimit = limitChanged ? policy.priceChangeLimitBps : Math.ceil(qBps / 100) * 100;
     const limitSigned = (name: string) => st.limitApprovals.find((a) => a.by === name)?.time;
     return (
       <Panel id="rules" title="Rules" pulse={pulse} meta={meta("limit change")}>
         <div className={s.pad} style={{ padding: 20, gap: 20 }}>
           <div className={s.field} style={{ gap: 6 }}>
-            <p className={s.big} style={{ fontSize: 20 }}>{limitChanged ? <>Price limit raised to <N>{pct(policy.priceChangeLimitBps)}</N></> : <>Raising the price limit to <N>8%</N></>}</p>
+            <p className={s.big} style={{ fontSize: 20 }}>{limitChanged ? <>Price limit raised to <N>{pct(policy.priceChangeLimitBps)}</N></> : <>Raising the price limit to <N>{pct(newLimit)}</N></>}</p>
             <span className={s.sub} style={{ fontSize: 13 }}>For PO <N>{PO.number}</N> only. Other orders keep the <N>{pct(seedPolicy.priceChangeLimitBps)}</N> limit.</span>
           </div>
-          <Bar label={<>Price change up to <N>{pct(limitChanged ? policy.priceChangeLimitBps : 800)}</N></>} read={`+${(qBps / 100).toFixed(2)}%`} big max={1000}
-            rule={limitChanged ? policy.priceChangeLimitBps : 800} oldRule={seedPolicy.priceChangeLimitBps} value={qBps} tone={limitChanged ? "success" : "attention"}
-            ends={["0%", "10%"]} marks={[{ at: seedPolicy.priceChangeLimitBps, text: `Was ${pct(seedPolicy.priceChangeLimitBps)}` }, { at: limitChanged ? policy.priceChangeLimitBps : 800, text: "New limit 8%", tone: "muted" }]} />
+          <Bar label={<>Price change up to <N>{pct(newLimit)}</N></>} read={`+${pct(qBps)}`} big max={Math.max(1000, newLimit + 200)}
+            rule={newLimit} oldRule={seedPolicy.priceChangeLimitBps} value={qBps} tone={limitChanged ? "success" : "attention"}
+            ends={["0%", pct(Math.max(1000, newLimit + 200))]} marks={[{ at: seedPolicy.priceChangeLimitBps, text: `Was ${pct(seedPolicy.priceChangeLimitBps)}` }, { at: newLimit, text: `New limit ${pct(newLimit)}`, tone: "muted" }]} />
           <Bar label={<>Auto approve under <N>{usdK(policy.autoApproveUnderCents)}</N></>} read={st.approvals.length >= st.requiredApprovals ? `Signed by ${st.approvals.length}` : "Needs approvers"} readTone="muted"
             max={Math.max(4_000_000, newTotal)} rule={policy.autoApproveUnderCents} value={newTotal} tone="success" ends={["$0", formatUsdShort(newTotal), usdK(policy.autoApproveUnderCents)]} />
           <div className={s.lines} style={{ gap: 10 }}>
@@ -111,8 +113,8 @@ export function RulesPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }
             </div>
             <span className={s.sub} style={{ fontSize: 13 }}>Quoted <N>{formatUsd(last.unitCents)}</N> a unit against a PO price of <N>{formatUsd(PO.originalUnitCents)}</N>.</span>
           </div>
-          <Bar label={<>Price change up to <N>{pct(policy.priceChangeLimitBps)}</N></>} read={`+${pct(last.bps)}`} readTone="alert" big max={1000}
-            rule={policy.priceChangeLimitBps} value={last.bps} tone="alert" ends={["0%", "10%"]}
+          <Bar label={<>Price change up to <N>{pct(policy.priceChangeLimitBps)}</N></>} read={`+${pct(last.bps)}`} readTone="alert" big max={1200}
+            rule={policy.priceChangeLimitBps} value={last.bps} tone="alert" ends={["0%", "12%"]}
             marks={[{ at: policy.priceChangeLimitBps, text: `Limit ${pct(policy.priceChangeLimitBps)}`, tone: "muted" }, { at: last.bps, text: `Held at ${pct(last.bps)}`, tone: "alert" }]} />
           <p className={s.sub} style={{ fontSize: 13 }}>Stockbot will not commit above your limit. Raise it with two approvals or end the order.</p>
           <div className={s.lines} style={{ paddingTop: 12, borderTop: "1px solid var(--line-hairline)", color: "var(--text-muted)" }}>
@@ -145,8 +147,8 @@ export function RulesPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }
           <Bar label={<>New supplier needs <N>{policy.approversRequired}</N> approvers</>} read={approved ? "Signed" : "Past the line"} readTone={approved ? "muted" : "attention"}
             max={100} rule={60} value={98} tone={approved ? "success" : "attention"} ends={["Established", "First order"]} />
           {last?.pass
-            ? <Bar label={<>Price change up to <N>{pct(policy.priceChangeLimitBps)}</N></>} read={`Agreed +${pct(last.bps)}`} readTone="muted" max={1000} rule={policy.priceChangeLimitBps} value={last.bps} tone="success" ends={["0%", "10%", pct(policy.priceChangeLimitBps)]} />
-            : <Bar label={<>Price change up to <N>{pct(policy.priceChangeLimitBps)}</N></>} read="Waiting on confirmation" max={1000} rule={policy.priceChangeLimitBps} ends={["0%", "10%", pct(policy.priceChangeLimitBps)]} />}
+            ? <Bar label={<>Price change up to <N>{pct(policy.priceChangeLimitBps)}</N></>} read={`Agreed +${pct(last.bps)}`} readTone="muted" max={1200} rule={policy.priceChangeLimitBps} value={last.bps} tone="success" ends={["0%", "12%", pct(policy.priceChangeLimitBps)]} />
+            : <Bar label={<>Price change up to <N>{pct(policy.priceChangeLimitBps)}</N></>} read="Waiting on confirmation" max={1200} rule={policy.priceChangeLimitBps} ends={["0%", "12%", pct(policy.priceChangeLimitBps)]} />}
           <div className={s.lines} style={{ gap: 10 }} data-focus="rules.approvals">
             <span className="es-micro">Approval slots</span>
             <div className={s.slots}>
@@ -165,8 +167,8 @@ export function RulesPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }
     return (
       <Panel id="rules" title="Rules" pulse={pulse} meta={st.escrow ? meta() : null}>
         <div className={s.pad} style={{ padding: "16px 20px", gap: 14 }}>
-          <Bar label={<>Price change up to <N>{pct(policy.priceChangeLimitBps)}</N></>} read={`+${pct(last.bps)}`} readTone={last.pass ? undefined : "attention"} big max={1000}
-            rule={policy.priceChangeLimitBps} value={last.bps} tone={last.pass ? "success" : "attention"} ghost={quoted > last.bps ? quoted : undefined} ends={["0%", "10%"]}
+          <Bar label={<>Price change up to <N>{pct(policy.priceChangeLimitBps)}</N></>} read={`+${pct(last.bps)}`} readTone={last.pass ? undefined : "attention"} big max={1200}
+            rule={policy.priceChangeLimitBps} value={last.bps} tone={last.pass ? "success" : "attention"} ghost={quoted > last.bps ? quoted : undefined} ends={["0%", "12%"]}
             marks={[{ at: policy.priceChangeLimitBps, text: `Limit ${pct(policy.priceChangeLimitBps)}`, tone: "muted" }, ...(quoted > last.bps ? [{ at: quoted, text: `Quoted ${pct(quoted)}` }] : [])]} />
           <div className={s.headRow} style={{ gap: 18, paddingTop: 12, borderTop: "1px solid var(--line-hairline)", fontSize: 12, color: "var(--text-muted)", flexWrap: "wrap" }}>
             {st.approvals.length === 0 ? (
@@ -189,7 +191,7 @@ export function RulesPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }
       <div className={s.pad} style={{ padding: 18, gap: 20 }}>
         <Bar label={<>Auto approve under <N>{usdK(policy.autoApproveUnderCents)}</N></>} read="No orders yet" max={4_000_000} rule={policy.autoApproveUnderCents} ends={["$0", "$40K", usdK(policy.autoApproveUnderCents)]} />
         <Bar label={<>New supplier needs <N>{policy.approversRequired}</N> approvers</>} read="No orders yet" max={100} rule={60} ends={["Established", "New"]} />
-        <Bar label={<>Price change up to <N>{pct(policy.priceChangeLimitBps)}</N></>} read="No orders yet" max={1000} rule={policy.priceChangeLimitBps} ends={["0%", "10%", pct(policy.priceChangeLimitBps)]} />
+        <Bar label={<>Price change up to <N>{pct(policy.priceChangeLimitBps)}</N></>} read="No orders yet" max={1200} rule={policy.priceChangeLimitBps} ends={["0%", "12%", pct(policy.priceChangeLimitBps)]} />
         <div className={s.slots}>
           {[astro.buyer, astro.secondApprover].map((name, i) => (
             <div key={name} className={s.slotCard} data-tone="idle" style={{ gap: 5 }}>

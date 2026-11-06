@@ -1,5 +1,5 @@
 // Stock: how many robots the motors on hand cover, the on-hand line against the reorder point,
-// and the build plan's parts. After the dock count the line jumps with the 1,800 that arrived.
+// and the build plan's parts. After the dock count the line jumps with the motors that arrived.
 import type { WorkspaceState } from "@/scenario/types";
 import { buildPlan, demand, MOTOR_PART, motorHistory, partStock } from "@/seed/astro";
 import { formatInt } from "@/engine/money";
@@ -17,7 +17,7 @@ function ShortChart({ onHand }: { onHand: number }) {
   const ry = y(motorHistory.reorderPoint);
   return (
     <div className={s.chartBox}>
-      <div className={s.chartHead}><span>AM17 actuator motor, on hand</span><N className={`${s.push} ${s.faint}`}>{motorHistory.from} to {motorHistory.to}</N></div>
+      <div className={s.chartHead}><span>AM-17 actuator motor, on hand</span><N className={`${s.push} ${s.faint}`}>{motorHistory.from} to {motorHistory.to}</N></div>
       <svg viewBox="0 0 520 196" className={s.chart} role="img" aria-label={`Actuator motors on hand fell from ${top} to ${onHand}, below the reorder point of ${motorHistory.reorderPoint}`}>
         <line x1={x0} y1={y0} x2="510" y2={y0} stroke="var(--line-strong)" />
         <line x1={x0} y1={y1} x2="510" y2={y1} stroke="var(--line-hairline)" />
@@ -74,10 +74,11 @@ export function StockPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }
       <Panel id="stock" title="Stock" pulse={pulse}>
         <div className={s.pad} style={{ padding: "14px 16px", gap: 8 }}>
           <div className={s.headRow} style={{ gap: 10 }}>
-            <Dot tone="success" />
-            <p className={s.big} style={{ fontSize: 22 }}>Motors for <N>{formatInt(motorsFor)}</N> robots</p>
-            <N className={`${s.push} ${s.muted}`}>{formatInt(onHand)} AM17 on hand</N>
+            <Dot tone={short ? "attention" : "success"} />
+            <p className={s.big} style={{ fontSize: 22 }}>Motors for <N>{formatInt(Math.min(motorsFor, ordered))}</N> of <N>{formatInt(ordered)}</N> robots</p>
+            <N className={`${s.push} ${s.muted}`}>{formatInt(onHand)} AM-17 on hand</N>
           </div>
+          {short && <p className={s.sub} style={{ fontSize: 13 }}><N>{formatInt(needed - onHand)}</N> robots wait for the replacement motors.</p>}
           <RestockChart before={base} after={onHand} />
         </div>
       </Panel>
@@ -93,8 +94,8 @@ export function StockPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }
           <span className={s.note} style={{ fontSize: 12 }}>10MA build plan</span>
         </div>
         <div className={s.lines} data-focus="stock.shortfall" style={{ gap: 6 }}>
-          <p className={s.big} style={{ fontSize: 34, lineHeight: 1.08 }}><N>{ordered}</N> robots ordered, motors for <N>{motorsFor}</N></p>
-          <p className={s.sub}>Each 10MA takes {demand.motorsPerRobot} actuator motors. <N>{onHand}</N> on hand, <N>{needed}</N> needed.</p>
+          <p className={s.big} style={{ fontSize: 34, lineHeight: 1.08 }}><N>{formatInt(ordered)}</N> robots ordered, motors for <N>{formatInt(motorsFor)}</N></p>
+          <p className={s.sub}>Each 10MA takes {demand.motorsPerRobot === 1 ? "one actuator motor" : `${demand.motorsPerRobot} actuator motors`}. <N>{formatInt(onHand)}</N> on hand, <N>{formatInt(needed)}</N> needed.</p>
         </div>
         <ShortChart onHand={onHand} />
         <div className={s.rows} role="table" aria-label="10MA build plan parts">

@@ -15,6 +15,7 @@ export interface RailProps {
   live: { available: boolean; on: boolean; toggle: () => void; status: string | null };
   mode: "dark" | "light"; toggleMode: () => void;
   synthetic: boolean; hide: () => void;
+  camera?: { on: boolean; follow: boolean; toggle: () => void; toggleFollow: () => void; focus: string | null; next: string | null };
 }
 
 export function DemoRail(p: RailProps) {
@@ -27,7 +28,7 @@ export function DemoRail(p: RailProps) {
         <button type="button" className={s.railHide} onClick={p.hide}>Hide<ChevronRight size={13} strokeWidth={2} aria-hidden="true" /></button>
       </div>
       <div className={s.sceneHead}>
-        <span className={s.sceneLabel}>{p.scenario.title} · Scene {p.scene + 1}</span>
+        <span className={s.sceneLabel}>{p.scenario.title} · Chapter {p.scene + 1}</span>
         <h2 className={s.sceneTitle}>{p.title}</h2>
         {p.line && <p className={s.sceneLine}>{p.line}</p>}
       </div>
@@ -82,8 +83,22 @@ export function DemoRail(p: RailProps) {
         <button type="button" className={`es-btn es-btn-secondary es-btn-sm ${s.railBtn}`} onClick={p.toggleMode}>{p.mode === "dark" ? "Light" : "Dark"}</button>
       </div>
 
-      <span className="es-micro">Scenes</span>
-      <ol className={s.sceneList} aria-label="Scenes">
+      {p.camera && (
+        <div className={s.camRow} role="group" aria-label="Camera">
+          <button type="button" className={`es-btn es-btn-secondary es-btn-sm ${s.railBtn}`} aria-pressed={p.camera.on} onClick={p.camera.toggle} title="Zoom to each step's focus (F)">
+            <Dot tone={p.camera.on ? "active" : undefined} />{p.camera.on ? "Camera on" : "Camera off"}<span className={s.kbd}>F</span>
+          </button>
+          <button type="button" className={`es-btn es-btn-secondary es-btn-sm ${s.railBtn}`} aria-pressed={p.camera.follow} onClick={p.camera.toggleFollow} disabled={!p.camera.on} title="Zoom gently toward each click (Z)">
+            Follow clicks<span className={s.kbd}>Z</span>
+          </button>
+          {p.camera.on && (p.camera.focus || p.camera.next) && (
+            <span className={s.camNote}>{p.camera.focus ? <>On <span className="es-num">{p.camera.focus}</span></> : <>Next zoom: {p.camera.next}</>}</span>
+          )}
+        </div>
+      )}
+
+      <span className="es-micro">Chapters</span>
+      <ol className={s.sceneList} aria-label="Chapters">
         {LIST.map((x) => {
           const state = x.id < p.scene ? "done" : x.id === p.scene ? "current" : "pending";
           return (

@@ -2,11 +2,11 @@
 // Products: the fitment verdict once sourcing runs (which alternative fits the 10MA, and the exact
 // spec each other one fails), and the BOM to browse: pick a product, open a line for its specs,
 // explode the drawing. Kip and Porter are sample BOMs (seed/astro.ts); only the 10MA story plays.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { WorkspaceState } from "@/scenario/types";
 import { bomFor, demand, MOTOR_PART, partStock, products, suppliers } from "@/seed/astro";
 import { formatInt } from "@/engine/money";
-import { mismatchText } from "../format";
+import { matchKind, mismatchText } from "../format";
 import { Badge, Dot, N, Panel } from "../Panel";
 import { ExplodedView, MotorCloseUp } from "../figures/ExplodedView";
 import s from "../shell.module.css";
@@ -15,7 +15,11 @@ const ORDER = ["haoyun", "kansai", "rheinwerk", "huaxin"];
 const label = (k: string) => k.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase());
 
 export function ProductsPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }) {
-  const [productId, setProductId] = useState<string>("10ma");
+  // The story picks the product (chapter 1 switches Kip, Porter, then the 10MA); a tab you pick holds until it moves on.
+  const [picked, setPicked] = useState<string | null>(null);
+  useEffect(() => { queueMicrotask(() => setPicked(null)); }, [st.product]);
+  const productId = picked ?? st.product ?? "10ma";
+  const setProductId = setPicked;
   const [openLine, setOpenLine] = useState<string | null>(null);
   const [exploded, setExploded] = useState(false);
   const [showBom, setShowBom] = useState(false);
@@ -24,6 +28,8 @@ export function ProductsPanel({ st, pulse }: { st: WorkspaceState; pulse: boolea
   const attested = st.proofs.some((p) => p.id === "inference_attestation");
   const results = ORDER.map((id) => st.fitment.find((f) => f.supplierId === id)).filter((f) => f !== undefined);
   const fitmentView = productId === "10ma" && results.length > 0 && !showBom;
+  // Chapter 1 shows the drawing by itself; later the drawing waits for Explode.
+  const story = st.product !== null && results.length === 0 && !exploded && picked === null;
   const winner = results.find((f) => f.pass);
   const motorsOnHand = st.demand.motorsOnHand + (st.dock?.receivedQty ?? 0);
   const stockOf = (part: string) => (productId === "10ma" && part === MOTOR_PART ? motorsOnHand : partStock[part] ?? 0);
@@ -60,7 +66,7 @@ export function ProductsPanel({ st, pulse }: { st: WorkspaceState; pulse: boolea
                 return (
                   <li key={f.supplierId} style={{ borderTop: "1px solid var(--line-hairline)", padding: "10px 0", display: "flex", flexDirection: "column", gap: 5 }}>
                     <div className={s.headRow}>
-                      <Dot tone={f.pass ? "success" : "alert"} />
+                      <Dot tone={{ fits: "success", partial: "attention", fails: "alert" }[matchKind(f)] as "success" | "attention" | "alert"} />
                       <span style={{ fontSize: 13.5, fontWeight: 500 }}>{sup.name}</span>
                       <span className={`${s.push} ${s.note}`} style={{ fontSize: 12 }}>{sup.city}</span>
                     </div>
@@ -73,9 +79,9 @@ export function ProductsPanel({ st, pulse }: { st: WorkspaceState; pulse: boolea
                 );
               })}
             </ul>
-            <div className={s.figPair}>
+            <div className={s.figPair} data-focus="products.figure">
               <ExplodedView highlight="Actuator motor" />
-              <MotorCloseUp />
+              <div data-focus="products.motor"><MotorCloseUp /></div>
             </div>
             <N className={s.muted}><span style={{ fontSize: 12 }}>10MA · {bom.length} BOM lines</span></N>
           </>
@@ -86,7 +92,18 @@ export function ProductsPanel({ st, pulse }: { st: WorkspaceState; pulse: boolea
               <button type="button" className={`es-btn es-btn-secondary es-btn-sm ${s.push}`} aria-pressed={exploded} onClick={() => setExploded((x) => !x)} disabled={productId !== "10ma"}
                 title={productId === "10ma" ? "Show the exploded drawing" : "No drawing for sample products yet"}>{exploded ? "Close drawing" : "Explode"}</button>
             </div>
-            {exploded && productId === "10ma" && (
+            {story ? (
+              <figure style={{ margin: 0 }} data-focus="products.figure" aria-label={`${product.name} drawing`}>
+                {productId === "10ma" ? (
+                  <div className={`${s.figPair} ${s.figStory}`} data-one={!st.highlight}>
+                    <ExplodedView highlight={st.highlight ?? ""} />
+                    {st.highlight && <div data-focus="products.motor"><MotorCloseUp /></div>}
+                  </div>
+                ) : (
+                  <div className={s.figBlank}><span className={s.note}>{product.name} · {product.kind}. No drawing for sample products yet.</span></div>
+                )}
+              </figure>
+            ) : exploded && productId === "10ma" && (
               <figure style={{ margin: 0 }}><ExplodedView highlight={openLine ? bom.find((l) => l.id === openLine)?.part ?? MOTOR_PART : MOTOR_PART} /></figure>
             )}
             <ul className={s.rows} aria-label={`${product.name} BOM`} style={{ listStyle: "none", margin: 0, padding: 0 }}>

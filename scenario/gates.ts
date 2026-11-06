@@ -37,12 +37,13 @@ export function liveStepOf(b: Beat, supplierAddress: string): LiveStep | null {
 }
 
 /**
- * Present mode stops at every beat worth narrating: a new scene, a message, a fitment check, an
- * off-list attempt, the commit, the dock count, a payment, the reclaim, a rules change, the end.
- * Beats that only animate (shipment progress, checkpoints, the rail, the phone) play between stops.
+ * Present mode stops at every beat worth narrating: a new chapter, a message, a named step with a
+ * camera focus, an off-list attempt, the commit, the dock count, a payment, the reclaim, a rules
+ * change, the end. Beats that only animate (fitment pins resolving, shipment progress, checkpoints,
+ * the rail, the phone) play between stops.
  */
-const STOP_TYPES = new Set(["message", "fitment", "refused", "lock_funds", "dock", "release", "reclaim", "rules", "end_card"]);
-export const isStop = (b: Beat) => !!b.gate || STOP_TYPES.has(b.ev.type) || (b.ev.type === "scene" && b.scene > 0);
+const STOP_TYPES = new Set(["message", "refused", "lock_funds", "dock", "release", "reclaim", "rules", "end_card"]);
+export const isStop = (b: Beat) => !!b.gate || !!b.focus || STOP_TYPES.has(b.ev.type) || (b.ev.type === "scene" && b.scene > 0);
 
 const SENDER: Record<string, string> = { "haoyun-precision.example": "Haoyun", "ultra-motion.example": "Ultra Motion" };
 
@@ -60,7 +61,7 @@ export function describeStop(b: Beat, sceneTitle: (id: number) => string, suppli
       if (m.direction === "in") return `Deliver ${SENDER[m.from.split("@")[1] ?? ""] ?? m.from}'s reply`;
       return `Evernear emails ${m.to?.split("@")[1]?.split(".")[0] ?? "the supplier"}`;
     }
-    case "fitment": return `Check ${ev.supplierId === "haoyun" ? "Haoyun Precision" : ev.supplierId === "kansai" ? "Kansai Servo Works" : ev.supplierId === "rheinwerk" ? "Rheinwerk" : ev.supplierId === "huaxin" ? "Huaxin Robotics" : ev.supplierId} against the BOM`;
+    case "fitment": return "Check every match against the 10MA BOM";
     case "refused": return "The agent tries an off-list email";
     case "lock_funds": return "Commit the PO total";
     case "dock": return "Count the delivery at the dock";
@@ -68,6 +69,12 @@ export function describeStop(b: Beat, sceneTitle: (id: number) => string, suppli
     case "reclaim": return "At the deadline, return the rest to Astro";
     case "rules": return "Apply the new limit";
     case "end_card": return "Close the order";
+    case "product": return ev.id === "10ma" ? "Switch to the 10MA" : `Show ${ev.id}`;
+    case "highlight": return `Highlight the ${ev.part.toLowerCase()}`;
+    case "search": return "Search for a replacement motor";
+    case "demand": return "Count robots ordered against motors on hand";
+    case "offer": return "Lay the offers side by side";
+    case "proof": return "Show the proof";
     default: return "Continue";
   }
 }

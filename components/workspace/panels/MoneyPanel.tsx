@@ -57,14 +57,18 @@ export function MoneyPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }
   const nov = routine + (e?.lockedCents ?? 0);
   const meta = e || st.halted ? <>PO <N>{PO.number}</N></> : null;
   const held = e ? e.lockedCents - e.releasedCents - e.reclaimedCents : 0;
+  const refusedPay = st.refused.find((r) => r.kind === "wrong_address_release")?.detail.split(":")[0] ?? null;
   const scale = e ? <p className={s.note}>Testnet at 1:<N>{formatInt(TESTNET_SCALE)}</N>: <N>{formatUsd(scaleTestnet(e.lockedCents))}</N> moves for real. A commitment, not a lock: Tidepool enforces the rules, and Astro can change them.</p> : null;
 
   let body: React.ReactNode;
   if (e && e.releasedCents > 0) {
     body = (
       <div className={s.pad} style={{ gap: 11 }}>
-        <div className={s.headRow} style={{ gap: 12 }}><N className={s.big} >{<span style={{ fontSize: 32, fontWeight: 500 }}>{formatUsdShort(e.releasedCents)}</span>}</N><Stamp word="Paid" time={story.paidAt} /></div>
-        <p className={s.sub}>Paid to Haoyun Precision on its own chain. <N className={s.hi}>{formatUsdShort(held || e.reclaimedCents)}</N> {e.reclaimedCents ? "went back to Astro at the deadline." : "held until the deadline."}</p>
+        <div className={s.lines} data-focus="money.payout" style={{ gap: 8 }}>
+          <div className={s.headRow} style={{ gap: 12 }}><N className={s.big} >{<span style={{ fontSize: 32, fontWeight: 500 }}>{formatUsdShort(e.releasedCents)}</span>}</N><Stamp word="Paid" time={story.paidAt} /></div>
+          <p className={s.sub}>Paid to Haoyun Precision on its own chain. <N className={s.hi}>{formatUsdShort(held || e.reclaimedCents)}</N> {e.reclaimedCents ? "went back to Astro at the deadline." : "held until the deadline."}</p>
+          {refusedPay && <span className={s.line}><Dot tone="alert" />Refused: a payment to <N>{short(refusedPay)}</N>, not on PO <N>{PO.number}</N>&apos;s list</span>}
+        </div>
         <Cells items={[{ label: "Committed", cents: e.lockedCents }, { label: "Released", cents: e.releasedCents, tone: "success" }, { label: "Held", cents: held, tone: "attention" }, { label: "Returned", cents: e.reclaimedCents, tone: "success" }]} />
         <Spend novCents={nov} height={62} />
         {scale}
@@ -92,8 +96,10 @@ export function MoneyPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }
   } else if (e) {
     body = (
       <div className={s.pad}>
-        <div className={s.headRow} style={{ gap: 10 }}><N><span style={{ fontSize: 32, fontWeight: 500, lineHeight: 1 }}>{formatUsdShort(e.lockedCents)}</span></N><span className={s.push}><Stamp word="Committed" time={story.committedAt} /></span></div>
-        <p className={s.sub}>Committed for PO <N>{PO.number}</N>. Visible to Haoyun. Pays Haoyun or Astro only.</p>
+        <div className={s.lines} data-focus="money.escrow" style={{ gap: 8 }}>
+          <div className={s.headRow} style={{ gap: 10 }}><N><span style={{ fontSize: 32, fontWeight: 500, lineHeight: 1 }}>{formatUsdShort(e.lockedCents)}</span></N><span className={s.push}><Stamp word="Committed" time={story.committedAt} /></span></div>
+          <p className={s.sub}>Committed for PO <N>{PO.number}</N>. Visible to Haoyun. Pays Haoyun or Astro only.</p>
+        </div>
         <Cells items={[{ label: "Committed", cents: e.lockedCents }, { label: "Released", cents: e.releasedCents }, { label: "Held", cents: 0 }, { label: "Returned", cents: e.reclaimedCents }]} />
         <CanPay owner={owner} />
         <Spend novCents={nov} height={110} />

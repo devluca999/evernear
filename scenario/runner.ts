@@ -29,7 +29,7 @@ export function initialState(policy: Policy = defaultPolicy): WorkspaceState {
     approvals: [], limitApprovals: [],
     price: { originalCents: PO.originalUnitCents, limitBps: policy.priceChangeLimitBps, history: [] },
     escrow: null, shipment: { progress: 0, docs: [], checkpoints: [] }, dock: null, refused: [], endCard: false,
-    policy, halted: null,
+    policy, halted: null, product: null, highlight: null, search: null, offers: [],
   };
 }
 
@@ -99,8 +99,9 @@ function apply(s: WorkspaceState, b: Beat): WorkspaceState {
     case "refused": return { ...s, refused: [...s.refused, { kind: ev.kind, detail: ev.detail, atMs: at }] };
     case "lock_funds": {
       const last = s.price.history.at(-1);
-      if (s.approvals.length < s.requiredApprovals) return halt(s, b, `Your rules need ${s.requiredApprovals} approvals for PO ${PO.number}; it has ${s.approvals.length}. Nothing is committed.`);
+      // The price is settled before anyone signs, so an over-limit price is the reason given first.
       if (last && !last.pass) return halt(s, b, `Haoyun's price change of +${pctText(last.bps)} is over your ${pctText(policy.priceChangeLimitBps)} limit. The PO stops before any money is committed.`);
+      if (s.approvals.length < s.requiredApprovals) return halt(s, b, `Your rules need ${s.requiredApprovals} approvals for PO ${PO.number}; it has ${s.approvals.length}. Nothing is committed.`);
       const unit = last?.pass ? last.unitCents : PO.originalUnitCents;
       return { ...s, escrow: createEscrow({ supplier: haoyun.receiveAddress, owner: OWNER, lockedCents: unit * PO.quantity, deadlineMs: ESCROW_DEADLINE_MS }) };
     }
@@ -136,6 +137,10 @@ function apply(s: WorkspaceState, b: Beat): WorkspaceState {
       return { ...s, policy: next, price: { ...s.price, limitBps: next.priceChangeLimitBps, history } };
     }
     case "end_card": return { ...s, endCard: true };
+    case "product": return { ...s, product: ev.id, highlight: null };
+    case "highlight": return { ...s, highlight: ev.part };
+    case "search": return { ...s, search: ev.query };
+    case "offer": return { ...s, offers: [...s.offers.filter((o) => o.supplierId !== ev.supplierId), { supplierId: ev.supplierId, unitCents: ev.unitCents, note: ev.note, tone: ev.tone }] };
   }
 }
 

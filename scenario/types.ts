@@ -70,7 +70,14 @@ export type Event =
   | { type: "release"; to: string }
   | { type: "reclaim" }
   | { type: "phone"; open: boolean }
-  | { type: "end_card" };
+  | { type: "end_card" }
+  /** Products: which product the card shows, and the part it highlights. */
+  | { type: "product"; id: string }
+  | { type: "highlight"; part: string }
+  /** Map: the search Stockbot types to find a replacement part. */
+  | { type: "search"; query: string }
+  /** Negotiation: a supplier's offer, shown side by side with the others. */
+  | { type: "offer"; supplierId: string; unitCents: number; note: string; tone: "success" | "attention" | "alert" };
 
 /** A beat that waits for the viewer: the clock stops just before it until they click. */
 export interface Gate {
@@ -81,11 +88,20 @@ export interface Gate {
   status?: string;
 }
 
+/**
+ * Where the presenter camera looks when a step runs: an element by its `data-focus` id, how far to
+ * zoom (1.0 to 2.5), how long to hold, and whether to dim everything else for the hold.
+ */
+export interface Focus { id: string; zoom: number; holdMs?: number; spotlight?: boolean }
+
 export interface Beat {
   atMs: number;
   scene: number;
   ev: Event;
   gate?: Gate;
+  /** The step's name in the focus plan, e.g. "Pins resolve". */
+  step?: string;
+  focus?: Focus;
 }
 
 export interface WorkspaceState {
@@ -116,4 +132,11 @@ export interface WorkspaceState {
   policy: Policy;
   /** Set when the viewer's rules stop PO 1042: the story freezes there and says why. */
   halted: { atMs: number; scene: number; reason: string } | null;
+  /** Products card: the product the story shows, and the part it highlights. */
+  product: string | null;
+  highlight: string | null;
+  /** Map card: the search Stockbot typed. */
+  search: string | null;
+  /** Offers in hand, one per supplier, latest first replaced. */
+  offers: { supplierId: string; unitCents: number; note: string; tone: "success" | "attention" | "alert" }[];
 }

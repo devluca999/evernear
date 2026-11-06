@@ -92,8 +92,10 @@ export function StockPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }
           <span className={short ? s.attnInk : s.successInk} style={{ fontSize: 12 }}>{short ? "Short" : "Covered"}</span>
           <span className={s.note} style={{ fontSize: 12 }}>10MA build plan</span>
         </div>
-        <p className={s.big} style={{ fontSize: 34, lineHeight: 1.08 }}><N>{ordered}</N> robots ordered, motors for <N>{motorsFor}</N></p>
-        <p className={s.sub}>Each 10MA takes {demand.motorsPerRobot} actuator motors. <N>{onHand}</N> on hand, <N>{needed}</N> needed.</p>
+        <div className={s.lines} data-focus="stock.shortfall" style={{ gap: 6 }}>
+          <p className={s.big} style={{ fontSize: 34, lineHeight: 1.08 }}><N>{ordered}</N> robots ordered, motors for <N>{motorsFor}</N></p>
+          <p className={s.sub}>Each 10MA takes {demand.motorsPerRobot} actuator motors. <N>{onHand}</N> on hand, <N>{needed}</N> needed.</p>
+        </div>
         <ShortChart onHand={onHand} />
         <div className={s.rows} role="table" aria-label="10MA build plan parts">
           <div className={s.row} role="row" style={{ gridTemplateColumns: "18px 1fr 62px 56px", minHeight: 24 }}>

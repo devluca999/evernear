@@ -16,3 +16,22 @@ export const mismatchText = (m: { spec: string; offered: string; required: strin
 
 /** 300 -> "3%", 250 -> "2.5%", 798 -> "8%" (one decimal at most, trailing zero dropped). */
 export const pct = (bps: number) => `${+(bps / 100).toFixed(1)}%`;
+
+/**
+ * How a supplier's search result reads on the map: it fits, it is close (a kit that covers most
+ * of the BOM, or a motor that fits but the rules block), or it fails a motor spec outright.
+ */
+export function matchKind(f: { pass: boolean; mismatches: unknown[]; policyFailures: unknown[]; linesOffered: number }): "fits" | "partial" | "fails" {
+  if (f.pass) return "fits";
+  if (f.linesOffered > 1 || (f.mismatches.length === 0 && f.policyFailures.length > 0)) return "partial";
+  return "fails";
+}
+
+/** The one line of reasons beside a result. */
+export function matchReason(f: { pass: boolean; mismatches: { spec: string; offered: string; required: string; line?: string }[]; policyFailures: string[]; linesOffered: number; priceCapMultiple: number | null }, bomLines: number): string {
+  if (f.pass) return "Fits every spec and passes your rules";
+  const rules = [f.policyFailures.includes("not_approved") && "not approved", f.policyFailures.includes("over_price_cap") && `${f.priceCapMultiple}x the price cap`].filter(Boolean).join(", ");
+  if (f.linesOffered > 1) return `Offers ${f.linesOffered} of ${bomLines} BOM lines; ${f.mismatches.length} fail: ${f.mismatches.map(mismatchText).join("; ")}`;
+  if (f.mismatches.length === 0) return `Fits every spec, but ${rules}`;
+  return f.mismatches.map(mismatchText).join("; ");
+}

@@ -29,6 +29,9 @@ import type { Policy } from "@/engine/types";
 import { BoardContext, N } from "./Panel";
 import { Sidebar, type StatusTone } from "./Sidebar";
 import { StatsBar } from "./StatsBar";
+import { Camera, type CameraState } from "./Camera";
+import { openChannel, type RemoteCommand, type RemoteState } from "./presentChannel";
+import type { Focus } from "@/scenario/types";
 import s from "./shell.module.css";
 
 const PANELS: Record<PanelId, (p: { st: WorkspaceState; pulse: boolean }) => React.ReactNode> = {
@@ -53,7 +56,7 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
   const present = playMode === "present";
   const [scenarioId, setScenarioId] = useState<ScenarioId>("happy");
   const SC = SCENARIOS[scenarioId];
-  const TL = SC.timeline, TOTAL = SC.totalMs, LIST = SC.scenes, LAST = LIST.length - 1;
+  const TL = SC.timeline, TOTAL = SC.totalMs, LIST = SC.scenes;
   const live = useLive();
   const [policy, setPolicyState] = useState<Policy>(defaultPolicy);
   const policyCtx = useMemo(() => ({
@@ -75,6 +78,15 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
   // null: the sidebar follows the story (open on onboarding, icons after); true or false: your choice.
   const [navChoice, setNavChoice] = useState<boolean | null>(null);
   const [railHidden, setRailHidden] = useState(false);
+  // The presenter camera: F turns it on or off, Z follows clicks, 0 returns to the full view.
+  const [cameraOn, setCameraOn] = useState(true);
+  const [follow, setFollow] = useState(false);
+  const [camRequest, setCamRequest] = useState<{ seq: number; focus: Focus } | null>(null);
+  const [fullSeq, setFullSeq] = useState(0);
+  const [camState, setCamState] = useState<CameraState>({ mode: "full", focusId: null, zoom: 1 });
+  const [skipped, setSkipped] = useState<string[]>([]);
+  const jumped = useRef(true);
+  const prevT = useRef(initialMs);
 
   // ?scene=7 jumps to a scene (1-based, as on screen); ?paused=1 holds it there; ?mode=light picks the theme; ?photo=dock:0 opens a photo.
   useEffect(() => {
@@ -91,6 +103,9 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
       if (q.get("mode") === "light") setMode("light");
       if (q.get("drawer") === "1") setDrawerOpen(true);
       if (q.get("rail") === "0") setRailHidden(true);
+      if (q.get("camera") === "0") setCameraOn(false);
+      if (q.get("follow") === "1") setFollow(true);
+      jumped.current = true;
       const photo = q.get("photo");
       if (photo && photo.split(":")[0] in CHECKPOINTS) setViewer({ checkpointId: photo.split(":")[0], index: Number(photo.split(":")[1] ?? 0) });
       try { setPolicyState(loadPolicy(localStorage.getItem(POLICY_KEY))); } catch { /* no saved rules */ }
@@ -155,10 +170,10 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
   const finished = t >= TOTAL;
   const sceneTitle = (id: number) => LIST[id]?.enter ?? `Go to ${LIST[id]?.title ?? "the next scene"}`;
   const nextLabel = upcoming && !liveBusy ? describeStop(upcoming, sceneTitle, HAOYUN) : null;
-  const jump = (id: number) => { setT(sceneStartMs(id, LIST)); setPinnedProof(null); setViewer(null); };
+  const jump = (id: number) => { jumped.current = true; setT(sceneStartMs(id, LIST)); setPinnedProof(null); setViewer(null); };
   const reset = () => { setPinnedProof(null); setViewer(null); live.reset(); };
-  const restart = () => { setT(0); reset(); setPlaying(true); };
-  const pickScenario = (id: ScenarioId, sceneId = 0) => { setScenarioId(id); setT(sceneStartMs(sceneId, SCENARIOS[id].scenes)); reset(); setPlaying(true); };
+  const restart = () => { jumped.current = true; setT(0); reset(); setPlaying(true); };
+  const pickScenario = (id: ScenarioId, sceneId = 0) => { jumped.current = true; setScenarioId(id); setT(sceneStartMs(sceneId, SCENARIOS[id].scenes)); reset(); setPlaying(true); };
   const pickRef = useRef(pickScenario);
   useEffect(() => { pickRef.current = pickScenario; });
   /** Next: play the next step (or answer the moment). A live step finishes first. */
@@ -169,6 +184,30 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
   };
   const proceedRef = useRef(proceed);
   useEffect(() => { proceedRef.current = proceed; });
+
+  // The camera: a step whose beat the clock just crossed brings its focus. Jumps (a chapter, a
+  // scenario, a restart) cross many beats at once and zoom nowhere.
+  const focusKey = (b: Beat) => `${scenarioId}:${b.atMs}`;
+  useEffect(() => {
+    const from = prevT.current;
+    prevT.current = t;
+    if (jumped.current) { jumped.current = false; return; }
+    if (t <= from) return;
+    const hit = TL.filter((b) => b.focus && b.atMs > from && b.atMs <= t).at(-1);
+    if (!hit || skipped.includes(focusKey(hit))) return;
+    queueMicrotask(() => setCamRequest((r) => ({ seq: (r?.seq ?? 0) + 1, focus: hit.focus! })));
+    // focusKey reads scenarioId, which only changes with a jump.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [t, TL, skipped]);
+  const nextStop = TL.find((b) => b.atMs > t && isStop(b)) ?? null;
+  const nextFocus = TL.find((b) => b.atMs > t && b.focus) ?? null;
+  const holdNext = !!nextStop?.focus && !skipped.includes(focusKey(nextStop));
+  const previewFocus = () => { if (nextFocus) setCamRequest((r) => ({ seq: (r?.seq ?? 0) + 1, focus: nextFocus.focus! })); };
+  const skipFocus = () => {
+    if (camState.mode !== "full") { setFullSeq((n) => n + 1); return; }
+    if (nextFocus) { const k = focusKey(nextFocus); setSkipped((x) => [...x, k]); }
+    setFullSeq((n) => n + 1);
+  };
 
   // Fire the live step the clock is holding at.
   const liveRun = live.run;
@@ -188,13 +227,18 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); proceedRef.current(); return; }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "b") { e.preventDefault(); pickRef.current(scenarioId === "standoff" ? "adjusted" : "standoff"); return; }
       if (e.key === " ") { e.preventDefault(); setPlaying((p) => !p); }
-      const cur = stateAt(t, TL).scene;
-      if (e.key === "ArrowRight") setT(sceneStartMs(Math.min(LAST, cur + 1), LIST));
-      if (e.key === "ArrowLeft") setT(sceneStartMs(Math.max(0, cur - 1), LIST));
+      if (e.metaKey || e.ctrlKey) return;
+      const key = e.key.toLowerCase();
+      if (key === "f") { setCameraOn((c) => !c); return; }
+      if (key === "z") { setFollow((f) => !f); return; }
+      if (key === "0") { setFullSeq((n) => n + 1); return; }
+      // The right arrow plays the next step (and its zoom); the left arrow goes back a chapter.
+      if (e.key === "ArrowRight") { e.preventDefault(); proceedRef.current(); }
+      if (e.key === "ArrowLeft") { jumped.current = true; setT(sceneStartMs(Math.max(0, stateAt(t, TL).scene - 1), LIST)); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [t, viewer, TL, LIST, LAST, scenarioId]);
+  }, [t, viewer, TL, LIST, scenarioId]);
 
   const lastProof = st.proofs.at(-1) ?? null;
   const pinned = pinnedProof ? st.proofs.find((p) => p.id === pinnedProof) ?? null : null;
@@ -240,11 +284,11 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
   useEffect(() => { boardRef.current = board; lockedRef.current = locked; placedRef.current = placed; });
 
   const drawerOpen = drawerOpenState || !!pinned;
-  const actions = useMemo<WorkspaceActions>(() => ({
+  const actions: WorkspaceActions = {
     openPhoto: (checkpointId, index) => { setPlaying(false); setViewer({ checkpointId, index }); },
     openProof: (id) => { setPinnedProof(id); },
     waiting, answer: () => proceedRef.current(),
-  }), [waiting]);
+  };
 
   // The phone: on in scenes with a conversation, and whenever a human moment waits on Telegram.
   const chat = st.messages.slice(sceneMsgStart);
@@ -279,6 +323,37 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
   const useAreas = !gridMode && !!sceneGrid?.areas && placed.every((p) => !p.mine);
   const stacked = !gridMode && sceneGrid?.cols === "1fr" && placed.every((p) => !p.mine);
 
+  // The remote (/present): send what is on screen, take its commands.
+  const channel = useRef<BroadcastChannel | null>(null);
+  const lastSent = useRef("");
+  const cmdRef = useRef<(c: RemoteCommand["cmd"]) => void>(() => {});
+  useEffect(() => {
+    cmdRef.current = (c) => {
+      if (c === "next") proceedRef.current();
+      else if (c === "preview") previewFocus();
+      else if (c === "skip") skipFocus();
+      else if (c === "full") setFullSeq((n) => n + 1);
+      else if (c === "camera") setCameraOn((x) => !x);
+      else if (c === "follow") setFollow((x) => !x);
+      else if (c === "hello" && lastSent.current) channel.current?.postMessage(JSON.parse(lastSent.current));
+    };
+  });
+  const remoteState: RemoteState = {
+    type: "state", scenario: SC.title, chapter: st.scene + 1, chapterTitle: scene.title, chapters: LIST.length,
+    next: finished ? AFTER[scenarioId].label : nextLabel,
+    camera: { on: cameraOn, follow, mode: camState.mode, focusId: camState.focusId, zoom: camState.zoom },
+    upcoming: nextFocus?.focus ? { step: nextFocus.step ?? nextFocus.focus.id, id: nextFocus.focus.id, zoom: nextFocus.focus.zoom, skipped: skipped.includes(focusKey(nextFocus)) } : null,
+  };
+  const remoteJson = JSON.stringify(remoteState);
+  useEffect(() => { lastSent.current = remoteJson; channel.current?.postMessage(JSON.parse(remoteJson)); }, [remoteJson]);
+  useEffect(() => {
+    const ch = openChannel();
+    channel.current = ch;
+    if (!ch) return;
+    ch.onmessage = (e: MessageEvent<RemoteCommand>) => { if (e.data?.type === "cmd") cmdRef.current(e.data.cmd); };
+    return () => { ch.close(); channel.current = null; };
+  }, []);
+
   const liveStatus = live.on && (liveBusy || live.error)
     ? (live.error ? `Live call failed (${live.error}). The replay carries on.` : `Live on Tidepool testnet: ${heldStep} running`)
     : null;
@@ -288,6 +363,7 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
     <ActionsContext.Provider value={actions}>
     <BoardContext.Provider value={boardCtx}>
     <div className={s.root} data-theme="clean" data-mode={mode} data-nav={navOpen ? "open" : "closed"} data-rail={railHidden ? "hidden" : "shown"} data-working={playing && st.stage !== "closed"}>
+      <Camera on={cameraOn} follow={follow} request={camRequest} fullSeq={fullSeq} holdNext={holdNext} onChange={setCamState}>
       <Sidebar open={navOpen} onToggle={() => setNavChoice(!navOpen)} onScreen={placed.map((p) => p.id)} pinned={board.filter((x): x is PanelId => !!x)}
         needs={needs} status={status}
         onPick={(id) => {
@@ -344,6 +420,7 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
             onProof={(id) => { setPinnedProof(id); setViewer(null); }} />
         )}
       </main>
+      </Camera>
 
       <DemoRail scenario={SC} scenarios={Object.values(SCENARIOS)} scene={st.scene} title={scene.title} line={scene.line}
         waiting={waiting} onHold={waiting?.id === "on_hold"} halted={waiting ? null : st.halted?.reason ?? null} rulesChanged={policyCtx.changed} onResetRules={policyCtx.reset}
@@ -353,7 +430,8 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
         pick={(id) => pickScenario(id)} jump={jump} restart={restart}
         live={{ available: live.available, on: live.on, toggle: () => live.setOn(!live.on), status: liveStatus }}
         mode={mode} toggleMode={() => setMode((m) => (m === "dark" ? "light" : "dark"))}
-        synthetic={synthetic} hide={() => setRailHidden(true)} />
+        synthetic={synthetic} hide={() => setRailHidden(true)}
+        camera={{ on: cameraOn, follow, toggle: () => setCameraOn((c) => !c), toggleFollow: () => setFollow((f) => !f), focus: camState.focusId, next: nextFocus?.step ?? null }} />
       {railHidden && <RailShow onClick={() => setRailHidden(false)} />}
     </div>
     </BoardContext.Provider>

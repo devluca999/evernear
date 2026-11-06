@@ -2,13 +2,15 @@
 import { describe, expect, it, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent, within } from "@testing-library/react";
 import { Workspace } from "../workspace/Workspace";
-import { sceneStartMs, stateAt } from "@/scenario/runner";
+import { stateAt } from "@/scenario/runner";
 import { CHECKPOINTS } from "@/scenario/shipment";
+import { timeline } from "@/scenario/scenes";
 
 afterEach(cleanup);
 const at = (ms: number) => render(<Workspace initialMs={ms} autoplay={false} />);
-const dockScene = sceneStartMs(6) + 5000; // after the dock count
-/** The dock scene shows Orders and Money; pin Map from the sidebar to see its tracking. */
+const dockAt = timeline.find((b) => b.ev.type === "proof" && b.ev.key === "dock_attestation")!.atMs;
+const dockScene = dockAt + 400; // after the dock count and its proof, before the release card
+/** The dock chapter switches to Orders and Money; pin Map from the sidebar to see its tracking. */
 const atDock = () => {
   at(dockScene);
   fireEvent.click(within(screen.getByRole("navigation", { name: "Workspace panels" })).getByRole("button", { name: "Map" }));

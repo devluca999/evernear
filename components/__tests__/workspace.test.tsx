@@ -12,6 +12,7 @@ const nav = () => screen.getByRole("navigation", { name: "Workspace panels" });
 const rail = () => screen.getByRole("complementary", { name: "Demo mode" });
 const whole = (t: string) => (_: string, el: Element | null) => el?.textContent === t && [...el.children].every((c) => c.textContent !== t);
 const nextButton = () => within(screen.getByRole("group", { name: "Next step" })).getByRole("button");
+const chapters = () => within(screen.getByRole("list", { name: "Chapters" })).getAllByRole("button");
 
 describe("workspace", () => {
   it("has no camera placeholder: the presenter camera is overlaid top right when recording", () => {
@@ -19,7 +20,8 @@ describe("workspace", () => {
     expect(screen.queryByLabelText("Presenter camera")).toBeNull();
   });
   it("shows the developer drawer as a collapsed bar with the latest step; Open shows the call and plain words", () => {
-    at(sceneStartMs(5) + 700); // the commit proof has just arrived
+    const commit = timeline.find((b) => b.ev.type === "proof" && b.ev.key === "escrow_wallet")!;
+    at(commit.atMs + 700); // the commit proof has just arrived
     const drawer = screen.getByLabelText("Developer drawer");
     expect(drawer.getAttribute("data-open")).toBe("false");
     const bar = within(drawer).getByRole("button", { name: "Open developer drawer" });
@@ -39,9 +41,9 @@ describe("workspace", () => {
     at(sceneStartMs(7) + 11000);
     fireEvent.click(screen.getByRole("button", { name: "Open developer drawer" }));
     const hist = screen.getByRole("navigation", { name: "Steps so far" });
-    const items = within(hist).getAllByRole("button").filter((b) => b.textContent!.includes(" · S"));
+    const items = within(hist).getAllByRole("button").filter((b) => b.textContent!.includes(" · Ch "));
     expect(items.length).toBeGreaterThanOrEqual(10);
-    expect(items[0].textContent).toMatch(/Astro's wallet created0:01 · S1$/);
+    expect(items[0].textContent).toMatch(/Astro's wallet created0:01 · Ch 1$/);
     expect(items.at(-1)!.getAttribute("aria-current")).toBe("step");
     fireEvent.click(items[0]);
     expect(items[0].getAttribute("aria-current")).toBe("step");
@@ -49,29 +51,37 @@ describe("workspace", () => {
     fireEvent.click(within(hist).getByRole("button", { name: "Follow the latest" }));
     expect(items.at(-1)!.getAttribute("aria-current")).toBe("step");
   });
-  it("Present mode: nothing moves until you act; Next (or Cmd+K) plays the next step and says what it is", () => {
+  it("Present mode: nothing moves until you act; Next (Cmd+K or ArrowRight) plays the next step and says what it is", () => {
     at(sceneStartMs(2) - 1);
-    expect(nextButton().textContent).toBe("Check 4 suppliers⌘K");
-    expect(within(rail()).getByText("Happy path · Scene 2")).toBeTruthy();
+    expect(nextButton().textContent).toBe("Ask Ultra Motion for motors⌘K");
+    expect(within(rail()).getByText("Happy path · Chapter 2")).toBeTruthy();
     fireEvent.keyDown(window, { key: "k", metaKey: true });
-    expect(within(rail()).getByText("Happy path · Scene 3")).toBeTruthy();
-    expect(within(rail()).getByRole("heading", { name: "Sourcing and fitment" })).toBeTruthy();
+    expect(within(rail()).getByText("Happy path · Chapter 3")).toBeTruthy();
+    expect(within(rail()).getByRole("heading", { name: "Ultra's reply" })).toBeTruthy();
+    // ArrowRight plays the next step too, inside the chapter, not a jump to the next chapter.
+    expect(nextButton().textContent).toContain("Deliver Ultra Motion's reply");
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    expect(within(rail()).getByText("Happy path · Chapter 3")).toBeTruthy();
+    expect(nextButton().textContent).toContain("Stockbot: Ultra Motion is out for 6 weeks");
+    // ArrowLeft goes back one chapter.
+    fireEvent.keyDown(window, { key: "ArrowLeft" });
+    expect(within(rail()).getByText("Happy path · Chapter 2")).toBeTruthy();
     const fit = timeline.find((b) => b.ev.type === "fitment")!;
     cleanup();
     at(fit.atMs - 1);
-    expect(nextButton().textContent).toContain("Check Kansai Servo Works against the BOM");
+    expect(nextButton().textContent).toContain("Check every match against the 10MA BOM");
     // Between stops the next step is still named and one press away.
     cleanup();
     at(fit.atMs - 900);
-    expect(nextButton().textContent).toContain("Check Kansai Servo Works against the BOM");
+    expect(nextButton().textContent).toContain("Check every match against the 10MA BOM");
   });
-  it("shows the phone as a left column only in scenes with a conversation", () => {
+  it("shows the phone as a left column only in chapters with a conversation", () => {
     for (const sc of scenes) {
       const { unmount } = at(sceneStartMs(sc.id) + 1000);
       expect(!!screen.queryByLabelText("Phone")).toBe(!!sc.phone);
       unmount();
     }
-    expect(scenes.filter((x) => x.phone).map((x) => x.title)).toEqual(["Approval", "Negotiation", "Day 9 · Chicago dock"]);
+    expect(scenes.filter((x) => x.phone).map((x) => x.title)).toEqual(["Negotiation", "Approve and commit", "Day 9 · Chicago dock"]);
   });
   it("records a payment to a wrong address as refused, the guard working", () => {
     const r = timeline.find((b) => b.ev.type === "release")!;
@@ -89,17 +99,17 @@ describe("workspace", () => {
     expect(end.textContent).toContain("0 wires. 0 days waiting. 1 human decision.");
     expect(panels()).toEqual(["money", "stock"]);
   });
-  it("lists the eight scenes in the rail and jumps to one", () => {
+  it("lists the eight chapters in the rail and jumps to one", () => {
     at(0);
-    const list = within(screen.getByRole("list", { name: "Scenes" })).getAllByRole("button");
+    const list = chapters();
     expect(list.map((b) => b.textContent)).toEqual([
-      "01Onboarding", "02The bottleneck", "03Sourcing and fitment", "04Approval", "05Negotiation",
-      "06Funds committed and shipped", "07Day 9 · Chicago dock", "08Paid",
+      "01The 10MA", "02The gap", "03Ultra's reply", "04Search", "05Negotiation",
+      "06Approve and commit", "07Day 9 · Chicago dock", "08Paid",
     ]);
     expect(list[0].getAttribute("aria-current")).toBe("step");
     fireEvent.click(list[6]);
     expect(within(rail()).getByRole("heading", { name: "Day 9 · Chicago dock" })).toBeTruthy();
-    expect(within(rail()).getByText("Happy path · Scene 7")).toBeTruthy();
+    expect(within(rail()).getByText("Happy path · Chapter 7")).toBeTruthy();
     expect(list[6].getAttribute("aria-current")).toBe("step");
     expect(list[0].getAttribute("data-state")).toBe("done");
   });
@@ -114,7 +124,7 @@ describe("workspace", () => {
     fireEvent.click(yes);
     expect(screen.queryByRole("group", { name: "Waiting for you" })).toBeNull();
     const rules = screen.getByRole("region", { name: "Rules" });
-    expect(within(rules).getByRole("status").textContent).toBe("Signed14:02");
+    expect(within(rules).getByRole("status").textContent).toBe("Signed14:56");
     expect(nextButton().textContent).toContain("Jordy, PO 1042 needs your signature");
   });
   it("blocks at a gate in Autoplay too, answers it by itself after a beat, and the scenario picker switches the story", () => {
@@ -132,9 +142,8 @@ describe("workspace", () => {
     expect(radios[0].getAttribute("aria-checked")).toBe("true");
     fireEvent.click(within(picker).getByRole("radio", { name: /^Bad pathHaoyun holds/ }));
     expect(within(picker).getByRole("radio", { name: /^Bad pathHaoyun holds/ }).getAttribute("aria-checked")).toBe("true");
-    const scenesList = within(screen.getByRole("list", { name: "Scenes" })).getAllByRole("button").map((b) => b.textContent);
-    expect(scenesList).toEqual(["01Onboarding", "02The bottleneck", "03Sourcing and fitment", "04Approval", "05Negotiation", "06On hold"]);
-    expect(within(rail()).getByText("Bad path · Scene 1")).toBeTruthy();
+    expect(chapters().map((b) => b.textContent)).toEqual(["01The 10MA", "02The gap", "03Ultra's reply", "04Search", "05Negotiation", "06On hold"]);
+    expect(within(rail()).getByText("Bad path · Chapter 1")).toBeTruthy();
   });
   it("tracks the scenario numbers on top: stock, shortfall and where the money is", () => {
     const val = (label: string) => within(screen.getByRole("group", { name: "Scenario numbers" })).getByText(label).nextElementSibling!.textContent;
@@ -181,15 +190,15 @@ describe("workspace", () => {
     fireEvent.click(within(screen.getByRole("region", { name: "Inbox" })).getByRole("button", { name: "Start sourcing" }));
     expect(within(nav()).queryAllByLabelText(/needs you/)).toHaveLength(0);
   });
-  it("a card you open from the sidebar stays across scenes until you close it; unlocking never removes it", () => {
+  it("a card you open from the sidebar stays across chapters until you close it; unlocking never removes it", () => {
     at(sceneStartMs(4) + 2000);
     expect(panels()).toEqual(["inbox", "rules"]);
     fireEvent.click(within(nav()).getByRole("button", { name: "Stock" }));
     expect(panels()).toContain("stock");
     expect(within(nav()).getByRole("button", { name: "Stock" }).getAttribute("aria-pressed")).toBe("true");
     fireEvent.click(screen.getByRole("button", { name: "Lock Stock" }));
-    fireEvent.keyDown(window, { key: "ArrowRight" });
-    expect(within(rail()).getByText("Happy path · Scene 6")).toBeTruthy();
+    fireEvent.click(chapters()[5]);
+    expect(within(rail()).getByText("Happy path · Chapter 6")).toBeTruthy();
     expect(panels()).toContain("stock");
     expect(screen.queryByRole("button", { name: "Close Stock" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Unlock Stock" }));
@@ -198,7 +207,7 @@ describe("workspace", () => {
     expect(panels()).not.toContain("stock");
   });
   it("moves a card to another spot on the grid from its grip, and a locked card stays put", () => {
-    at(sceneStartMs(5) + 2000);
+    at(sceneStartMs(3) + 2000); // Search: map and products
     const slot = (id: string) => document.querySelector(`[data-panel="${id}"]`)!.parentElement as HTMLElement;
     fireEvent.keyDown(screen.getByRole("button", { name: "Move Map" }), { key: "ArrowRight", altKey: true });
     expect(slot("map").style.gridColumn).toBe("2");
@@ -206,7 +215,7 @@ describe("workspace", () => {
     expect(slot("map").style.gridRow).toBe("2");
     fireEvent.click(screen.getByRole("button", { name: "Lock Map" }));
     expect((screen.getByRole("button", { name: "Move Map" }) as HTMLButtonElement).disabled).toBe(true);
-    fireEvent.keyDown(window, { key: "ArrowRight" });
+    fireEvent.click(chapters()[6]); // Day 9 · Chicago dock also shows the map
     expect(slot("map").style.gridRow).toBe("2");
     expect(slot("map").style.gridColumn).toBe("2");
   });
@@ -218,7 +227,8 @@ describe("workspace", () => {
     expect(within(rules).getByRole("button", { name: "Reset to Astro's rules" })).toBeTruthy();
     // The replay runs on the saved rules: at the commit, the PO stops.
     cleanup();
-    window.history.replaceState(null, "", "/?scene=6&at=1000");
+    const lock = timeline.find((b) => b.ev.type === "lock_funds")!.atMs;
+    window.history.replaceState(null, "", `/?scene=6&at=${lock - sceneStartMs(5) + 1000}`);
     at(0);
     const stop = await waitFor(() => screen.getByRole("status", { name: "Stopped by your rules" }));
     expect(within(stop).getByText(/Haoyun's price change of \+2\.5% is over your 2% limit/)).toBeTruthy();
@@ -227,14 +237,14 @@ describe("workspace", () => {
     expect(screen.queryByRole("status", { name: "Stopped by your rules" })).toBeNull();
     expect(within(screen.getByRole("group", { name: "Scenario numbers" })).getByText("Committed").nextElementSibling!.textContent).toBe("$38,000");
   });
-  it("groups the numbers into stock and money, and says what each scene is about", () => {
+  it("groups the numbers into stock and money, and says what each chapter is about", () => {
     at(sceneStartMs(4) + 1000);
     const bar = screen.getByRole("group", { name: "Scenario numbers" });
     expect(within(bar).getByLabelText("Stock")).toBeTruthy();
     const money = within(bar).getByLabelText("Money");
     expect(within(money).getByText("PO").nextElementSibling!.textContent).toBe("1042");
     expect(within(money).getByText("Committed").parentElement!.getAttribute("data-empty")).toBe("true");
-    expect(within(rail()).getByText("Haoyun asks for 8% more. Your limit is 3%.")).toBeTruthy();
+    expect(within(rail()).getByText("Three offers side by side. Haoyun asks for 8% more; your limit is 3%.")).toBeTruthy();
   });
   it("never renders more than 3 panels when nothing is pinned", () => {
     for (const sc of scenes) {
@@ -244,7 +254,7 @@ describe("workspace", () => {
     }
   });
   it("names the exact failing spec in fitment", () => {
-    at(sceneStartMs(3) - 100);
+    at(sceneStartMs(4) - 100); // the end of Search
     const fit = within(screen.getByRole("list", { name: "Fitment" }));
     expect(fit.getByText("Shaft 8 mm, needs 6 mm")).toBeTruthy();
     expect(fit.getByText("Not approved, 2.4x price cap")).toBeTruthy();
@@ -280,7 +290,7 @@ describe("workspace", () => {
   it("on the bad path puts the PO on hold with $0 moved", () => {
     at(0);
     fireEvent.click(screen.getByRole("radio", { name: /^Bad pathHaoyun holds/ }));
-    fireEvent.click(within(screen.getByRole("list", { name: "Scenes" })).getByRole("button", { name: "06On hold" }));
+    fireEvent.click(within(screen.getByRole("list", { name: "Chapters" })).getByRole("button", { name: "06On hold" }));
     expect(within(rail()).getByRole("heading", { name: "On hold" })).toBeTruthy();
     const money = within(screen.getByRole("region", { name: "Money" }));
     expect(money.getAllByText("$0")).toHaveLength(5); // the total and its four cells

@@ -1,10 +1,11 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { LocateFixed, Maximize2, Minimize2, ZoomIn, ZoomOut } from "lucide-react";
+import { LocateFixed, Maximize2, Minimize2, Search, ZoomIn, ZoomOut } from "lucide-react";
 import { clampView, fullView, panBy, zoomAt, zoomOf, type View } from "../map/view";
 import type { WorkspaceState } from "@/scenario/types";
-import { suppliers, offers, MOTOR_PART } from "@/seed/astro";
+import { bomFor, suppliers, offers, MOTOR_PART } from "@/seed/astro";
+import { matchKind, matchReason } from "../format";
 import { eta, isoDay, LANES } from "@/scenario/eta";
 import { formatUsd } from "@/engine/money";
 import { MAP } from "../map/generated";
@@ -87,7 +88,35 @@ const loadDetail = () => (detailCache ??= fetch("/map/world-detail.json")
   .catch(() => null)
   .then((d) => { if (!d) detailCache = null; return d; })); // only a successful load is kept; a failure retries next time
 
+/** The search Stockbot types, a character at a time (all at once with reduced motion). */
+function Typed({ text }: { text: string }) {
+  const [n, setN] = useState(0);
+  useEffect(() => {
+    const reduced = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (reduced) { queueMicrotask(() => setN(text.length)); return; }
+    queueMicrotask(() => setN(0));
+    const id = setInterval(() => setN((x) => { if (x >= text.length) { clearInterval(id); return x; } return x + 1; }), 1400 / Math.max(1, text.length));
+    return () => clearInterval(id);
+  }, [text]);
+  return <><span aria-hidden="true">{text.slice(0, n)}</span><span className="sr-only">{text}</span></>;
+}
+
+const MATCH_ORDER = ["haoyun", "rheinwerk", "huaxin", "kansai"];
+const MATCH_TONE = { fits: "success", partial: "attention", fails: "alert" } as const;
+
 const lanePath = (id: string) => LANE_GEO[id].segments.map((seg) => polyline(seg)).join(" ");
+
+function Match({ f }: { f: WorkspaceState["fitment"][number] }) {
+  const sup = suppliers.find((v) => v.id === f.supplierId)!;
+  const kind = matchKind(f);
+  return (
+    <div className={sh.match} data-kind={kind}>
+      <Dot tone={MATCH_TONE[kind]} />
+      <span className={sh.matchName}>{sup.name}<span className={sh.note}> · {sup.city}</span></span>
+      <span className={sh.matchWhy}>{matchReason(f, bomFor["10ma"].length)}</span>
+    </div>
+  );
+}
 
 export function MapPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }) {
   const [pick, setPick] = useState<string | null>(null);
@@ -132,7 +161,10 @@ export function MapPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }) 
   const shipping = st.escrow !== null;
   const failed = new Set(st.fitment.filter((f) => !f.pass).map((f) => SUPPLIER_CITY[f.supplierId]));
   const passed = new Set(st.fitment.filter((f) => f.pass).map((f) => SUPPLIER_CITY[f.supplierId]));
-  const pinCls = (c: keyof typeof MAP.pins) => (failed.has(c) ? s.pinFail : passed.has(c) || (shipping && c === "Shenzhen") ? s.pinOk : s.pin);
+  const partial = new Set(st.fitment.filter((f) => matchKind(f) === "partial").map((f) => SUPPLIER_CITY[f.supplierId]));
+  const pinCls = (c: keyof typeof MAP.pins) => (partial.has(c) ? s.pinPartial : failed.has(c) ? s.pinFail : passed.has(c) || (shipping && c === "Shenzhen") ? s.pinOk : s.pin);
+  const searching = !!st.search && !shipping;
+  const matches = MATCH_ORDER.map((id) => st.fitment.find((f) => f.supplierId === id)).filter((f) => f !== undefined);
 
   return (
     <Panel id="map" title="Map" pulse={pulse} meta={shipping ? <>Shipment <N>1042</N></> : "Suppliers"}>
@@ -140,7 +172,14 @@ export function MapPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }) 
         const map = (
           <>
       {expanded && <div className={s.mapScrim} onClick={() => setExpanded(false)} aria-hidden="true" />}
-          <div className={s.mapWrap} data-expanded={expanded} role={expanded ? "dialog" : undefined} aria-label={expanded ? "Suppliers map, expanded" : undefined}>
+          <div className={s.mapWrap} data-expanded={expanded} role={expanded ? "dialog" : undefined} aria-label={expanded ? "Suppliers map, expanded" : undefined} data-focus={searching ? "map.results" : undefined}>
+          {searching && (
+            <div className={sh.mapSearch} role="search" aria-label="Supplier search" data-focus="map.search">
+              <Search size={14} strokeWidth={2} aria-hidden="true" />
+              <span className="es-num"><Typed text={st.search!} /></span>
+              <span className={sh.caret} aria-hidden="true" />
+            </div>
+          )}
           <svg ref={svgRef} className={s.map} data-dragging={dragging} viewBox={`${view.x} ${view.y} ${view.w} ${view.h}`} role="img"
             onPointerDown={(e) => { drag.current = { x: e.clientX, y: e.clientY }; moved.current = false; }}
             onPointerMove={(e) => {
@@ -187,7 +226,16 @@ export function MapPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }) 
         // The workspace root carries the theme, so the map stays themed there.
         return expanded && portalRoot ? createPortal(map, portalRoot) : map;
       })()}
-      {!planOpen && !shipping && (
+      {searching && matches.length > 0 && !planOpen && (
+        <div className={sh.matches} aria-label="Search results">
+          {matches.filter((f) => matchKind(f) === "fits").map((f) => <Match key={f.supplierId} f={f} />)}
+          <div className={sh.lines} style={{ gap: 0 }} data-focus="map.results.partial">
+            {matches.filter((f) => matchKind(f) === "partial").map((f) => <Match key={f.supplierId} f={f} />)}
+          </div>
+          {matches.filter((f) => matchKind(f) === "fails").map((f) => <Match key={f.supplierId} f={f} />)}
+        </div>
+      )}
+      {!planOpen && !shipping && !(searching && matches.length > 0) && (
         <div className={sh.mapFoot}>
           <span className={sh.note} style={{ fontSize: 12 }}><N>{suppliers.length}</N> suppliers in <N>{new Set(suppliers.map((v) => v.country)).size}</N> countries{st.fitment.length ? <> · <N>{st.fitment.filter((f) => f.pass).length}</N> fits</> : null}</span>
           <button type="button" className={`es-btn es-btn-secondary es-btn-sm ${sh.push}`} onClick={() => setPlanOpen(true)}>Plan an order</button>

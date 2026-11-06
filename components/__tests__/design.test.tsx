@@ -3,15 +3,15 @@ import { describe, expect, it, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent, within } from "@testing-library/react";
 import { Workspace } from "../workspace/Workspace";
 import { sceneStartMs } from "@/scenario/runner";
-import { scenes } from "@/scenario/scenes";
+import { scenes, timeline } from "@/scenario/scenes";
 
 afterEach(cleanup);
 const at = (ms: number) => render(<Workspace initialMs={ms} autoplay={false} />);
 
 describe("V2 design rules", () => {
-  it("shows the journey as a scene list with state dots that navigate", () => {
+  it("shows the journey as a chapter list with state dots that navigate", () => {
     at(0);
-    const list = screen.getByRole("list", { name: "Scenes" });
+    const list = screen.getByRole("list", { name: "Chapters" });
     const buttons = within(list).getAllByRole("button");
     expect(buttons).toHaveLength(8);
     fireEvent.click(within(list).getByRole("button", { name: /Day 9 · Chicago dock$/ }));
@@ -39,7 +39,8 @@ describe("V2 design rules", () => {
     }
   });
   it("stamps the money Committed, then Paid, and says it is a commitment at 1:1,000", () => {
-    at(sceneStartMs(5) + 2000);
+    const lock = timeline.find((b) => b.ev.type === "lock_funds")!.atMs;
+    at(lock + 1000);
     const money = () => screen.getByRole("region", { name: "Money" });
     expect(within(money()).getByRole("status").textContent).toBe("Committed3 Nov 15:04");
     expect(within(money()).getByText(/^Testnet at 1:/).textContent).toBe("Testnet at 1:1,000: $38.00 moves for real. A commitment, not a lock: Tidepool enforces the rules, and Astro can change them.");
@@ -52,9 +53,10 @@ describe("V2 design rules", () => {
     expect(within(money()).getByText(/^Paid to Haoyun Precision/).textContent).toBe("Paid to Haoyun Precision on its own chain. $3,800 went back to Astro at the deadline.");
   });
   it("states exactly what YES does on the approval card", () => {
-    at(sceneStartMs(3) + 2000);
+    const card1 = timeline.find((b) => b.ev.type === "message" && b.ev.message.card === "approval")!.atMs;
+    at(card1 + 1000);
     const card = within(screen.getByRole("group", { name: "Approval card" }));
-    expect(card.getByText("YES signs approval 1 of 2. No money moves until Haoyun confirms.")).toBeTruthy();
+    expect(card.getByText("YES signs approval 1 of 2. No money moves until both have signed.")).toBeTruthy();
     expect(card.getByText("1042 · Haoyun Precision")).toBeTruthy();
     expect(card.getByText("2,000 AM17")).toBeTruthy();
     expect(card.getByText("$38,000")).toBeTruthy();

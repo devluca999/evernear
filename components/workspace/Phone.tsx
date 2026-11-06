@@ -45,7 +45,7 @@ export function Phone({ messages, to, clock, waiting, onAnswer, onNext, onChoice
         <div className={s.chatCard} role="group" aria-label="Approval card">
           {head("Approve PO")}
           <div className={s.chatFields}><Field k="PO" v={`${PO.number} · Haoyun Precision`} /><Field k="Qty" v={`${formatInt(PO.quantity)} AM17`} /><Field k="Total" v={formatUsdShort(facts.totalCents)} /></div>
-          <p className={s.note}>YES signs approval 1 of 2. No money moves until Haoyun confirms.</p>
+          <p className={s.note}>YES signs approval 1 of 2. No money moves until both have signed.</p>
           <YesNo live={waiting?.id === "approve_luca"} onYes={onAnswer} label={waiting?.id === "approve_luca" ? waiting.action : "YES"} />
         </div>
       );
@@ -53,7 +53,7 @@ export function Phone({ messages, to, clock, waiting, onAnswer, onNext, onChoice
         <div className={s.chatCard} role="group" aria-label="Approval card">
           {head("Sign PO")}
           <div className={s.chatFields}><Field k="PO" v={`${PO.number} · Haoyun Precision`} /><Field k="Qty" v={`${formatInt(PO.quantity)} AM17`} /><Field k="Total" v={formatUsdShort(facts.totalCents)} /></div>
-          <p className={s.note}>YES signs approval 2 of 2. No money moves until Haoyun confirms.</p>
+          <p className={s.note}>YES signs approval 2 of 2. Then the agreed total is committed to the PO.</p>
           <YesNo live={waiting?.id === "approve_jordy"} onYes={onAnswer} label={waiting?.id === "approve_jordy" ? waiting.action : "YES"} />
         </div>
       );

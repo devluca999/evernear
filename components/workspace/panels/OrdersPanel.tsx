@@ -139,7 +139,7 @@ function Dock({ st }: { st: WorkspaceState }) {
         <Dot tone={counted && missing ? "attention" : counted ? "success" : "active"} pulse={!counted} /><N>PO {PO.number}</N><span style={{ fontSize: 13.5, fontWeight: 500 }}>Haoyun Precision</span>
         <span className={s.push}>{counted ? (missing ? <Badge tone="attention">Short {formatInt(missing)}</Badge> : <Badge tone="success">Complete</Badge>) : <Badge tone="active">Unloading</Badge>}</span>
       </div>
-      <div className={s.cells} style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
+      <div className={s.cells} data-focus="dock.count" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
         <div className={s.cell} style={{ padding: "10px 12px" }}><span className="es-micro">Ordered</span><N><span style={{ fontSize: 20, fontWeight: 500 }}>{formatInt(PO.quantity)}</span></N></div>
         <div className={s.cell} data-tone={missing ? "attention" : undefined} style={{ padding: "10px 12px" }}><span className="es-micro">Arrived</span><N className={counted ? undefined : s.faint}><span style={{ fontSize: 20, fontWeight: 500 }}>{counted ? formatInt(d.receivedQty) : "..."}</span></N></div>
         <div className={s.cell} style={{ padding: "10px 12px" }}><span className="es-micro">Billed</span><N><span style={{ fontSize: 20, fontWeight: 500 }}>{formatInt(PO.quantity)}</span></N></div>
@@ -163,7 +163,8 @@ function Dock({ st }: { st: WorkspaceState }) {
 }
 
 export function OrdersPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }) {
-  const auto: Tab = st.scene <= 1 && !st.fitment.length ? "customer" : "purchase";
+  // Customer orders until sourcing starts; purchase orders from then on.
+  const auto: Tab = !st.fitment.length && st.stage === "low" ? "customer" : "purchase";
   const [picked, setPicked] = useState<Tab | null>(null);
   // A tab you pick holds for the scene; the next scene picks again.
   useEffect(() => { queueMicrotask(() => setPicked(null)); }, [st.scene]);

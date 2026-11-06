@@ -8,7 +8,7 @@ Evernear is an agent that sources a scarce part, checks it fits, negotiates, com
 
 | Mode | Needs | Command |
 | --- | --- | --- |
-| Demo | Nothing | `npm ci && DEMO_MODE=1 npm run demo`, then open `http://localhost:3000` (`?scene=7` jumps to scene 7 of 8, `?mode=light` for light) |
+| Demo | Nothing | `npm ci && DEMO_MODE=1 npm run demo`, then open `http://localhost:3000` (`?scene=7` jumps to chapter 7 of 8, `?mode=light` for light) |
 | Testnet | OutLayer testnet key, NEAR AI key, a Tidepool key with Astro's testnet owner and treasury, Convex | copy `.env.example` to `.env.local`, fill it in, `npx convex dev`, `npm run dev` |
 | Present or Autoplay | Nothing | Top right: **Present** moves one narratable step at a time ("Next: ..." or Cmd+K), waits for your clicks at each approval, and is what to record with; **Autoplay** plays the chosen scenario start to finish. Scenarios: **Happy path**; **Bad path** (Haoyun holds at +8%, over the 3% limit, and Evernear stops before any money moves); **Bad path, adjusted** (you raise the limit to 8% with two approvals and it goes through at $20.02: $40,040 committed, $36,036 paid). Every amount is computed by the engine ([scenes.ts](scenario/scenes.ts), [gates.ts](scenario/gates.ts), [tests](scenario/__tests__/scenarios.test.ts)) |
 | Live | Testnet setup above, `LIVE_ENABLED=1` in the Convex env | `npm run dev`, then press "Replay" to switch it to "Live": when the story reaches each money step (commit, the wrong address, the payout, the reclaim) the clock holds while it runs for real on Tidepool testnet, and the drawer shows the real tx ([live.ts](convex/live.ts), [useLive.ts](components/workspace/useLive.ts), [test](tests/live.test.ts)). Amounts and addresses are fixed on the server; one run at a time, 6 an hour; an abandoned run is refunded by its 30 minute deadline |
@@ -18,20 +18,45 @@ Checks: `npm run typecheck && npm run lint && npm test && npm run check:ip`.
 
 ## The story
 
-Astro Robotics, a robot maker in Chicago, cannot get the actuator motor for its 10MA. Its usual supplier is out for 6 weeks. Evernear scans four alternatives against the 10MA's bill of materials, gets two approvals, negotiates a price change down to the buyer's limit, commits $38,000 for PO 1042, checks that 1,800 of 2,000 motors arrived and releases $34,200, holding $3,800.
+Astro Robotics, a robot maker in Chicago, cannot get the actuator motor for its 10MA. Its usual supplier is out for 6 weeks. Evernear searches four alternatives against the 10MA's bill of materials, lays the offers side by side, negotiates a price change down to the buyer's limit, gets two approvals, commits $38,000 for PO 1042, checks that 1,800 of 2,000 motors arrived and releases $34,200, holding $3,800.
 
-## What each scene does
+## What each chapter does
 
-| # | Scene | NEAR call | File | Test |
+| # | Chapter | NEAR call | File | Test |
 | --- | --- | --- | --- | --- |
-| 1 | Onboarding | OutLayer custody `POST /register`, owner policy with whitelist and cap | [custody.ts](convex/near/custody.ts) | [adapters.test.ts](tests/near/adapters.test.ts) "custody" |
-| 2 | The bottleneck, with a routine reorder under the cap that pays itself | custody `POST /wallet/v1/call` `ft_transfer`, no human step | [scenarios/demand.ts](scenarios/demand.ts), [custody.ts](convex/near/custody.ts), [policy.ts](engine/policy.ts) | [channels.test.ts](tests/channels.test.ts) "demand simulator", [engine.test.ts](engine/__tests__/engine.test.ts) "approvals", [runner.test.ts](scenario/__tests__/runner.test.ts) "routine reorder" |
-| 3 | Sourcing and fitment | NEAR AI Cloud private inference with attestation | [inference.ts](convex/near/inference.ts), [plain.ts](engine/plain.ts) | [adapters.test.ts](tests/near/adapters.test.ts) "private inference", [engine.test.ts](engine/__tests__/engine.test.ts) "fitment" |
-| 4 | Approval | custody approvals `POST /wallet/v1/approve/{id}` | [approval.ts](convex/near/approval.ts) | [adapters.test.ts](tests/near/adapters.test.ts) "approvals", [engine.test.ts](engine/__tests__/engine.test.ts) "approvals" |
-| 5 | Negotiation | OutLayer Gmail connector `send`, allowlisted | [gmail.ts](convex/near/gmail.ts), [suppliers.ts](scenarios/suppliers.ts) | [adapters.test.ts](tests/near/adapters.test.ts) "gmail connector", [channels.test.ts](tests/channels.test.ts) "supplier simulator" |
-| 6 | Funds committed and shipped | one Agent API account per PO on Tidepool: policy `destinations: only` [withdraw to Haoyun on Base Sepolia, transfer to Astro], per transaction at most the PO amount; Astro's treasury transfers $38.00 (1:1,000) in | [escrow.ts](convex/near/escrow.ts), [agentapi.ts](convex/near/agentapi.ts), [deadline.ts](convex/near/deadline.ts) | [escrow.test.ts](tests/near/escrow.test.ts) "EscrowAdapter on the Agent API", [deadline.test.ts](tests/deadline.test.ts) |
-| 7 | Day 9 · Chicago dock | OutLayer worker, attested over code, input and output | [dockcheck.ts](convex/near/dockcheck.ts), [worker/dock-check](worker/dock-check/src/lib.rs) | [dockcheck.test.ts](tests/dockcheck.test.ts) |
+| 1 | The 10MA: Astro's wallet and rules, the product and its actuator motor | OutLayer custody `POST /register`, owner policy with whitelist and cap | [custody.ts](convex/near/custody.ts) | [adapters.test.ts](tests/near/adapters.test.ts) "custody" |
+| 2 | The gap, with a routine reorder under the cap that pays itself | custody `POST /wallet/v1/call` `ft_transfer`, no human step | [scenarios/demand.ts](scenarios/demand.ts), [custody.ts](convex/near/custody.ts), [policy.ts](engine/policy.ts) | [channels.test.ts](tests/channels.test.ts) "demand simulator", [engine.test.ts](engine/__tests__/engine.test.ts) "approvals", [runner.test.ts](scenario/__tests__/runner.test.ts) "routine reorder" |
+| 3 | Ultra's reply: out for 6 weeks | none (inbound email) | [scenes.ts](scenario/scenes.ts) | [scenarios.test.ts](scenario/__tests__/scenarios.test.ts) |
+| 4 | Search: the matches on the map, with the reason each one fits, is close or fails | NEAR AI Cloud private inference with attestation | [inference.ts](convex/near/inference.ts), [plain.ts](engine/plain.ts) | [adapters.test.ts](tests/near/adapters.test.ts) "private inference", [engine.test.ts](engine/__tests__/engine.test.ts) "fitment" |
+| 5 | Negotiation: three offers side by side, Haoyun down from +8% to +2.5% | OutLayer Gmail connector `send`, allowlisted | [gmail.ts](convex/near/gmail.ts), [suppliers.ts](scenarios/suppliers.ts) | [adapters.test.ts](tests/near/adapters.test.ts) "gmail connector", [channels.test.ts](tests/channels.test.ts) "supplier simulator" |
+| 6 | Approve and commit: two signatures, then $38.00 (1:1,000) into one Agent API account per PO on Tidepool, policy `destinations: only` [withdraw to Haoyun on Base Sepolia, transfer to Astro] | custody approvals `POST /wallet/v1/approve/{id}`; Agent API account and transfer | [approval.ts](convex/near/approval.ts), [escrow.ts](convex/near/escrow.ts), [agentapi.ts](convex/near/agentapi.ts), [deadline.ts](convex/near/deadline.ts) | [adapters.test.ts](tests/near/adapters.test.ts) "approvals", [escrow.test.ts](tests/near/escrow.test.ts) "EscrowAdapter on the Agent API", [deadline.test.ts](tests/deadline.test.ts) |
+| 7 | Day 9 · Chicago dock: the flight, then the count | OutLayer worker, attested over code, input and output | [dockcheck.ts](convex/near/dockcheck.ts), [worker/dock-check](worker/dock-check/src/lib.rs) | [dockcheck.test.ts](tests/dockcheck.test.ts) |
 | 8 | Paid, then the end line | Agent API withdraw of $34.20 to Haoyun on Base Sepolia, $3.80 back to Astro; a withdraw to a wrong address refused live by the account's policy | [escrow.ts](convex/near/escrow.ts), [deadline.ts](convex/near/deadline.ts) | [escrow.test.ts](tests/near/escrow.test.ts), [deadline.test.ts](tests/deadline.test.ts) |
+
+## Presenter camera
+
+Record with any screen recorder and the zooms are already in the video. Each named step in the story can carry a focus (an element's `data-focus` id, a zoom from 1.0 to 2.5, a hold, an optional spotlight that dims the rest to 40%). When the step runs, everything but the demo rail pans and scales in one CSS transform so the element sits in the middle, holds, then eases back to the full view unless the next step has its own focus: 700 ms in, 500 ms out, a spring with no more than 2% overshoot. The layout is scaled, not a bitmap, so text stays crisp. **F** turns the camera on or off, **Z** follows your clicks (1.4x toward each click, back after 2 s without one), **0** returns to the full view, and the right arrow plays the next step and its zoom. With the reduced motion setting the moves are cuts. Open `/present` in a second window of the same browser for a remote that shows the current focus and can preview or skip the next zoom. Focus plan and maths: [scenes.ts](scenario/scenes.ts), [camera.ts](scenario/camera.ts), [Camera.tsx](components/workspace/Camera.tsx), [Remote.tsx](components/workspace/Remote.tsx). Tests: [camera.test.ts](scenario/__tests__/camera.test.ts) (targeting, spring, the 14-step plan), [camera.test.tsx](components/__tests__/camera.test.tsx) (hold, return, reduced motion), [focus.test.tsx](components/__tests__/focus.test.tsx) (every focus id exists in the DOM for its chapter, in all three scenarios).
+
+| Chapter | Step | Focus | Zoom |
+| --- | --- | --- | --- |
+| 1 | Product switch | `products.figure` | 1.5x |
+| 1 | Motor highlight | `products.motor` | 2.2x |
+| 2 | The gap | `stock.shortfall` | 1.8x |
+| 3 | Ultra's reply | `inbox.reply` | 1.7x |
+| 4 | Search typed | `map.search` | 1.8x |
+| 4 | Pins resolve | `map.results` | 1.4x |
+| 4 | Orange reasons (spotlight) | `map.results.partial` | 2.0x |
+| 5 | Offers side by side | `negotiation.threads` | 1.3x |
+| 5 | Haoyun's offer | `negotiation.haoyun` | 1.9x |
+| 6 | Approvals | `rules.approvals` | 1.8x |
+| 6 | Funds move | `money.escrow` | 2.0x |
+| 6 | Proof | `developer.hash` | 2.2x |
+| 7 | Dock count | `dock.count` | 2.0x |
+| 8 | Paid and refused | `money.payout` | 1.8x |
+
+![Chapter 1, motor highlight at 2.2x](docs/screens/camera-1-motor.png)
+![Chapter 4, orange reasons with the spotlight](docs/screens/camera-4-partial.png)
+![Chapter 6, funds move at 2.0x](docs/screens/camera-6-escrow.png)
 
 ## Acceptance checks
 

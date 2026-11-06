@@ -16,6 +16,9 @@ export function stepTime(p: Proof): string {
   return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
 }
 
+/** A long hash as its first and last characters, so the bar stays one line. */
+const shortHash = (h: string) => (h.length > 16 ? `${h.slice(0, 8)}…${h.slice(-6)}` : h);
+
 /** A refusal is the guard working: it gets the alert dot so it reads as a block, not a failure of the demo. */
 const toneOf = (p: Proof) => (p.kind === "refusal" || p.id.startsWith("refused") ? "alert" : "success") as "alert" | "success";
 
@@ -63,7 +66,8 @@ export function Drawer({ proof, open, onToggle, lastProof, history = [], narrow 
           <>
             <Dot tone={toneOf(p)} />
             <span className={s.drawerText}>{p.label}</span>
-            <span className={`es-num ${s.drawerWhen}`}>{stepTime(p)} · Scene {p.scene + 1}</span>
+            <span className={`es-num ${s.drawerHash}`} data-focus="developer.hash" title={p.hash}>{shortHash(p.hash)}</span>
+            <span className={`es-num ${s.drawerWhen}`}>{stepTime(p)} · Chapter {p.scene + 1}</span>
           </>
         )}
         <span className={s.drawerToggle}>{open ? <>Collapse<ChevronDown size={12} strokeWidth={2} aria-hidden="true" /></> : <>Open<ChevronUp size={12} strokeWidth={2} aria-hidden="true" /></>}</span>
@@ -81,7 +85,7 @@ export function Drawer({ proof, open, onToggle, lastProof, history = [], narrow 
                     <Dot tone={toneOf(h)} />
                     <span className={s.stepText}>
                       <span className={s.stepName}>{h.label}</span>
-                      <span className={`es-num ${s.stepWhen}`}><time>{stepTime(h)}</time> · S{h.scene + 1}</span>
+                      <span className={`es-num ${s.stepWhen}`}><time>{stepTime(h)}</time> · Ch {h.scene + 1}</span>
                     </span>
                   </button>
                 </li>
@@ -96,9 +100,9 @@ export function Drawer({ proof, open, onToggle, lastProof, history = [], narrow 
               <span className="es-tag es-tag-mono">{p.network}</span>
             </div>
             <div className={s.callMeta}>
-              <span className="es-micro">{p.wallMs ? "Ran at" : "When"}</span><span className="es-num">{stepTime(p)} · Scene {p.scene + 1}</span>
+              <span className="es-micro">{p.wallMs ? "Ran at" : "When"}</span><span className="es-num">{stepTime(p)} · Chapter {p.scene + 1}</span>
               <span className="es-micro">Code path</span><span className="es-num" title={p.codePath}>{p.codePath}</span>
-              <span className="es-micro">Hash</span><span className="es-num" title={p.hash}>{p.hash}</span>
+              <span className="es-micro">Hash</span><span className="es-num" title={p.hash} data-focus="developer.hash">{p.hash}</span>
             </div>
             <div className={s.json} data-single={!parts}>
               {parts ? (

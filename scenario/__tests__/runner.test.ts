@@ -7,9 +7,9 @@ import { recordedKeys } from "../proofs";
 const end = stateAt(totalDurationMs);
 
 describe("scenario runner", () => {
-  it("has scenes 0 to 7, as in the storyboard", () => {
+  it("has chapters 0 to 7, from the 10MA to Paid", () => {
     expect(scenes.map((s) => s.id)).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
-    expect(scenes.map((s) => s.title)).toEqual(["Onboarding", "The bottleneck", "Sourcing and fitment", "Approval", "Negotiation", "Funds committed and shipped", "Day 9 · Chicago dock", "Paid"]);
+    expect(scenes.map((s) => s.title)).toEqual(["The 10MA", "The gap", "Ultra's reply", "Search", "Negotiation", "Approve and commit", "Day 9 · Chicago dock", "Paid"]);
   });
   it("starts at Low with nothing done", () => {
     const s = stateAt(0);
@@ -19,14 +19,14 @@ describe("scenario runner", () => {
   it("never shows more than 3 panels", () => {
     for (let t = 0; t <= totalDurationMs; t += 250) expect(stateAt(t).layout.length).toBeLessThanOrEqual(3);
   });
-  it("runs the routine reorder inside the bottleneck, green end to end, with no approvals", () => {
+  it("runs the routine reorder inside the gap chapter, green end to end, with no approvals", () => {
     const s = stateAt(sceneStartMs(2));
     expect(s.routine.totalCents).toBe(418_000);
     expect(s.routine.stage).toBe("closed");
     expect(s.routine.approvals).toBe(0);
     expect(s.proofs.some((p) => p.kind === "payment_receipt")).toBe(true);
   });
-  it("shows the bottleneck numbers", () => {
+  it("shows the gap numbers", () => {
     const s = stateAt(sceneStartMs(2) - 1);
     expect(s.demand.headline).toBe("14 robots ordered, motors for 6");
   });
@@ -59,7 +59,9 @@ describe("scenario runner", () => {
     for (const p of end.proofs) expect(p.synthetic).toBe(!recordedKeys.includes(p.id));
   });
   it("opens the drawer about 3 s per proof moment", () => {
-    const b = timeline.find((x) => x.ev.type === "proof")!;
+    // A proof with no other proof in the next 3.1 s, so the drawer it opens is its own.
+    const proofs = timeline.filter((x) => x.ev.type === "proof");
+    const b = proofs.find((x, i) => !proofs[i + 1] || proofs[i + 1].atMs - x.atMs > 3100)!;
     expect(stateAt(b.atMs + 100).drawer).not.toBeNull();
     expect(stateAt(b.atMs + 3100).drawer).toBeNull();
   });

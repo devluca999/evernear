@@ -60,9 +60,11 @@ export function RulesPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }
   const last = st.price.history.at(-1);
   const order = last ? (last.pass ? last.unitCents : PO.originalUnitCents) * PO.quantity : PO.revisedTotalCents;
   const limitChanged = st.policy.priceChangeLimitBps !== seedPolicy.priceChangeLimitBps && st.limitApprovals.length > 0;
-  const changing = st.limitApprovals.length > 0 || limitChanged;
+  // The limit change is the subject only until the PO goes for approval.
+  const changing = (st.limitApprovals.length > 0 || limitChanged) && st.stage === "sourcing";
   const onHold = !changing && !st.escrow && !!last && !last.pass && (st.scene >= 5 || !!st.halted);
-  const approvalPhase = st.stage === "approval" && st.approvals.length < st.requiredApprovals + 1 && !last;
+  // Chapter 6: the agreed price goes for two signatures, then the commit.
+  const approvalPhase = st.stage === "approval" || (st.stage === "confirmed" && !st.escrow);
   const capMax = Math.max(4_000_000, order);
   const signed = (name: string) => st.approvals.find((a) => a.by === name)?.time;
   const meta = (extra?: string) => <>PO <N>{PO.number}</N>{extra ? ` · ${extra}` : ""}</>;
@@ -123,26 +125,8 @@ export function RulesPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }
     );
   }
 
-  // Negotiation onward: the price change against the limit, the approvals done.
-  if (last) {
-    const quoted = st.price.history.reduce((m, h) => Math.max(m, h.bps), 0);
-    return (
-      <Panel id="rules" title="Rules" pulse={pulse} meta={st.escrow ? meta() : null}>
-        <div className={s.pad} style={{ padding: "16px 20px", gap: 14 }}>
-          <Bar label={<>Price change up to <N>{pct(policy.priceChangeLimitBps)}</N></>} read={`+${pct(last.bps)}`} readTone={last.pass ? undefined : "attention"} big max={1000}
-            rule={policy.priceChangeLimitBps} value={last.bps} tone={last.pass ? "success" : "attention"} ghost={quoted > last.bps ? quoted : undefined} ends={["0%", "10%"]}
-            marks={[{ at: policy.priceChangeLimitBps, text: `Limit ${pct(policy.priceChangeLimitBps)}`, tone: "muted" }, ...(quoted > last.bps ? [{ at: quoted, text: `Quoted ${pct(quoted)}` }] : [])]} />
-          <div className={s.headRow} style={{ gap: 18, paddingTop: 12, borderTop: "1px solid var(--line-hairline)", fontSize: 12, color: "var(--text-muted)", flexWrap: "wrap" }}>
-            <span className={s.line} style={{ fontSize: 12 }}><Dot tone={st.approvals.length >= st.requiredApprovals ? "success" : "attention"} />Auto approve: signed by {st.approvals.length}</span>
-            <span className={s.line} style={{ fontSize: 12 }}><Dot tone="success" />New supplier: {st.approvals.map((a) => a.by).join(", ")}</span>
-          </div>
-        </div>
-      </Panel>
-    );
-  }
-
   // Approval: the order against each rule, and the two signatures.
-  if (approvalPhase || st.approvals.length > 0) {
+  if (approvalPhase) {
     const approved = st.approvals.length >= st.requiredApprovals;
     const overCap = order >= policy.autoApproveUnderCents;
     return (
@@ -160,14 +144,39 @@ export function RulesPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }
             max={capMax} rule={policy.autoApproveUnderCents} value={order} tone={approved ? "success" : "attention"} ends={["$0", formatUsdShort(capMax === order ? order : capMax), usdK(policy.autoApproveUnderCents)]} />
           <Bar label={<>New supplier needs <N>{policy.approversRequired}</N> approvers</>} read={approved ? "Signed" : "Past the line"} readTone={approved ? "muted" : "attention"}
             max={100} rule={60} value={98} tone={approved ? "success" : "attention"} ends={["Established", "First order"]} />
-          <Bar label={<>Price change up to <N>{pct(policy.priceChangeLimitBps)}</N></>} read="Waiting on confirmation" max={1000} rule={policy.priceChangeLimitBps}
-            ends={["0%", "10%", pct(policy.priceChangeLimitBps)]} />
-          <div className={s.lines} style={{ gap: 10 }}>
+          {last?.pass
+            ? <Bar label={<>Price change up to <N>{pct(policy.priceChangeLimitBps)}</N></>} read={`Agreed +${pct(last.bps)}`} readTone="muted" max={1000} rule={policy.priceChangeLimitBps} value={last.bps} tone="success" ends={["0%", "10%", pct(policy.priceChangeLimitBps)]} />
+            : <Bar label={<>Price change up to <N>{pct(policy.priceChangeLimitBps)}</N></>} read="Waiting on confirmation" max={1000} rule={policy.priceChangeLimitBps} ends={["0%", "10%", pct(policy.priceChangeLimitBps)]} />}
+          <div className={s.lines} style={{ gap: 10 }} data-focus="rules.approvals">
             <span className="es-micro">Approval slots</span>
             <div className={s.slots}>
               <Slot n={1} name={astro.buyer} signed={signed(astro.buyer)} waiting={!signed(astro.buyer)} />
               <Slot n={2} name={astro.secondApprover} signed={signed(astro.secondApprover)} waiting={!!signed(astro.buyer) && !signed(astro.secondApprover)} />
             </div>
+          </div>
+        </div>
+      </Panel>
+    );
+  }
+
+  // Negotiation onward: the price change against the limit, the approvals done.
+  if (last) {
+    const quoted = st.price.history.reduce((m, h) => Math.max(m, h.bps), 0);
+    return (
+      <Panel id="rules" title="Rules" pulse={pulse} meta={st.escrow ? meta() : null}>
+        <div className={s.pad} style={{ padding: "16px 20px", gap: 14 }}>
+          <Bar label={<>Price change up to <N>{pct(policy.priceChangeLimitBps)}</N></>} read={`+${pct(last.bps)}`} readTone={last.pass ? undefined : "attention"} big max={1000}
+            rule={policy.priceChangeLimitBps} value={last.bps} tone={last.pass ? "success" : "attention"} ghost={quoted > last.bps ? quoted : undefined} ends={["0%", "10%"]}
+            marks={[{ at: policy.priceChangeLimitBps, text: `Limit ${pct(policy.priceChangeLimitBps)}`, tone: "muted" }, ...(quoted > last.bps ? [{ at: quoted, text: `Quoted ${pct(quoted)}` }] : [])]} />
+          <div className={s.headRow} style={{ gap: 18, paddingTop: 12, borderTop: "1px solid var(--line-hairline)", fontSize: 12, color: "var(--text-muted)", flexWrap: "wrap" }}>
+            {st.approvals.length === 0 ? (
+              <span className={s.line} style={{ fontSize: 12 }}><Dot />Two approvals follow once the price is agreed</span>
+            ) : (
+              <>
+                <span className={s.line} style={{ fontSize: 12 }}><Dot tone={st.approvals.length >= st.requiredApprovals ? "success" : "attention"} />Auto approve: signed by {st.approvals.length}</span>
+                <span className={s.line} style={{ fontSize: 12 }}><Dot tone="success" />New supplier: {st.approvals.map((a) => a.by).join(", ")}</span>
+              </>
+            )}
           </div>
         </div>
       </Panel>

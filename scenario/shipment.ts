@@ -28,11 +28,21 @@ export const CHECKPOINTS: Record<string, Checkpoint> = {
   dock: { id: "dock", day: 9, time: "08:42", zone: "Chicago", title: "Received at dock", place: "Astro Robotics, Chicago", stop: "dock", ackBy: "Astro receiving (Luca)", source: "Dock photo", detail: "1,800 of 2,000 counted. Release $34,200, hold $3,800.", photos: ["packing_slip", "pallets_dock"], proofId: "dock_attestation", state: "attention" },
 };
 
+/** Where each photo comes from: drawn stand-ins, or a credited stock photo. Never presented as Astro's own. */
+export type PhotoSource = { kind: "synthetic" } | { kind: "stock"; src: string; credit: string; url: string };
+export const PHOTO_SOURCE: Record<PhotoId, PhotoSource> = {
+  pallets_origin: { kind: "synthetic" },
+  awb_label: { kind: "synthetic" },
+  packing_slip: { kind: "synthetic" },
+  pallets_dock: { kind: "stock", src: "/photos/dock-pallets.jpg", credit: "Pexels", url: "https://www.pexels.com/photo/cartons-near-warehouse-gates-12585837/" },
+};
+export const photoTag = (id: PhotoId) => (PHOTO_SOURCE[id].kind === "stock" ? "stock photo" : "synthetic photo");
+
 export const PHOTO_CAPTION: Record<PhotoId, string> = {
   pallets_origin: "Pallets at Haoyun before sealing",
   awb_label: "Air waybill label on pallet 1 of 9",
   packing_slip: "Packing slip at the Chicago dock",
-  pallets_dock: "Pallets on dock door 4, Chicago",
+  pallets_dock: "Delivery at the Chicago dock",
 };
 
 /** Local time where it happened: Shenzhen is UTC+8, Chicago UTC-5 in this season. */

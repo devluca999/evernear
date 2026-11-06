@@ -32,7 +32,12 @@ describe("tracking checkpoints", () => {
     expect(within(dialog).getByText("Day 9, 08:42 Chicago time")).toBeTruthy();
     expect(within(dialog).getByText("synthetic photo")).toBeTruthy();
     fireEvent.click(within(dialog).getByRole("button", { name: "Next photo" }));
-    expect(screen.getByRole("dialog").getAttribute("aria-label")).toBe("Received at dock: Pallets on dock door 4, Chicago");
+    const next = screen.getByRole("dialog");
+    expect(next.getAttribute("aria-label")).toBe("Received at dock: Delivery at the Chicago dock");
+    // The dock photo is a credited stock photo, labelled as such, never presented as Astro's own.
+    expect(within(next).getByText("stock photo")).toBeTruthy();
+    expect((within(next).getByRole("img", { name: "Delivery at the Chicago dock" }) as HTMLImageElement).getAttribute("src")).toBe("/photos/dock-pallets.jpg");
+    expect(within(next).getByRole("link", { name: "Pexels" }).getAttribute("href")).toBe("https://www.pexels.com/photo/cartons-near-warehouse-gates-12585837/");
     fireEvent.keyDown(window, { key: "Escape" });
     expect(screen.queryByRole("dialog")).toBeNull();
   });

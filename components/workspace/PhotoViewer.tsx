@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef } from "react";
-import { CHECKPOINTS, PHOTO_CAPTION, stamp } from "@/scenario/shipment";
+import { CHECKPOINTS, PHOTO_CAPTION, PHOTO_SOURCE, photoTag, stamp } from "@/scenario/shipment";
 import { Photo } from "./photos/Photo";
 import { Pill } from "./ui";
 import s from "./workspace.module.css";
@@ -29,12 +29,13 @@ export function PhotoViewer({ checkpointId, index, onIndex, onClose, onProof }: 
       <div className={s.viewer} role="dialog" aria-modal="true" aria-label={`${c.title}: ${PHOTO_CAPTION[id]}`} onClick={(e) => e.stopPropagation()}>
         <div className={s.viewerPhoto}>
           <Photo id={id} label={PHOTO_CAPTION[id]} />
-          <span className={s.viewerTag}><Pill tone="idle">synthetic photo</Pill></span>
+          <span className={s.viewerTag}><Pill tone="idle">{photoTag(id)}</Pill></span>
         </div>
         <aside className={s.viewerSide}>
           <span className={s.micro}>{c.source.toUpperCase()}</span>
           <h3 className={s.viewerTitle}>{c.title}</h3>
           <p className={s.sub}>{PHOTO_CAPTION[id]}</p>
+          {(() => { const src = PHOTO_SOURCE[id]; return src.kind === "stock" ? <p className={s.faint}>Stock photo from <a className={s.link} href={src.url} target="_blank" rel="noreferrer">{src.credit}</a>, not Astro&apos;s dock.</p> : null; })()}
           <dl className={s.viewerMeta}>
             <div><dt>ACKNOWLEDGED</dt><dd className={s.fig}>{stamp(c)}</dd></div>
             <div><dt>BY</dt><dd>{c.ackBy}</dd></div>

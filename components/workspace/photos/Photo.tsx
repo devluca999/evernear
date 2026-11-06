@@ -1,6 +1,7 @@
 // The photos along the route: drawn stand-ins (labelled synthetic) or a credited stock photo
 // (labelled stock photo). Neither is presented as Astro's own photo.
 import { PHOTO_SOURCE, type PhotoId } from "@/scenario/shipment";
+import { PackingSlip } from "./PackingSlip";
 import s from "./photos.module.css";
 
 function Pallet({ x, y, w = 70, rows = 3 }: { x: number; y: number; w?: number; rows?: number }) {
@@ -91,6 +92,7 @@ const SCENES: Record<PhotoId, () => React.ReactNode> = {
 
 export function Photo({ id, label }: { id: PhotoId; label: string }) {
   const src = PHOTO_SOURCE[id];
+  if (id === "packing_slip") return <PackingSlip label={label} />;
   if (src.kind === "stock") {
     // eslint-disable-next-line @next/next/no-img-element -- a static file in public/, no optimisation needed
     return <img src={src.src} alt={label} className={`${s.photo} ${s.stock}`} loading="lazy" decoding="async" />;

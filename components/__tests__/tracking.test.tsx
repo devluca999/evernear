@@ -30,7 +30,10 @@ describe("tracking checkpoints", () => {
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).getByText("Received at dock")).toBeTruthy();
     expect(within(dialog).getByText("Day 9, 08:42 Chicago time")).toBeTruthy();
-    expect(within(dialog).getByText("synthetic photo")).toBeTruthy();
+    expect(within(dialog).getByText("sample document")).toBeTruthy();
+    // The slip says what the dock check reads: PO 1042, 2,000 ordered, 1,800 shipped, 200 to follow.
+    const slip = within(dialog).getByRole("img", { name: "Packing slip at the Chicago dock" });
+    for (const t of ["1042", "2,000", "1,800", "200", "9 pallets, 1,180 kg"]) expect(slip.textContent).toContain(t);
     fireEvent.click(within(dialog).getByRole("button", { name: "Next photo" }));
     const next = screen.getByRole("dialog");
     expect(next.getAttribute("aria-label")).toBe("Received at dock: Delivery at the Chicago dock");

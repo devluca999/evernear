@@ -29,14 +29,14 @@ export const CHECKPOINTS: Record<string, Checkpoint> = {
 };
 
 /** Where each photo comes from: drawn stand-ins, or a credited stock photo. Never presented as Astro's own. */
-export type PhotoSource = { kind: "synthetic" } | { kind: "stock"; src: string; credit: string; url: string };
+export type PhotoSource = { kind: "synthetic" } | { kind: "document" } | { kind: "stock"; src: string; credit: string; url: string };
 export const PHOTO_SOURCE: Record<PhotoId, PhotoSource> = {
   pallets_origin: { kind: "synthetic" },
   awb_label: { kind: "synthetic" },
-  packing_slip: { kind: "synthetic" },
+  packing_slip: { kind: "document" },
   pallets_dock: { kind: "stock", src: "/photos/dock-pallets.jpg", credit: "Pexels", url: "https://www.pexels.com/photo/cartons-near-warehouse-gates-12585837/" },
 };
-export const photoTag = (id: PhotoId) => (PHOTO_SOURCE[id].kind === "stock" ? "stock photo" : "synthetic photo");
+export const photoTag = (id: PhotoId) => ({ stock: "stock photo", document: "sample document", synthetic: "synthetic photo" })[PHOTO_SOURCE[id].kind];
 
 export const PHOTO_CAPTION: Record<PhotoId, string> = {
   pallets_origin: "Pallets at Haoyun before sealing",

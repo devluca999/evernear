@@ -17,3 +17,26 @@
 .mark { fill: none; stroke: var(--state-attention); stroke-width: 2.5; }
 .stencil { font: 600 11px var(--font-mono); letter-spacing: .1em; fill: var(--text-muted); }
 .stock { aspect-ratio: 4 / 3; object-fit: cover; }
+
+/* The packing slip: printed form on a carton top. Ink is neutral; paper and kraft are illustration. */
+.kraft { fill: var(--ill-top, #C9A877); }
+.kraftSeam { fill: var(--ill-seam, #A88655); opacity: .55; }
+.tape { fill: var(--ill-tape, #E8DDC6); opacity: .62; }
+.slipPaper { fill: var(--ill-label, #FBF9F4); }
+.slipShadow { fill: var(--ill-shadow, #000); opacity: .28; filter: blur(8px); }
+.slipBand { fill: #ECE8DF; }
+.slipRule { stroke: #2B2925; stroke-width: 1.2; opacity: .55; }
+.slipInk { fill: #1E1C19; }
+.slipText { font: 15px var(--font-ui); fill: #2B2925; }
+.slipHead { font: 700 20px var(--font-ui); letter-spacing: .04em; fill: #1E1C19; }
+.slipTitle { font: 700 24px var(--font-ui); letter-spacing: .08em; fill: #1E1C19; }
+.slipLabel { font: 600 11px var(--font-ui); letter-spacing: .1em; fill: #5E5A52; }
+.slipMono { font: 15px var(--font-mono); fill: #2B2925; }
+.slipMonoBold { font: 700 16px var(--font-mono); fill: #1E1C19; }
+.slipMonoSmall { font: 12px var(--font-mono); fill: #5E5A52; }
+.slipPen { fill: none; stroke: #2E3A55; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; opacity: .85; }
+.slipHand { font: italic 20px "Segoe Print", "Bradley Hand", "Noteworthy", cursive; fill: #2E3A55; }
+.slipHandBig { font: italic 700 38px "Segoe Print", "Bradley Hand", "Noteworthy", cursive; fill: #2E3A55; }
+.slipStamp { fill: none; stroke: #4A4743; stroke-width: 3; opacity: .7; }
+.slipStampText { font: 800 22px var(--font-ui); letter-spacing: .18em; fill: #4A4743; opacity: .75; }
+.slipStampSmall { font: 600 12px var(--font-mono); letter-spacing: .06em; fill: #4A4743; opacity: .75; }

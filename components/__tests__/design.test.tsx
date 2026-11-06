@@ -28,7 +28,7 @@ describe("V2 design rules", () => {
   it("every status dot is the one LED implementation", () => {
     const { container } = at(sceneStartMs(8) + 9000);
     const dots = container.querySelectorAll("[data-tone]");
-    expect(dots.length).toBeGreaterThan(20);
+    expect(dots.length).toBeGreaterThan(10);
     for (const d of dots) {
       if (d.closest("svg")) continue; // figure strokes use the kit's own data-tone
       expect(["active", "attention", "success", "alert", "idle", "proposed"]).toContain(d.getAttribute("data-tone"));

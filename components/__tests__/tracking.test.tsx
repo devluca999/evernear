@@ -20,6 +20,16 @@ describe("tracking checkpoints", () => {
     expect(flightHours).toBeLessThan(18);
     expect(cps.at(-1)).toMatchObject({ day: 9, proofId: "dock_attestation", photos: ["packing_slip", "pallets_dock"] });
   });
+  it("shows only the latest checkpoint, with the earlier ones one click away", () => {
+    at(dockScene);
+    const list = () => within(screen.getByRole("region", { name: "Tracking" })).getAllByRole("listitem");
+    expect(list().map((li) => li.textContent)).toEqual([expect.stringContaining("Received at dock")]);
+    fireEvent.click(screen.getByRole("button", { name: "Show 5 earlier checkpoints" }));
+    expect(list()).toHaveLength(6);
+    expect(list().at(-1)!.textContent).toContain("Packed and sealed");
+    fireEvent.click(screen.getByRole("button", { name: "Show only the latest" }));
+    expect(list()).toHaveLength(1);
+  });
   it("shows who acknowledged the latest checkpoint and when", () => {
     at(dockScene);
     expect(screen.getByText(/Last acknowledged/).textContent).toBe("Last acknowledged Day 9, 08:42 Chicago time by Astro receiving (Luca)");

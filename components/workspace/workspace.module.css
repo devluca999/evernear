@@ -148,12 +148,12 @@
 .land { fill: var(--bg-raised); stroke: var(--line-strong); stroke-width: 0.5; vector-effect: non-scaling-stroke; }
 .border { fill: none; stroke: var(--line-hairline); stroke-width: 0.5; vector-effect: non-scaling-stroke; }
 .route { stroke: var(--text-faint); stroke-width: 1.2; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
-.routeDone { stroke: var(--state-active); stroke-width: 2; stroke-linecap: round; }
+.routeDone { stroke: var(--state-active); stroke-width: 2; stroke-linecap: round; vector-effect: non-scaling-stroke; }
 .pin { fill: var(--text-faint); stroke: var(--bg-sunken); stroke-width: 1; }
 .pinOk { fill: var(--state-success); stroke: var(--bg-sunken); stroke-width: 1; }
 .pinFail { fill: var(--state-alert); stroke: var(--bg-sunken); stroke-width: 1; }
 .pinHome { fill: var(--text-primary); stroke: var(--bg-sunken); stroke-width: 1; }
-.pinWay { fill: var(--bg-sunken); stroke: var(--text-muted); stroke-width: 1.2; }
+.pinWay { fill: var(--bg-sunken); stroke: var(--text-muted); stroke-width: 1.2; vector-effect: non-scaling-stroke; }
 .pinLabel { font-size: 11px; fill: var(--text-secondary); font-family: var(--font-ui); paint-order: stroke; stroke: var(--bg-sunken); stroke-width: 3px; stroke-linejoin: round; }
 .ship { fill: var(--state-active); stroke: var(--bg-sunken); stroke-width: 1.5; }
 .docGlyph { stroke: var(--bg-sunken); stroke-width: 1; }

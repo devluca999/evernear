@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { LocateFixed, Maximize2, Minimize2, ZoomIn, ZoomOut } from "lucide-react";
 import { clampView, fullView, panBy, zoomAt, zoomOf, type View } from "../map/view";
 import type { WorkspaceState } from "@/scenario/types";
@@ -32,17 +33,18 @@ const TOTAL = CUM[CUM.length - 1];
 const STOP_AT = Object.fromEntries(Object.entries(MAP.stops).map(([k, i]) => [k, CUM[i] / TOTAL])) as Record<keyof typeof MAP.stops, number>;
 
 /** A small cargo plane pointing along the route. */
-function Plane({ t }: { t: number }) {
+/** Keeps a marker the same size on screen at any zoom. */
+const steady = (x: number, y: number, k: number) => `translate(${x} ${y}) scale(${1 / k}) translate(${-x} ${-y})`;
+
+function Plane({ t, k }: { t: number; k: number }) {
   const [x, y] = pointAt(ROUTE, t, CUM);
   const [x2, y2] = pointAt(ROUTE, Math.min(1, t + 0.01), CUM);
   const [x0, y0] = pointAt(ROUTE, Math.max(0, t - 0.01), CUM);
   const deg = (Math.atan2(y2 - y0, x2 - x0) * 180) / Math.PI;
-  return <path transform={`translate(${x} ${y}) rotate(${deg})`} d="M8 0 L2 1.2 L-2 6 L-4 6 L-1 1.2 L-5 1.2 L-7 3.2 L-8 3.2 L-6.5 0 L-8 -3.2 L-7 -3.2 L-5 -1.2 L-1 -1.2 L-4 -6 L-2 -6 L2 -1.2 Z" className={s.ship} />;
+  return <path transform={`translate(${x} ${y}) scale(${1 / k}) rotate(${deg})`} d="M8 0 L2 1.2 L-2 6 L-4 6 L-1 1.2 L-5 1.2 L-7 3.2 L-8 3.2 L-6.5 0 L-8 -3.2 L-7 -3.2 L-5 -1.2 L-1 -1.2 L-4 -6 L-2 -6 L2 -1.2 Z" className={s.ship} />;
 }
 
 const DISPLAY: Partial<Record<keyof typeof MAP.pins, string>> = { Chicago: "Astro Robotics HQ, Chicago" };
-/** Keeps a marker the same size on screen at any zoom. */
-const steady = (x: number, y: number, k: number) => `translate(${x} ${y}) scale(${1 / k}) translate(${-x} ${-y})`;
 
 function Pin({ name, cls, k = 1 }: { name: keyof typeof MAP.pins; cls: string; k?: number }) {
   const [x, y] = MAP.pins[name];
@@ -56,9 +58,9 @@ function Pin({ name, cls, k = 1 }: { name: keyof typeof MAP.pins; cls: string; k
 }
 
 /** A small document glyph with a folded corner, coloured by its state. */
-function Doc({ at, state }: { at: Pt; state: "done" | "working" | "problem" }) {
+function Doc({ at, state, k }: { at: Pt; state: "done" | "working" | "problem"; k: number }) {
   const [x, y] = at;
-  return <path transform={`translate(${x - 4.5} ${y - 16})`} d="M0 0h6l3 3v9H0z" className={`${s.docGlyph} ${DOC_TONE[state]}`} />;
+  return <path transform={`translate(${x} ${y}) scale(${1 / k}) translate(-4.5 -16)`} d="M0 0h6l3 3v9H0z" className={`${s.docGlyph} ${DOC_TONE[state]}`} />;
 }
 
 /** A supplier's headquarters: a dot and its icon (a two-letter mark), coloured by fitment state. */
@@ -91,6 +93,7 @@ export function MapPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }) 
   const [pick, setPick] = useState<string | null>(null);
   const [planOpen, setPlanOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [portalRoot, setPortalRoot] = useState<HTMLElement | null>(null);
   const [detail, setDetail] = useState<Detail | null>(null);
   useEffect(() => { let on = true; void loadDetail().then((d) => { if (on && d) setDetail(d); }); return () => { on = false; }; }, []);
   useEffect(() => {
@@ -112,6 +115,7 @@ export function MapPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }) 
   const moved = useRef(false);
   const [dragging, setDragging] = useState(false);
   const k = zoomOf(view, W);
+  const zoom = k;
   useEffect(() => {
     const el = svgRef.current;
     if (!el) return;
@@ -132,48 +136,57 @@ export function MapPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }) 
 
   return (
     <Panel id="map" title="Suppliers" pulse={pulse}>
-      {expanded && <div className={s.mapScrim} onClick={() => setExpanded(false)} aria-hidden="true" />}
-      <div className={s.mapWrap} data-expanded={expanded} role={expanded ? "dialog" : undefined} aria-label={expanded ? "Suppliers map, expanded" : undefined}>
-      <svg ref={svgRef} className={s.map} data-dragging={dragging} viewBox={`${view.x} ${view.y} ${view.w} ${view.h}`} role="img"
-        onPointerDown={(e) => { drag.current = { x: e.clientX, y: e.clientY }; moved.current = false; }}
-        onPointerMove={(e) => {
-          const d = drag.current;
-          if (!d || !svgRef.current) return;
-          const dx = e.clientX - d.x, dy = e.clientY - d.y;
-          if (!moved.current && Math.hypot(dx, dy) < 4) return;
-          if (!moved.current) { moved.current = true; setDragging(true); svgRef.current.setPointerCapture(e.pointerId); }
-          drag.current = { x: e.clientX, y: e.clientY };
-          setView((v) => panBy(v, dx, dy, svgRef.current!.getBoundingClientRect().width, W, H));
-        }}
-        onPointerUp={() => { drag.current = null; setDragging(false); setTimeout(() => { moved.current = false; }, 0); }}
-        onPointerCancel={() => { drag.current = null; moved.current = false; setDragging(false); }}
-        aria-label={shipping ? `Air freight from Shenzhen to Chicago O'Hare, ${Math.round(t * 100)} percent of the way` : "Supplier locations and Astro in Chicago"}>
-        <rect width={MAP.width} height={MAP.height} className={s.ocean} />
-        <path d={MAP.graticule} className={s.grat} />
-        <path d={detail?.land ?? MAP.land} className={s.land} />
-        <path d={detail?.borders ?? MAP.borders} className={s.border} />
-        {shipping && (
+      {(() => {
+        const map = (
           <>
-            <path d={ROUTE_D} className={s.route} fill="none" />
-            {t > 0 && <path d={ROUTE_D} className={s.routeDone} fill="none" pathLength={1} strokeDasharray={`${t} 1`} />}
-            {(["szx", "ord"] as const).map((k) => { const [x, y] = pointAt(ROUTE, STOP_AT[k], CUM); return <circle key={k} cx={x} cy={y} r="2.4" className={s.pinWay} />; })}
-            {st.shipment.docs.map((d, i) => <Doc key={d.name} at={pointAt(ROUTE, DOC_AT[i] ?? 0.5, CUM)} state={d.state} />)}
-          </>
-        )}
-        {pick && <path d={lanePath(pick)} className={s.lane} fill="none" />}
-        {suppliers.map((v) => <Hq key={v.id} id={v.id} cls={pinCls(SUPPLIER_CITY[v.id])} selected={pick === v.id} onPick={choose} k={k} />)}
-        <Pin name="Chicago" cls={s.pinHome} k={k} />
-        {shipping && t > 0 && t < 1 && <Plane t={t} />}
-      </svg>
-        <div className={s.mapControls} role="group" aria-label="Map zoom">
-          <button type="button" className={s.mapBtn} aria-label="Zoom in" onClick={() => setView((v) => zoomAt(v, 1.5, 0.5, 0.5, W, H))}><ZoomIn size={14} strokeWidth={2} aria-hidden="true" /></button>
-          <button type="button" className={s.mapBtn} aria-label="Zoom out" onClick={() => setView((v) => zoomAt(v, 1 / 1.5, 0.5, 0.5, W, H))}><ZoomOut size={14} strokeWidth={2} aria-hidden="true" /></button>
-          <button type="button" className={s.mapBtn} aria-label="Show the whole map" onClick={() => setView(clampView(fullView(W, H), W, H))}><LocateFixed size={14} strokeWidth={2} aria-hidden="true" /></button>
-          <button type="button" className={s.mapBtn} aria-label={expanded ? "Shrink the map" : "Expand the map"} onClick={() => setExpanded((x) => !x)}>
-            {expanded ? <Minimize2 size={14} strokeWidth={2} aria-hidden="true" /> : <Maximize2 size={14} strokeWidth={2} aria-hidden="true" />}
-          </button>
-        </div>
-      </div>
+      {expanded && <div className={s.mapScrim} onClick={() => setExpanded(false)} aria-hidden="true" />}
+          <div className={s.mapWrap} data-expanded={expanded} role={expanded ? "dialog" : undefined} aria-label={expanded ? "Suppliers map, expanded" : undefined}>
+          <svg ref={svgRef} className={s.map} data-dragging={dragging} viewBox={`${view.x} ${view.y} ${view.w} ${view.h}`} role="img"
+            onPointerDown={(e) => { drag.current = { x: e.clientX, y: e.clientY }; moved.current = false; }}
+            onPointerMove={(e) => {
+              const d = drag.current;
+              if (!d || !svgRef.current) return;
+              const dx = e.clientX - d.x, dy = e.clientY - d.y;
+              if (!moved.current && Math.hypot(dx, dy) < 4) return;
+              if (!moved.current) { moved.current = true; setDragging(true); svgRef.current.setPointerCapture(e.pointerId); }
+              drag.current = { x: e.clientX, y: e.clientY };
+              setView((v) => panBy(v, dx, dy, svgRef.current!.getBoundingClientRect().width, W, H));
+            }}
+            onPointerUp={() => { drag.current = null; setDragging(false); setTimeout(() => { moved.current = false; }, 0); }}
+            onPointerCancel={() => { drag.current = null; moved.current = false; setDragging(false); }}
+            aria-label={shipping ? `Air freight from Shenzhen to Chicago O'Hare, ${Math.round(t * 100)} percent of the way` : "Supplier locations and Astro in Chicago"}>
+            <rect width={MAP.width} height={MAP.height} className={s.ocean} />
+            <path d={MAP.graticule} className={s.grat} />
+            <path d={detail?.land ?? MAP.land} className={s.land} />
+            <path d={detail?.borders ?? MAP.borders} className={s.border} />
+            {shipping && (
+              <>
+                <path d={ROUTE_D} className={s.route} fill="none" />
+                {t > 0 && <path d={ROUTE_D} className={s.routeDone} fill="none" pathLength={1} strokeDasharray={`${t} 1`} />}
+                {(["szx", "ord"] as const).map((k) => { const [x, y] = pointAt(ROUTE, STOP_AT[k], CUM); return <circle key={k} cx={x} cy={y} r={2.4 / zoom} className={s.pinWay} />; })}
+                {st.shipment.docs.map((d, i) => <Doc key={d.name} at={pointAt(ROUTE, DOC_AT[i] ?? 0.5, CUM)} state={d.state} k={zoom} />)}
+              </>
+            )}
+            {pick && <path d={lanePath(pick)} className={s.lane} fill="none" />}
+            {suppliers.map((v) => <Hq key={v.id} id={v.id} cls={pinCls(SUPPLIER_CITY[v.id])} selected={pick === v.id} onPick={choose} k={k} />)}
+            <Pin name="Chicago" cls={s.pinHome} k={k} />
+            {shipping && t > 0 && t < 1 && <Plane t={t} k={zoom} />}
+          </svg>
+            <div className={s.mapControls} role="group" aria-label="Map zoom">
+              <button type="button" className={s.mapBtn} aria-label="Zoom in" onClick={() => setView((v) => zoomAt(v, 1.5, 0.5, 0.5, W, H))}><ZoomIn size={14} strokeWidth={2} aria-hidden="true" /></button>
+              <button type="button" className={s.mapBtn} aria-label="Zoom out" onClick={() => setView((v) => zoomAt(v, 1 / 1.5, 0.5, 0.5, W, H))}><ZoomOut size={14} strokeWidth={2} aria-hidden="true" /></button>
+              <button type="button" className={s.mapBtn} aria-label="Show the whole map" onClick={() => setView(clampView(fullView(W, H), W, H))}><LocateFixed size={14} strokeWidth={2} aria-hidden="true" /></button>
+              <button type="button" className={s.mapBtn} aria-label={expanded ? "Shrink the map" : "Expand the map"} onClick={(e) => { setPortalRoot(e.currentTarget.closest<HTMLElement>("[data-theme]")); setExpanded((x) => !x); }}>
+                {expanded ? <Minimize2 size={14} strokeWidth={2} aria-hidden="true" /> : <Maximize2 size={14} strokeWidth={2} aria-hidden="true" />}
+              </button>
+            </div>
+          </div>
+              </>
+        );
+        // Expanded, the map renders at the top of the page so no card can sit above it.
+        // The workspace root carries the theme, so the map stays themed there.
+        return expanded && portalRoot ? createPortal(map, portalRoot) : map;
+      })()}
       {!planOpen && (
         <button type="button" className={`${s.btnQuiet} ${s.planOpenBtn}`} onClick={() => setPlanOpen(true)}>Plan an order</button>
       )}

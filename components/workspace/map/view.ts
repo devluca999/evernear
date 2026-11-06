@@ -1,6 +1,6 @@
 // Pan and zoom for the map: a viewBox that can be dragged and zoomed, kept inside the map.
 export interface View { x: number; y: number; w: number; h: number }
-export const MAX_ZOOM = 4;
+export const MAX_ZOOM = 8;
 
 export const fullView = (W: number, H: number): View => ({ x: 0, y: 0, w: W, h: H });
 

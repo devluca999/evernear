@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { LocateFixed, ZoomIn, ZoomOut } from "lucide-react";
+import { LocateFixed, Maximize2, Minimize2, ZoomIn, ZoomOut } from "lucide-react";
 import { clampView, fullView, panBy, zoomAt, zoomOf, type View } from "../map/view";
 import type { WorkspaceState } from "@/scenario/types";
 import { suppliers, offers, MOTOR_PART } from "@/seed/astro";
@@ -77,11 +77,28 @@ function Hq({ id, cls, selected, onPick, k }: { id: string; cls: string; selecte
   );
 }
 
+/** The fine map (scripts/build-map.mjs, public/map/world-detail.json), fetched once after first paint. */
+type Detail = { land: string; borders: string };
+let detailCache: Promise<Detail | null> | null = null;
+const loadDetail = () => (detailCache ??= fetch("/map/world-detail.json")
+  .then((r) => (r.ok ? (r.json() as Promise<Detail>) : null))
+  .catch(() => null)
+  .then((d) => { if (!d) detailCache = null; return d; })); // only a successful load is kept; a failure retries next time
+
 const lanePath = (id: string) => LANE_GEO[id].segments.map((seg) => polyline(seg)).join(" ");
 
 export function MapPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }) {
   const [pick, setPick] = useState<string | null>(null);
   const [planOpen, setPlanOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [detail, setDetail] = useState<Detail | null>(null);
+  useEffect(() => { let on = true; void loadDetail().then((d) => { if (on && d) setDetail(d); }); return () => { on = false; }; }, []);
+  useEffect(() => {
+    if (!expanded) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); setExpanded(false); } };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [expanded]);
   const [today] = useState(() => isoDay(Date.now()));
   const [shipDay, setShipDay] = useState<string | undefined>(undefined);
   const plan = pick ? eta(pick, today, shipDay) : null;
@@ -115,7 +132,8 @@ export function MapPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }) 
 
   return (
     <Panel id="map" title="Suppliers" pulse={pulse}>
-      <div className={s.mapWrap}>
+      {expanded && <div className={s.mapScrim} onClick={() => setExpanded(false)} aria-hidden="true" />}
+      <div className={s.mapWrap} data-expanded={expanded} role={expanded ? "dialog" : undefined} aria-label={expanded ? "Suppliers map, expanded" : undefined}>
       <svg ref={svgRef} className={s.map} data-dragging={dragging} viewBox={`${view.x} ${view.y} ${view.w} ${view.h}`} role="img"
         onPointerDown={(e) => { drag.current = { x: e.clientX, y: e.clientY }; moved.current = false; }}
         onPointerMove={(e) => {
@@ -132,8 +150,8 @@ export function MapPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }) 
         aria-label={shipping ? `Air freight from Shenzhen to Chicago O'Hare, ${Math.round(t * 100)} percent of the way` : "Supplier locations and Astro in Chicago"}>
         <rect width={MAP.width} height={MAP.height} className={s.ocean} />
         <path d={MAP.graticule} className={s.grat} />
-        <path d={MAP.land} className={s.land} />
-        <path d={MAP.borders} className={s.border} />
+        <path d={detail?.land ?? MAP.land} className={s.land} />
+        <path d={detail?.borders ?? MAP.borders} className={s.border} />
         {shipping && (
           <>
             <path d={ROUTE_D} className={s.route} fill="none" />
@@ -151,6 +169,9 @@ export function MapPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }) 
           <button type="button" className={s.mapBtn} aria-label="Zoom in" onClick={() => setView((v) => zoomAt(v, 1.5, 0.5, 0.5, W, H))}><ZoomIn size={14} strokeWidth={2} aria-hidden="true" /></button>
           <button type="button" className={s.mapBtn} aria-label="Zoom out" onClick={() => setView((v) => zoomAt(v, 1 / 1.5, 0.5, 0.5, W, H))}><ZoomOut size={14} strokeWidth={2} aria-hidden="true" /></button>
           <button type="button" className={s.mapBtn} aria-label="Show the whole map" onClick={() => setView(clampView(fullView(W, H), W, H))}><LocateFixed size={14} strokeWidth={2} aria-hidden="true" /></button>
+          <button type="button" className={s.mapBtn} aria-label={expanded ? "Shrink the map" : "Expand the map"} onClick={() => setExpanded((x) => !x)}>
+            {expanded ? <Minimize2 size={14} strokeWidth={2} aria-hidden="true" /> : <Maximize2 size={14} strokeWidth={2} aria-hidden="true" />}
+          </button>
         </div>
       </div>
       {!planOpen && (

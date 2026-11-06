@@ -42,3 +42,17 @@ describe("map: our own headquarters and zoom", () => {
     expect(svg()).toBe("0 0 720 300");
   });
 });
+
+describe("map: fine detail and expand", () => {
+  it("swaps in the fine coastlines once they load, and expands over the workspace", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ land: "M0 0L1 1Z", borders: "M2 2L3 3" }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { container } = render(<MapPanel st={stateAt(0)} pulse={false} />);
+    await vi.waitFor(() => expect(container.querySelector('path[d="M0 0L1 1Z"]')).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Expand the map" }));
+    expect(screen.getByRole("dialog", { name: "Suppliers map, expanded" })).toBeTruthy();
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: "Suppliers map, expanded" })).toBeNull();
+    vi.unstubAllGlobals();
+  });
+});

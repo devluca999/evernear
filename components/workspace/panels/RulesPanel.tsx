@@ -35,9 +35,9 @@ export function RulesPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }
   return (
     <Panel id="rules" title="Rules and approvals" pulse={pulse}>
       {st.escrow && (
-        <div className={s.headline}>
+        <div className={s.outcome}>
           <span className={s.micro}>PO {PO.number}</span>
-          <p className={s.headlineText}>
+          <p className={s.outcomeText}>
             {paid
               ? <><span className={s.fig}>{formatUsdShort(st.escrow.releasedCents)}</span> paid to Haoyun · <span className={s.fig}>{formatUsdShort(st.escrow.lockedCents - st.escrow.releasedCents)}</span> {st.escrow.reclaimedCents ? "back to Astro" : "held"}</>
               : <><span className={s.fig}>{formatUsdShort(st.escrow.lockedCents)}</span> committed to Haoyun&apos;s PO account</>}

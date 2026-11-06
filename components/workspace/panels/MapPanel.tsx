@@ -154,7 +154,7 @@ export function MapPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }) 
         </div>
       </div>
       {!planOpen && (
-        <button type="button" className={s.btnQuiet} onClick={() => setPlanOpen(true)}>Plan an order</button>
+        <button type="button" className={`${s.btnQuiet} ${s.planOpenBtn}`} onClick={() => setPlanOpen(true)}>Plan an order</button>
       )}
       {planOpen && (
       <div className={s.plan} role="group" aria-label="Plan an order">

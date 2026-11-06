@@ -31,9 +31,9 @@ export function BomPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }) 
         ) : (
           <>
           {results.length === ORDER.length && winner && (
-            <div className={s.headline}>
+            <div className={s.outcome}>
               <span className={s.micro}>FITMENT · ACTUATOR MOTOR</span>
-              <p className={s.headlineText}>{suppliers.find((x) => x.id === winner.supplierId)!.name} fits every spec</p>
+              <p className={s.outcomeText}>{suppliers.find((x) => x.id === winner.supplierId)!.name} fits every spec</p>
               <p className={s.sub}><span className={s.fig}>{results.length - 1}</span> of <span className={s.fig}>{results.length}</span> alternatives fail on a spec or on policy.</p>
             </div>
           )}

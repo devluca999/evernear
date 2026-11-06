@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { stateAt, sceneStartMs, stageStartMs } from "@/scenario/runner";
-import { scenes, timeline, totalDurationMs } from "@/scenario/scenes";
+import { SCENARIOS, type ScenarioId } from "@/scenario/scenes";
 import { suppliers } from "@/seed/astro";
 import type { Beat, PanelId, WorkspaceState } from "@/scenario/types";
 import { Rail } from "./Rail";
@@ -20,7 +20,7 @@ import { Pill } from "./ui";
 import { CHECKPOINTS } from "@/scenario/shipment";
 import { PANEL_ORDER } from "@/scenario/layout";
 import { arrange, closeCard, COLS, emptyBoard, loadBoard, lockCard, openCard, placeCard, rowsUsed, SPOTS, type Board } from "@/scenario/board";
-import { heldAt, liveStepOf, stepClockWith } from "@/scenario/gates";
+import { describeStop, heldAt, isStop, liveStepOf, stepClockWith } from "@/scenario/gates";
 import { useLive } from "./useLive";
 import { loadPolicy, PolicyContext, POLICY_KEY, sameRules } from "./rules";
 import { policy as defaultPolicy } from "@/seed/astro";
@@ -39,26 +39,16 @@ const LOCK_KEY = "evernear.locked";
 const save = (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* storage may be blocked */ } };
 const HAOYUN = suppliers.find((x) => x.id === "haoyun")!.receiveAddress;
 
-const TIME_CARD: Record<number, string> = { 7: "Day 9 · Chicago dock" };
-/** One line per scene: what the viewer is looking at, in plain words. */
-const SCENE_LINE: Record<number, string> = {
-  0: "Astro sets up its own wallet and the rules the agent must follow.",
-  1: "14 robots are ordered and there are motors for 6. The usual supplier is out.",
-  2: "A small reorder under the cap pays itself. No person needed.",
-  3: "Four alternatives are checked against the 10MA's specs, privately.",
-  4: "A new supplier over the cap needs two signatures.",
-  5: "Haoyun asks for 8% more. Your limit is 3%.",
-  6: "The PO total moves into its own account, which can only pay Haoyun or Astro.",
-  7: "The shipment is counted at the dock: 1,800 of 2,000 arrived.",
-  8: "Haoyun is paid for what arrived. The rest goes back to Astro.",
-  9: "",
-};
 
 export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: number; autoplay?: boolean }) {
   const [t, setT] = useState(initialMs);
   const [playing, setPlaying] = useState(autoplay);
-  // Waits at each human moment and at the end of each scene; ?autoplay=1 plays straight through.
-  const [waitForMe, setWaitForMe] = useState(true);
+  // Present: nothing moves until you act, one narratable step at a time. Autoplay: the scenario plays itself.
+  const [playMode, setPlayMode] = useState<"present" | "autoplay">("present");
+  const present = playMode === "present";
+  const [scenarioId, setScenarioId] = useState<ScenarioId>("happy");
+  const SC = SCENARIOS[scenarioId];
+  const TL = SC.timeline, TOTAL = SC.totalMs, LIST = SC.scenes, LAST = LIST.length - 1;
   const live = useLive();
   const [policy, setPolicyState] = useState<Policy>(defaultPolicy);
   const policyCtx = useMemo(() => ({
@@ -91,9 +81,12 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
     const id = q.get("scene");
     const off = Number(q.get("at") ?? 0);
     queueMicrotask(() => {
-      if (id !== null) setT(sceneStartMs(Number(id)) + off);
+      const sc = q.get("scenario");
+      const scList = sc && sc in SCENARIOS ? SCENARIOS[sc as ScenarioId].scenes : SCENARIOS.happy.scenes;
+      if (sc && sc in SCENARIOS) setScenarioId(sc as ScenarioId);
+      if (id !== null) setT(sceneStartMs(Number(id), scList) + off);
       if (q.get("paused") === "1") setPlaying(false);
-      if (q.get("autoplay") === "1") setWaitForMe(false);
+      if (q.get("autoplay") === "1" || q.get("play") === "autoplay") setPlayMode("autoplay");
       if (q.get("mode") === "light") setMode("light");
       const photo = q.get("photo");
       if (photo && photo.split(":")[0] in CHECKPOINTS) setViewer({ checkpointId: photo.split(":")[0], index: Number(photo.split(":")[1] ?? 0) });
@@ -107,16 +100,17 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
   }, []);
 
   // Where the viewer's rules stop the PO, if they do (a full replay; cheap).
-  const haltedAt = useMemo(() => stateAt(totalDurationMs, timeline, policy).halted?.atMs ?? null, [policy]);
+  const haltedAt = useMemo(() => stateAt(TOTAL, TL, policy).halted?.atMs ?? null, [policy, TL, TOTAL]);
   // What holds the clock: a human moment, the end of a scene (narrate, then Cmd+K), or a live step still running.
   const blocked = (b: Beat) => {
-    if (waitForMe && b.ev.type === "scene" && b.scene > 0) return true;
-    // Once the rules stop the PO, nothing after it asks you or runs live.
-    if (haltedAt !== null && b.atMs > haltedAt) return false;
-    if (waitForMe && b.gate) return true;
-    if (!live.on || live.error) return false;
+    const afterHalt = haltedAt !== null && b.atMs > haltedAt;
+    // A live money step holds the clock until the real call finished, in both modes.
     const step = liveStepOf(b, HAOYUN);
-    return !!step && !live.done.includes(step);
+    if (!afterHalt && live.on && !live.error && step && !live.done.includes(step)) return true;
+    if (!present) return false;
+    // Once the rules stop the PO, only scene changes and the end still wait for you.
+    if (afterHalt) return b.ev.type === "scene" || b.ev.type === "end_card";
+    return isStop(b);
   };
   const blockedRef = useRef(blocked);
   useEffect(() => { blockedRef.current = blocked; });
@@ -128,46 +122,49 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
       const dt = last.current === null ? 0 : now - last.current;
       last.current = now;
       setT((x) => {
-        const next = stepClockWith(x, Math.min(totalDurationMs, x + dt), (b) => blockedRef.current(b));
-        if (next >= totalDurationMs) setPlaying(false);
+        const next = stepClockWith(x, Math.min(TOTAL, x + dt), (b) => blockedRef.current(b), TL);
+        if (next >= TOTAL) setPlaying(false);
         return next;
       });
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [playing]);
+  }, [playing, TL, TOTAL]);
 
-  const held = heldAt(t, blocked);
+  const held = heldAt(t, blocked, TL);
   const heldStep = held ? liveStepOf(held, HAOYUN) : null;
   const waiting = held?.gate ?? null;
-  const sceneEnd = held && held.ev.type === "scene" ? held : null;
-  /** Continue: answer the human moment, or go on to the next scene. A live step cannot be skipped. */
+  const liveBusy = !!heldStep && live.on && !live.error && !live.done.includes(heldStep);
+  const nextLabel = held && !liveBusy ? describeStop(held, (id) => LIST[id]?.title ?? "", HAOYUN) : null;
+  /** Next: play the step the clock is held at (or answer the moment). A live step finishes first. */
   const proceed = () => {
-    if (held && (held.gate || held.ev.type === "scene")) { setT(held.atMs); setPhonePinned(null); setPlaying(true); return; }
-    if (!held) { setT(sceneStartMs(Math.min(9, stateAt(t).scene + 1))); setPlaying(true); }
+    if (held && !liveBusy) { setT(held.atMs); setPhonePinned(null); setPlaying(true); return; }
+    if (!held && t >= TOTAL) return;
+    if (!held && !present) setPlaying(true);
   };
   const proceedRef = useRef(proceed);
   useEffect(() => { proceedRef.current = proceed; });
 
   // Fire the live step the clock is holding at.
   const liveRun = live.run;
-  useEffect(() => { if (heldStep && live.on && !live.pending && !live.error) void liveRun(heldStep); }, [heldStep, live.on, live.pending, live.error, liveRun]);
+  const liveScenario = scenarioId === "adjusted" ? "adjusted" : "happy";
+  useEffect(() => { if (heldStep && live.on && !live.pending && !live.error) void liveRun(heldStep, liveScenario); }, [heldStep, live.on, live.pending, live.error, liveRun, liveScenario]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || viewer || e.altKey) return;
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); proceedRef.current(); return; }
       if (e.key === " ") { e.preventDefault(); setPlaying((p) => !p); }
-      const cur = stateAt(t).scene;
-      if (e.key === "ArrowRight") setT(sceneStartMs(Math.min(9, cur + 1)));
-      if (e.key === "ArrowLeft") setT(sceneStartMs(Math.max(0, cur - 1)));
+      const cur = stateAt(t, TL).scene;
+      if (e.key === "ArrowRight") setT(sceneStartMs(Math.min(LAST, cur + 1), LIST));
+      if (e.key === "ArrowLeft") setT(sceneStartMs(Math.max(0, cur - 1), LIST));
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [t, viewer]);
+  }, [t, viewer, TL, LIST, LAST]);
 
-  const base = useMemo(() => stateAt(t, timeline, policy), [t, policy]);
+  const base = useMemo(() => stateAt(t, TL, policy), [t, TL, policy]);
   // In live mode the real proofs replace the placeholders as they arrive.
   const st = useMemo(() => ({ ...base, proofs: base.proofs.map((p) => (live.byKey[p.id] ? { ...live.byKey[p.id], scene: p.scene, atMs: p.atMs } : p)) }), [base, live.byKey]);
   const lastProof = st.proofs.at(-1) ?? null;
@@ -215,9 +212,13 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
   useEffect(() => { boardRef.current = board; lockedRef.current = locked; placedRef.current = placed; });
   const drawerOpen = drawerOpenState || !!pinned;
   const answer = proceed;
-  const scene = scenes.find((x) => x.id === st.scene)!;
+  // Present: the phone comes up only when it waits for you. Autoplay: it follows the script.
+  const phoneOpen = phonePinned ?? (present ? !!waiting : st.phoneOpen || !!waiting);
+  const scene = LIST.find((x) => x.id === st.scene) ?? LIST[0];
   const stalled = st.stage === "low" && st.scene >= 1;
-  const jump = (id: number) => { setT(sceneStartMs(id)); setPhonePinned(null); setPinnedProof(null); setViewer(null); };
+  const jump = (id: number) => { setT(sceneStartMs(id, LIST)); setPhonePinned(null); setPinnedProof(null); setViewer(null); };
+  const restart = () => { setT(0); setPhonePinned(null); setPinnedProof(null); setViewer(null); live.reset(); setPlaying(true); };
+  const pickScenario = (id: ScenarioId) => { setScenarioId(id); setT(0); setPhonePinned(null); setPinnedProof(null); setViewer(null); live.reset(); setPlaying(true); };
 
   return (
     <PolicyContext.Provider value={policyCtx}>
@@ -230,8 +231,8 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
           <span className={s.faint}>for Astro Robotics</span>
         </div>
         <Rail stage={st.stage} stalled={stalled}
-          onJump={(stage) => { setT(stageStartMs(stage)); setPinnedProof(null); setViewer(null); }}
-          onPrev={() => jump(Math.max(0, st.scene - 1))} onNext={() => jump(Math.min(9, st.scene + 1))} />
+          onJump={(stage) => { setT(stageStartMs(stage, TL)); setPinnedProof(null); setViewer(null); }}
+          onPrev={() => jump(Math.max(0, st.scene - 1))} onNext={() => jump(Math.min(LAST, st.scene + 1))} />
       </header>
 
       <Sidebar open={navOpen} onToggle={() => setNavOpen((o) => !o)} pinned={board.filter((x): x is PanelId => !!x)}
@@ -275,41 +276,56 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
 
       <aside className={s.side}>
         <div className={s.sceneCard}>
-          <span className={s.micro}>SCENE {st.scene}</span>
-          <p className={s.sceneTitle}>{TIME_CARD[st.scene] ?? scene.title}</p>
-          {SCENE_LINE[st.scene] && <p className={s.sceneLine}>{SCENE_LINE[st.scene]}</p>}
+          <span className={s.micro}>{SC.title.toUpperCase()} · SCENE {st.scene}</span>
+          <p className={s.sceneTitle}>{scene.timeCard ?? scene.title}</p>
+          {scene.line && <p className={s.sceneLine}>{scene.line}</p>}
           {waiting && (
             <div className={s.waiting} role="group" aria-label="Waiting for you">
               <span className={s.micro}>WAITING FOR {waiting.who.toUpperCase()}</span>
               <p className={s.waitingPrompt}>{waiting.prompt}</p>
-              <button type="button" className={s.btn} onClick={answer}>{waiting.action}</button>
+              <button type="button" className={s.btn} onClick={answer}>{waiting.action} <kbd className={s.kbd}>⌘K</kbd></button>
             </div>
           )}
           {st.halted && (
             <div className={s.waiting} role="status" aria-label="Stopped by your rules">
-              <span className={s.micro}>STOPPED BY YOUR RULES</span>
+              <span className={s.micro}>STOPPED BY THE RULES</span>
               <p className={s.waitingPrompt}>{st.halted.reason}</p>
-              <button type="button" className={s.btnQuiet} onClick={policyCtx.reset}>Reset to Astro&apos;s rules</button>
+              {policyCtx.changed && <button type="button" className={s.btnQuiet} onClick={policyCtx.reset}>Reset to Astro&apos;s rules</button>}
             </div>
           )}
-          {sceneEnd && (
-            <div className={s.waiting} data-kind="scene" role="group" aria-label="End of scene">
-              <span className={s.micro}>END OF SCENE {st.scene}</span>
-              <button type="button" className={s.btn} onClick={proceed}>Next: {scenes.find((x) => x.id === sceneEnd.scene)?.title} <kbd className={s.kbd}>⌘K</kbd></button>
+          {present && !waiting && nextLabel && (
+            <div className={s.waiting} data-kind="scene" role="group" aria-label="Next step">
+              <span className={s.micro}>NEXT</span>
+              <button type="button" className={s.btn} onClick={proceed}>{nextLabel} <kbd className={s.kbd}>⌘K</kbd></button>
             </div>
           )}
-          {live.on && (live.pending || live.error) && (
-            <p className={s.liveStatus} role="status">{live.error ? `Live call failed (${live.error}). The replay carries on.` : `Live on Tidepool testnet: ${live.pending} running`}</p>
+          {present && !held && t < TOTAL && <p className={s.liveStatus} role="status">Playing this step</p>}
+          {t >= TOTAL && <p className={s.liveStatus}>Finished. <button type="button" className={s.pinClear} onClick={restart}>Restart</button></p>}
+          {live.on && (liveBusy || live.error) && (
+            <p className={s.liveStatus} role="status">{live.error ? `Live call failed (${live.error}). The replay carries on.` : `Live on Tidepool testnet: ${heldStep} running`}</p>
           )}
         </div>
-        <div className={s.controls}>
-          <button className={s.btn} onClick={() => { if (t >= totalDurationMs) setT(0); setPlaying((p) => !p); }}>{playing ? "Pause" : "Play"}</button>
-          <button className={s.btnQuiet} aria-pressed={waitForMe} onClick={() => setWaitForMe((w) => !w)} title="When on, the demo stops at each human moment until you click">{waitForMe ? "Waits for me" : "Plays through"}</button>
-          {live.available && <button className={s.btnQuiet} aria-pressed={live.on} onClick={() => live.setOn(!live.on)} title="Run the money steps for real on Tidepool testnet">{live.on ? "Live" : "Replay"}</button>}
-          <button className={s.btnQuiet} onClick={() => setMode((m) => (m === "dark" ? "light" : "dark"))}>{mode === "dark" ? "Light" : "Dark"}</button>
+        <div className={s.runBar}>
+          <div className={s.segmented} role="group" aria-label="Mode">
+            <button type="button" aria-pressed={present} onClick={() => setPlayMode("present")} title="Nothing moves until you act">Present</button>
+            <button type="button" aria-pressed={!present} onClick={() => { setPlayMode("autoplay"); setPlaying(true); }} title="Plays the scenario start to finish">Autoplay</button>
+          </div>
+          <label className={s.scenarioPick}>
+            <span className={s.micro}>SCENARIO</span>
+            <select value={scenarioId} onChange={(e) => pickScenario(e.target.value as ScenarioId)} aria-label="Scenario">
+              {Object.values(SCENARIOS).map((x) => <option key={x.id} value={x.id}>{x.title}</option>)}
+            </select>
+            <span className={s.faint}>{SC.blurb}</span>
+          </label>
+          <div className={s.controls}>
+            {!present && <button className={s.btn} onClick={() => { if (t >= TOTAL) setT(0); setPlaying((p) => !p); }}>{playing && t < TOTAL ? "Pause" : "Play"}</button>}
+            <button className={s.btnQuiet} onClick={restart}>Restart</button>
+            {live.available && <button className={s.btnQuiet} aria-pressed={live.on} onClick={() => live.setOn(!live.on)} title="Run the money steps for real on Tidepool testnet">{live.on ? "Live: on" : "Live: off"}</button>}
+            <button className={s.btnQuiet} onClick={() => setMode((m) => (m === "dark" ? "light" : "dark"))}>{mode === "dark" ? "Light" : "Dark"}</button>
+          </div>
         </div>
         <ol className={s.sceneList} aria-label="Scenes">
-          {scenes.map((x) => (
+          {LIST.map((x) => (
             <li key={x.id}><button className={s.sceneBtn} data-current={x.id === st.scene} onClick={() => jump(x.id)}><span className={s.fig}>{x.id}</span>{x.title}</button></li>
           ))}
         </ol>
@@ -317,7 +333,7 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
       </aside>
 
       <div className={s.dock}>
-        <Phone messages={st.messages} open={phonePinned ?? !!waiting} waiting={waiting} onAnswer={answer} onToggle={() => setPhonePinned(!(phonePinned ?? !!waiting))} />
+        <Phone messages={st.messages} open={phoneOpen} waiting={waiting} onAnswer={answer} onToggle={() => setPhonePinned(!phoneOpen)} />
         <Drawer proof={pinned ?? lastProof} lastProof={lastProof} history={st.proofs} open={drawerOpen}
           onToggle={() => { if (pinned) setPinnedProof(null); setDrawerOpen(!drawerOpen); }} />
       </div>

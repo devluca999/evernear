@@ -576,3 +576,13 @@
 .historyText .fig { font-size: 11px; }
 /* The "Phone" label only shows while the phone is tucked away; open, the top bezel is plain (still clickable to tuck it away). */
 .phoneOpen .phoneTab { color: transparent; }
+
+/* Run bar: mode, scenario and the run controls. */
+.runBar { display: grid; gap: var(--space-4, 12px); padding: var(--space-4, 12px); border: 1px solid var(--line-hairline); border-radius: var(--radius-md, 8px); background: var(--bg-raised); }
+.segmented { display: grid; grid-template-columns: 1fr 1fr; padding: 2px; gap: 2px; border-radius: var(--radius-md, 8px); background: var(--bg-sunken); }
+.segmented button { all: unset; cursor: pointer; text-align: center; height: 28px; line-height: 28px; border-radius: var(--radius-sm, 6px); font-size: 13px; font-weight: 500; color: var(--text-secondary); }
+.segmented button[aria-pressed="true"] { background: var(--row-selected); color: var(--text-primary); box-shadow: var(--elev-1); }
+.segmented button:focus-visible { outline: 2px solid var(--line-focus); outline-offset: 2px; }
+.scenarioPick { display: grid; gap: 4px; }
+.scenarioPick select { font: inherit; font-size: 13px; height: 32px; padding: 0 8px; border-radius: var(--radius-sm, 6px); border: 1px solid var(--line-hairline); background: var(--bg-sunken); color: var(--text-primary); }
+.scenarioPick .faint { font-size: 12px; }

@@ -39,12 +39,16 @@ describe("workspace", () => {
     fireEvent.click(within(hist).getByRole("button", { name: "Follow the latest" }));
     expect(items.at(-1)!.getAttribute("aria-current")).toBe("step");
   });
-  it("holds at the end of a scene until Cmd+K, so the presenter can narrate", () => {
+  it("Present mode: nothing moves until you act; Next (or Cmd+K) plays the next step and says what it is", () => {
     at(sceneStartMs(3) - 1);
-    expect(screen.getByRole("group", { name: "End of scene" }).textContent).toContain("Sourcing and fitment");
+    const next = screen.getByRole("group", { name: "Next step" });
+    expect(within(next).getByRole("button").textContent).toContain("Scene 3: Sourcing and fitment");
     fireEvent.keyDown(window, { key: "k", metaKey: true });
-    expect(screen.queryByRole("group", { name: "End of scene" })).toBeNull();
-    expect(screen.getByText("SCENE 3")).toBeTruthy();
+    expect(screen.getByText(/· SCENE 3$/)).toBeTruthy();
+    const fit = timeline.find((b) => b.ev.type === "fitment")!;
+    cleanup();
+    at(fit.atMs - 1);
+    expect(within(screen.getByRole("group", { name: "Next step" })).getByRole("button").textContent).toContain("Check Kansai Servo Works against the BOM");
   });
   it("keeps the phone tucked away unless it is waiting for you", () => {
     at(sceneStartMs(5) + 1000);
@@ -78,11 +82,16 @@ describe("workspace", () => {
     expect(screen.queryByRole("group", { name: "Waiting for you" })).toBeNull();
     expect(screen.getByText("Approval 1 of 2")).toBeTruthy();
   });
-  it("plays through without asking when waiting is off", () => {
+  it("Autoplay mode never stops to ask, and the scenario picker switches the story", () => {
     const g = timeline.find((b) => b.gate?.id === "start_sourcing")!;
     at(g.atMs - 1);
-    fireEvent.click(screen.getByRole("button", { name: "Waits for me" }));
+    fireEvent.click(within(screen.getByRole("group", { name: "Mode" })).getByRole("button", { name: "Autoplay" }));
     expect(screen.queryByRole("group", { name: "Waiting for you" })).toBeNull();
+    expect(screen.queryByRole("group", { name: "Next step" })).toBeNull();
+    fireEvent.change(screen.getByLabelText("Scenario"), { target: { value: "standoff" } });
+    const scenesList = within(screen.getByRole("list", { name: "Scenes" })).getAllByRole("button").map((b) => b.textContent);
+    expect(scenesList).toContain("6On hold");
+    expect(screen.getByText(/^BAD PATH · SCENE 0$/)).toBeTruthy();
   });
   it("tracks the scenario numbers on top: stock, shortfall and where the money is", () => {
     at(sceneStartMs(8) + 9000);

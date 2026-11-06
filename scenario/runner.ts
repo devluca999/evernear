@@ -6,7 +6,7 @@ import { bom10MA, offers, policy as defaultPolicy, suppliers, PO, routineReorder
 import type { Policy } from "../engine/types";
 import { formatUsdShort } from "../engine/money";
 import { advance } from "./stages";
-import { timeline, scenes } from "./scenes";
+import { timeline, scenes, type Scene } from "./scenes";
 import { proofFor } from "./proofs";
 import { CHECKPOINTS } from "./shipment";
 import type { WorkspaceState, Beat } from "./types";
@@ -33,7 +33,7 @@ export function initialState(policy: Policy = defaultPolicy): WorkspaceState {
   };
 }
 
-const pctText = (bps: number) => `${(bps / 100).toFixed(bps % 100 ? 1 : 0)}%`;
+const pctText = (bps: number) => `${(bps / 100).toFixed(1).replace(/\.0$/, "")}%`;
 
 /** The PO stops here under the viewer's rules: the story freezes and says why. */
 const halt = (s: WorkspaceState, b: Beat, reason: string): WorkspaceState => ({ ...s, halted: { atMs: b.atMs, scene: b.scene, reason } });
@@ -77,7 +77,7 @@ function apply(s: WorkspaceState, b: Beat): WorkspaceState {
       pulse: ev.message.refersTo ?? s.pulse,
     };
     case "proof": {
-      const p = { ...proofFor(ev.key, b.scene), atMs: at };
+      const p = { ...proofFor(ev.key, b.scene), ...(ev.label ? { label: ev.label } : {}), atMs: at };
       return { ...s, proofs: [...s.proofs, p], drawer: p };
     }
     case "demand": {
@@ -123,6 +123,16 @@ function apply(s: WorkspaceState, b: Beat): WorkspaceState {
       if (!r.ok) throw new Error(`scenario bug: reclaim refused (${r.reason})`);
       return { ...s, escrow: r.escrow };
     }
+    case "rules": {
+      const next: Policy = {
+        ...policy,
+        ...(ev.patch.priceChangeLimitBps !== undefined ? { priceChangeLimitBps: ev.patch.priceChangeLimitBps } : {}),
+        priceCaps: { ...policy.priceCaps, ...(ev.patch.motorCapCents !== undefined ? { "Actuator motor": ev.patch.motorCapCents } : {}) },
+      };
+      // Quotes already on the ruler are judged again against the new limit.
+      const history = s.price.history.map((h) => ({ ...h, pass: checkPriceChange(PO.originalUnitCents, h.unitCents, next.priceChangeLimitBps).pass }));
+      return { ...s, policy: next, price: { ...s.price, limitBps: next.priceChangeLimitBps, history } };
+    }
     case "end_card": return { ...s, endCard: true };
   }
 }
@@ -146,17 +156,17 @@ export function stateAt(t: number, beats: Beat[] = timeline, policy: Policy = de
   };
 }
 
-export function sceneStartMs(id: number): number {
+export function sceneStartMs(id: number, list: Scene[] = scenes): number {
   let t = 0;
-  for (const sc of scenes) { if (sc.id === id) return t; t += sc.durationMs; }
+  for (const sc of list) { if (sc.id === id) return t; t += sc.durationMs; }
   return t;
 }
 
 export const usd = cents;
 
 /** When a stage first begins in the script (Low begins at 0). */
-export function stageStartMs(stage: import("./stages").Stage): number {
+export function stageStartMs(stage: import("./stages").Stage, beats: Beat[] = timeline): number {
   if (stage === "low") return 0;
-  const b = timeline.find((x) => x.ev.type === "stage" && x.ev.to === stage);
+  const b = beats.find((x) => x.ev.type === "stage" && x.ev.to === stage);
   return b ? b.atMs : 0;
 }

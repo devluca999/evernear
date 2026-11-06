@@ -54,3 +54,19 @@ describe("live holds", () => {
     expect(stepClockWith(t, commit.atMs + 100, blocked)).toBe(commit.atMs + 100);
   });
 });
+
+describe("present mode stops", () => {
+  it("stops at every narratable beat and describes it plainly", async () => {
+    const { isStop, describeStop } = await import("../gates");
+    const { scenes } = await import("../scenes");
+    const stops = timeline.filter(isStop);
+    const say = (b: (typeof timeline)[number]) => describeStop(b, (id) => scenes[id].title, "0x2003975a521c6fa45238dbc402c9e4adcb8863e0");
+    expect(stops.length).toBeGreaterThan(25);
+    expect(stops.map(say)).toEqual(expect.arrayContaining([
+      "Scene 3: Sourcing and fitment", "Check Kansai Servo Works against the BOM", "YES, approve as Luca", "Commit the PO total",
+      "Count the delivery at the dock", "Try a payment to a wrong address", "Pay Haoyun for what arrived", "Return the held part to Astro",
+    ]));
+    // Shipment progress and checkpoints only animate between stops.
+    expect(timeline.filter((b) => b.ev.type === "shipment" || b.ev.type === "checkpoint").some(isStop)).toBe(false);
+  });
+});

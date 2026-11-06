@@ -46,7 +46,9 @@ export type Event =
   | { type: "stage"; to: Stage }
   | { type: "routine"; to: Stage }
   | { type: "message"; message: Message }
-  | { type: "proof"; key: string }
+  | { type: "proof"; key: string; label?: string }
+  /** The rules change mid-story (an adjustment two people approved). */
+  | { type: "rules"; patch: { priceChangeLimitBps?: number; motorCapCents?: number } }
   | { type: "demand"; ordered: number; shippedOut: number; motorsOnHand: number }
   | { type: "wallet" }
   | { type: "fitment"; supplierId: string }

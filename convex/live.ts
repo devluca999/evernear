@@ -16,6 +16,8 @@ const HAOYUN = suppliers.find((s) => s.id === "haoyun")!.receiveAddress;
 const OFF_LIST = "0x000000000000000000000000000000000000dead";
 const RECEIVED = 1_800;
 const step = v.union(v.literal("commit"), v.literal("refuse"), v.literal("pay"), v.literal("reclaim"));
+/** The unit price each scenario commits at, fixed here: the happy path at $19.00, the adjusted one at Haoyun's $20.02. */
+const UNIT_CENTS = { happy: PO.revisedUnitCents, adjusted: 2002 } as const;
 
 /** Starts a run, or refuses while another is open or the hourly limit is reached. */
 export const start = mutation({
@@ -51,8 +53,8 @@ export const getRun = query({
 
 /** Runs one money step of a live run, in story order. */
 export const runStep = action({
-  args: { runId: v.id("liveRuns"), step },
-  handler: async (ctx, { runId, step: st }): Promise<{ ok: boolean; reason?: string }> => {
+  args: { runId: v.id("liveRuns"), step, scenario: v.optional(v.union(v.literal("happy"), v.literal("adjusted"))) },
+  handler: async (ctx, { runId, step: st, scenario }): Promise<{ ok: boolean; reason?: string }> => {
     const data = await ctx.runQuery(internal.liveState.run, { runId });
     if (!data) return { ok: false, reason: "no_run" };
     const order = ["commit", "refuse", "pay", "reclaim"] as const;
@@ -61,13 +63,16 @@ export const runStep = action({
     if (data.done.length !== order.indexOf(st)) return { ok: false, reason: "out_of_order" };
     try {
       if (st === "commit") {
-        const r = await ctx.runAction(internal.near.deadline.lock, { runId, po: PO.number, supplier: HAOYUN, cents: PO.revisedTotalCents, deadlineMs: Date.now() + LIVE_DEADLINE_MS });
+        const r = await ctx.runAction(internal.near.deadline.lock, { runId, po: PO.number, supplier: HAOYUN, cents: UNIT_CENTS[scenario ?? "happy"] * PO.quantity, deadlineMs: Date.now() + LIVE_DEADLINE_MS });
         if (r.status !== "success" || !r.escrowId) throw new Error(r.reason ?? r.status);
         await ctx.runMutation(internal.live.mark, { runId, step: st, escrowId: r.escrowId });
         return { ok: true };
       }
       const escrowId = data.escrowId!;
-      const release = plainEngine.matchReceipt({ orderedQty: PO.quantity, receivedQty: RECEIVED, unitCents: PO.revisedTotalCents / PO.quantity }).releaseCents;
+      // The release follows what was committed, whichever scenario committed it.
+      const escrow = await ctx.runQuery(internal.near.escrowState.get, { escrowId });
+      if (!escrow) throw new Error("no escrow");
+      const release = plainEngine.matchReceipt({ orderedQty: PO.quantity, receivedQty: RECEIVED, unitCents: escrow.lockedCents / PO.quantity }).releaseCents;
       if (st === "refuse") {
         // Both layers, live: the engine's rule refuses in code, then the account's policy refuses the same withdraw.
         await ctx.runAction(internal.near.deadline.release, { runId, escrowId, to: OFF_LIST, cents: release });

@@ -25,7 +25,9 @@ Status, Nov 5 2026: everything is on `main` at https://github.com/devluca999/eve
 
 Then: `RECORD=1 npm run rehearse` writes real proofs to `fixtures/recorded/`, which replace the synthetic ones on screen.
 
-**Presenting (Nov 5):** the demo holds at the end of each scene and at each of your moments; Cmd+K (Ctrl+K) continues. "Waits for me" off, or `?autoplay=1`, plays straight through. The drawer stays collapsed as a bar with the latest call; its chevron pulls it up to half the screen (drag to resize), raw call on the left and "What happened" in plain words on the right. **Live mode** (local now; hosted needs a Convex cloud deployment with the Tidepool env and `LIVE_ENABLED=1`): press "Replay" to switch to "Live". A full live run passed through the public functions on Nov 5 (Base Sepolia tx `0xf3c8eaeda8ddd35dace6771ca17d0dc987e8ce44895637...`).
+**Modes and scenarios (Nov 5):** top right, Present (one step at a time, "Next: ..." or Cmd+K, waits for your approvals; use it to record) or Autoplay (plays itself). Scenario picker: Happy path, Bad path (Haoyun holds at +8%, nothing committed), Bad path adjusted (you raise the limit to 8%, two sign, $40,040 committed, $36,036 paid). URL: `?scenario=standoff`, `?play=autoplay`. Live works in both and commits the adjusted price on the adjusted path.
+
+**Presenting (Nov 5, earlier):** the demo holds at the end of each scene and at each of your moments; Cmd+K (Ctrl+K) continues. "Waits for me" off, or `?autoplay=1`, plays straight through. The drawer stays collapsed as a bar with the latest call; its chevron pulls it up to half the screen (drag to resize), raw call on the left and "What happened" in plain words on the right. **Live mode** (local now; hosted needs a Convex cloud deployment with the Tidepool env and `LIVE_ENABLED=1`): press "Replay" to switch to "Live". A full live run passed through the public functions on Nov 5 (Base Sepolia tx `0xf3c8eaeda8ddd35dace6771ca17d0dc987e8ce44895637...`).
 
 ## 3. Decisions settled with you
 

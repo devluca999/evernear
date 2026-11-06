@@ -59,13 +59,13 @@ export function useLive() {
   }, [client, runId]);
 
   /** Runs a step once. Errors stop live mode for this run; the replay carries on. */
-  const run = useCallback(async (step: LiveStep) => {
+  const run = useCallback(async (step: LiveStep, scenario?: "happy" | "adjusted") => {
     if (!client || pending || error) return;
     setPending(step);
     try {
       const id = await ensureRun();
       if (!id) return;
-      const r = await client.action(api.live.runStep, { runId: id, step });
+      const r = await client.action(api.live.runStep, { runId: id, step, ...(scenario ? { scenario } : {}) });
       if (r.ok) setDone((d) => (d.includes(step) ? d : [...d, step]));
       else setError(`${step}: ${r.reason}`);
     } catch (e) {

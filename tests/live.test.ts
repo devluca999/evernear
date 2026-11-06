@@ -53,3 +53,12 @@ describe("live mode", () => {
     expect(await t.mutation(api.live.start, {})).toEqual({ refused: "live mode is off on this deployment" });
   });
 });
+
+describe("live mode, adjusted scenario", () => {
+  it("commits at Haoyun's $20.02 ($40.04 at 1:1,000) and pays $36.04 for the 1,800 that arrived", async () => {
+    const { t, tp } = await world();
+    const { runId } = await t.mutation(api.live.start, {});
+    for (const step of ["commit", "refuse", "pay", "reclaim"] as const) expect(await t.action(api.live.runStep, { runId: runId!, step, scenario: "adjusted" })).toEqual({ ok: true });
+    expect(tp.payouts).toEqual([expect.objectContaining({ amount: 36_040_000n })]); // $36,036 at 1:1,000 is $36.04
+  });
+});

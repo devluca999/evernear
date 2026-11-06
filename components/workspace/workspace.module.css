@@ -286,7 +286,7 @@
 .chevron { flex: none; transition: transform var(--dur-slow, 400ms) var(--ease-standard, ease); }
 .chevron[data-open="true"] { transform: rotate(180deg); }
 .drawerTab:focus-visible, .phoneTab:focus-visible, .btn:focus-visible, .btnQuiet:focus-visible, .sceneBtn:focus-visible { outline: 2px solid var(--line-focus); outline-offset: 2px; }
-.drawerBody { flex: 1; min-height: 0; padding: 0 var(--space-5, 16px) var(--space-5, 16px); display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, 34%); gap: var(--space-6, 20px); overflow: hidden; }
+.drawerBody { flex: 1; min-height: 0; padding: 0 var(--space-5, 16px) var(--space-5, 16px); display: grid; grid-template-columns: minmax(220px, 26%) minmax(0, 1fr) minmax(220px, 28%); gap: var(--space-6, 20px); overflow: hidden; }
 .drawerRaw { display: flex; flex-direction: column; gap: 8px; overflow: auto; min-height: 0; }
 .drawerPlain { display: flex; flex-direction: column; gap: 8px; padding-left: var(--space-6, 20px); border-left: 1px solid var(--line-hairline); overflow: auto; }
 .plainText { margin: 0; font-size: 14px; line-height: 1.5; color: var(--text-primary); }
@@ -553,3 +553,15 @@
 .sceneList .sceneBtn[data-current="true"] { color: var(--text-primary); font-weight: 600; }
 .planHead { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .planOpenBtn { justify-self: start; align-self: start; width: fit-content; }
+
+/* Drawer history: every step so far, newest last; click one to inspect it. */
+.drawerHistory { display: flex; flex-direction: column; gap: 8px; min-height: 0; padding-right: var(--space-5, 16px); border-right: 1px solid var(--line-hairline); }
+.drawerHistory ol { list-style: none; margin: 0; padding: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+.historyItem { all: unset; cursor: pointer; box-sizing: border-box; width: 100%; display: grid; grid-template-columns: 14px minmax(0, 1fr); gap: 8px; align-items: start; padding: 6px 8px; border-radius: var(--radius-sm, 6px); }
+.historyItem:hover { background: var(--bg-sunken); }
+.historyItem[aria-current="step"] { background: var(--row-selected); }
+.historyItem:focus-visible { outline: 2px solid var(--line-focus); outline-offset: 2px; }
+.historyItem > :first-child { margin-top: 5px; }
+.historyText { display: grid; gap: 2px; min-width: 0; }
+.historyLabel { font-size: 12.5px; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.historyText .fig { font-size: 11px; }

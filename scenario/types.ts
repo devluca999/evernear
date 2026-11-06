@@ -34,6 +34,10 @@ export interface Proof {
   response: unknown;
   replay: boolean;
   synthetic: boolean;
+  /** When the step happens in the demo, ms from the start (replay). */
+  atMs?: number;
+  /** When a live step really ran, wall-clock ms (live mode). */
+  wallMs?: number;
 }
 
 export type Event =

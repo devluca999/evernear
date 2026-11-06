@@ -25,6 +25,20 @@ describe("workspace", () => {
     fireEvent.click(screen.getByRole("button", { name: "Collapse developer drawer" }));
     expect(drawer.className).not.toMatch(/drawerOpen/);
   });
+  it("lists every step so far in the drawer, with when it happened, and lets you inspect an earlier one", () => {
+    at(sceneStartMs(8) + 9000);
+    fireEvent.click(screen.getByRole("button", { name: "Expand developer drawer" }));
+    const hist = screen.getByRole("navigation", { name: "Steps so far" });
+    const items = within(hist).getAllByRole("button").filter((b) => b.getAttribute("aria-current") !== null || b.textContent!.includes("Scene"));
+    expect(items.length).toBeGreaterThanOrEqual(10);
+    expect(items[0].textContent).toMatch(/0:0\d in the demo · Scene 0/);
+    expect(items.at(-1)!.getAttribute("aria-current")).toBe("step");
+    fireEvent.click(items[0]);
+    expect(items[0].getAttribute("aria-current")).toBe("step");
+    expect(within(screen.getByLabelText("What happened")).getByText(/Astro opened its own wallet/)).toBeTruthy();
+    fireEvent.click(within(hist).getByRole("button", { name: "Follow the latest" }));
+    expect(items.at(-1)!.getAttribute("aria-current")).toBe("step");
+  });
   it("holds at the end of a scene until Cmd+K, so the presenter can narrate", () => {
     at(sceneStartMs(3) - 1);
     expect(screen.getByRole("group", { name: "End of scene" }).textContent).toContain("Sourcing and fitment");

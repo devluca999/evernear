@@ -169,7 +169,7 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
 
   const base = useMemo(() => stateAt(t, timeline, policy), [t, policy]);
   // In live mode the real proofs replace the placeholders as they arrive.
-  const st = useMemo(() => ({ ...base, proofs: base.proofs.map((p) => (live.byKey[p.id] ? { ...live.byKey[p.id], scene: p.scene } : p)) }), [base, live.byKey]);
+  const st = useMemo(() => ({ ...base, proofs: base.proofs.map((p) => (live.byKey[p.id] ? { ...live.byKey[p.id], scene: p.scene, atMs: p.atMs } : p)) }), [base, live.byKey]);
   const lastProof = st.proofs.at(-1) ?? null;
   const pinned = pinnedProof ? st.proofs.find((p) => p.id === pinnedProof) ?? null : null;
   const placed = arrange(board, st.endCard ? [] : st.layout);
@@ -318,7 +318,7 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
 
       <div className={s.dock}>
         <Phone messages={st.messages} open={phonePinned ?? !!waiting} waiting={waiting} onAnswer={answer} onToggle={() => setPhonePinned(!(phonePinned ?? !!waiting))} />
-        <Drawer proof={pinned ?? lastProof} lastProof={lastProof} open={drawerOpen}
+        <Drawer proof={pinned ?? lastProof} lastProof={lastProof} history={st.proofs} open={drawerOpen}
           onToggle={() => { if (pinned) setPinnedProof(null); setDrawerOpen(!drawerOpen); }} />
       </div>
 

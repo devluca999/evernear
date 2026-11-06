@@ -77,7 +77,7 @@ function apply(s: WorkspaceState, b: Beat): WorkspaceState {
       pulse: ev.message.refersTo ?? s.pulse,
     };
     case "proof": {
-      const p = proofFor(ev.key, b.scene);
+      const p = { ...proofFor(ev.key, b.scene), atMs: at };
       return { ...s, proofs: [...s.proofs, p], drawer: p };
     }
     case "demand": {

@@ -11,7 +11,7 @@ import type { Proof } from "@/scenario/types";
 
 const URL = process.env.NEXT_PUBLIC_CONVEX_URL;
 
-interface LiveProofRow { _id: string; kind: string; label: string; call: string; codePath: string; network: Proof["network"]; hash: string; explorerUrl?: string; response: unknown; scene: number }
+interface LiveProofRow { _id: string; at: number; kind: string; label: string; call: string; codePath: string; network: Proof["network"]; hash: string; explorerUrl?: string; response: unknown; scene: number }
 
 /** Which scene proof a live call stands in for. */
 export function liveKeyOf(p: { codePath: string; kind: string }): string | null {
@@ -82,7 +82,7 @@ export function useLive() {
     const out: Record<string, Proof> = {};
     for (const p of proofs) {
       const key = liveKeyOf(p);
-      if (key) out[key] = { id: key, scene: p.scene, kind: p.kind, label: p.label, call: p.call, codePath: p.codePath, network: p.network, hash: p.hash, explorerUrl: p.explorerUrl ?? null, response: p.response, replay: false, synthetic: false };
+      if (key) out[key] = { id: key, scene: p.scene, kind: p.kind, label: p.label, call: p.call, codePath: p.codePath, network: p.network, hash: p.hash, explorerUrl: p.explorerUrl ?? null, response: p.response, replay: false, synthetic: false, wallMs: p.at };
     }
     return out;
   }, [proofs]);

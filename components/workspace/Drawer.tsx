@@ -5,13 +5,25 @@ import { useRef, useState } from "react";
 import { ChevronUp } from "lucide-react";
 import type { Proof } from "@/scenario/types";
 import { Chip, Pill } from "./ui";
+import { Led } from "./Led";
 import { PLAIN } from "./plain";
 import s from "./workspace.module.css";
 
 const BAR = 36;
 
-export function Drawer({ proof, open, onToggle, lastProof }: { proof: Proof | null; open: boolean; onToggle: () => void; lastProof: Proof | null }) {
-  const p = proof ?? lastProof;
+/** A live step shows the real time it ran; a replayed one, when it happens in the demo (m:ss from the start). */
+export function stepTime(p: Proof): string {
+  if (p.wallMs) return new Date(p.wallMs).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
+  if (p.atMs === undefined) return "";
+  const sec = Math.floor(p.atMs / 1000);
+  return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")} in the demo`;
+}
+
+export function Drawer({ proof, open, onToggle, lastProof, history = [] }: { proof: Proof | null; open: boolean; onToggle: () => void; lastProof: Proof | null; history?: Proof[] }) {
+  // null: follow the newest step; an id: the step picked in the history.
+  const [picked, setPicked] = useState<string | null>(null);
+  const chosen = picked ? history.find((h) => h.id === picked) ?? null : null;
+  const p = chosen ?? proof ?? lastProof;
   const [height, setHeight] = useState<number | null>(null);
   const drag = useRef(false);
   const live = p && !p.synthetic && !p.replay;
@@ -31,12 +43,34 @@ export function Drawer({ proof, open, onToggle, lastProof }: { proof: Proof | nu
       </button>
       {open && p && (
         <div className={s.drawerBody}>
+          <nav className={s.drawerHistory} aria-label="Steps so far">
+            <span className={s.micro}>STEPS SO FAR · {history.length}</span>
+            <ol>
+              {history.map((h, i) => {
+                const selected = h.id === p.id;
+                return (
+                  <li key={`${h.id}-${i}`}>
+                    <button type="button" className={s.historyItem} aria-current={selected ? "step" : undefined}
+                      onClick={() => setPicked(i === history.length - 1 ? null : h.id)}>
+                      <Led tone={h.kind === "refusal" ? "success" : h.synthetic ? "idle" : "success"} />
+                      <span className={s.historyText}>
+                        <span className={s.historyLabel}>{h.label}</span>
+                        <span className={`${s.fig} ${s.faint}`}><time>{stepTime(h)}</time> · Scene {h.scene}{h.hash !== "none" ? ` · ${h.hash.slice(0, 10)}` : ""}</span>
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ol>
+            {picked && <button type="button" className={s.pinClear} onClick={() => setPicked(null)}>Follow the latest</button>}
+          </nav>
           <div className={s.drawerRaw}>
             <div className={s.drawerRow}>
               <span className={s.micro}>CALL</span><code className={s.mono}>{p.call}</code>
               {live ? <Pill tone="success" led>live</Pill> : p.synthetic ? <Pill tone="idle">synthetic</Pill> : <Pill tone="success" led>replay</Pill>}
               <Chip>{p.network}</Chip>
             </div>
+            <div className={s.drawerRow}><span className={s.micro}>{p.wallMs ? "RAN AT" : "WHEN"}</span><span className={s.fig}>{stepTime(p)}{p.wallMs ? " (live)" : ""}</span></div>
             <div className={s.drawerRow}><span className={s.micro}>CODE PATH</span><code className={s.mono}>{p.codePath}</code></div>
             <div className={s.drawerRow}><span className={s.micro}>HASH</span><code className={s.mono}>{p.hash}</code>
               {p.explorerUrl ? <a className={s.link} href={p.explorerUrl} target="_blank" rel="noreferrer">Explorer</a> : <span className={s.faint}>{p.synthetic ? "No explorer link: synthetic placeholder" : "No explorer link for this call"}</span>}

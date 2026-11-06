@@ -35,7 +35,7 @@ Astro Robotics, a robot maker in Chicago, cannot get the actuator motor for its 
 
 ## Presenter camera
 
-Record with any screen recorder and the zooms are already in the video. Each named step in the story can carry a focus (an element's `data-focus` id, a zoom from 1.0 to 2.5, a hold, an optional spotlight that dims the rest to 40%). When the step runs, everything but the demo rail pans and scales in one CSS transform so the element sits in the middle, holds, then eases back to the full view unless the next step has its own focus: 700 ms in, 500 ms out, a spring with no more than 2% overshoot. The layout is scaled, not a bitmap, so text stays crisp. **F** turns the camera on or off, **Z** follows your clicks (1.4x toward each click, back after 2 s without one), **0** returns to the full view, and the right arrow plays the next step and its zoom. With the reduced motion setting the moves are cuts. Open `/present` in a second window of the same browser for a remote that shows the current focus and can preview or skip the next zoom. Focus plan and maths: [scenes.ts](scenario/scenes.ts), [camera.ts](scenario/camera.ts), [Camera.tsx](components/workspace/Camera.tsx), [Remote.tsx](components/workspace/Remote.tsx). Tests: [camera.test.ts](scenario/__tests__/camera.test.ts) (targeting, spring, the 14-step plan), [camera.test.tsx](components/__tests__/camera.test.tsx) (hold, return, reduced motion), [focus.test.tsx](components/__tests__/focus.test.tsx) (every focus id exists in the DOM for its chapter, in all three scenarios).
+Record with any screen recorder and the zooms are already in the video. Each named step in the story can carry a focus (an element's `data-focus` id, a zoom from 1.0 to 2.5, a hold, an optional spotlight that dims the rest to 40%). When the step runs, everything but the demo rail pans and scales in one CSS transform so the element sits in the middle, holds, then eases back to the full view unless the next step has its own focus: 700 ms in, 500 ms out, a spring with no more than 2% overshoot. The layout is scaled, not a bitmap, so text stays crisp. **F** turns the camera on or off, **Z** follows your clicks (1.4x toward each click, back after 2 s without one), **0** returns to the full view, and the right arrow plays the next step and its zoom. With the reduced motion setting the moves are cuts. Open `/present` in a second window of the same browser for a remote that shows the current focus and can preview or skip the next zoom. Focus plan and maths: [scenes.ts](scenario/scenes.ts), [camera.ts](scenario/camera.ts), [Camera.tsx](components/workspace/Camera.tsx), [Remote.tsx](components/workspace/Remote.tsx). Tests: [camera.test.ts](scenario/__tests__/camera.test.ts) (targeting, spring, the 18-step plan), [camera.test.tsx](components/__tests__/camera.test.tsx) (hold, return, reduced motion), [focus.test.tsx](components/__tests__/focus.test.tsx) (every focus id exists in the DOM for its chapter, in all three scenarios).
 
 | Chapter | Step | Focus | Zoom |
 | --- | --- | --- | --- |
@@ -44,15 +44,33 @@ Record with any screen recorder and the zooms are already in the video. Each nam
 | 2 | The gap | `stock.shortfall` | 1.8x |
 | 3 | Ultra's reply | `inbox.reply` | 1.7x |
 | 4 | Search typed | `map.search` | 1.8x |
+| 4 | Private inference (explainer) | `developer.attestation` | 1.5x |
+| 4 | Attestation (explainer) | `developer.attestation` | 1.8x |
 | 4 | Pins resolve | `map.results` | 1.4x |
 | 4 | Orange reasons (spotlight) | `map.results.partial` | 2.0x |
 | 5 | Offers side by side | `negotiation.threads` | 1.3x |
 | 5 | Haoyun's offer | `negotiation.haoyun` | 1.9x |
 | 6 | Approvals | `rules.approvals` | 1.8x |
 | 6 | Funds move | `money.escrow` | 2.0x |
-| 6 | Proof | `developer.hash` | 2.2x |
+| 6 | Order wallet (explainer) | `developer.policy` | 1.6x |
 | 7 | Dock count | `dock.count` | 2.0x |
+| 7 | Signed result (explainer) | `developer.signed` | 1.7x |
 | 8 | Paid and refused | `money.payout` | 1.8x |
+| 8 | Wallet lifecycle (explainer) | `money.lifecycle` | 1.6x |
+
+## Evernear explains itself
+
+Five moments explain the architecture on screen: the camera zooms to the panel, the developer drawer opens on the matching step, and its right column says what happened, why it matters for Astro and why NEAR, in under 25 words each, with figures from the engine. **Learn** swaps the three lines for a small diagram. The drawer's three columns answer three questions: **Steps** (what has happened, with an icon per kind), **Proof** (the call, network, code path, hash, then the request and response with the two or three fields that matter lit), **Explained** (what it means). Text in the opened drawer is at least 14px.
+
+| Moment | Chapter | Proof | Diagram |
+| --- | --- | --- | --- |
+| Private inference in an enclave | 4 | NEAR AI Cloud private inference | Enclave |
+| The attestation | 4 | the same call's attestation: signer, code fingerprint, verified | Attestation chain |
+| The order's own wallet | 6 | the PO account: its two allowed destinations, the capped agent key, owner Astro | Order wallet |
+| The signed result | 7 | the attested dock check: order, count, amount, signature, fingerprint ("Proves the rules ran as written on the evidence given.") | Signed result |
+| Paid on their chain, then the wallet closes | 8 | the payout, then "Wallet closed" | Wallet lifecycle, also on the Money card |
+
+Each order wallet serves one order and is never reused: once settled it is frozen, Evernear's grant is revoked, and it stays as the order's receipt; a closed wallet refuses every move ([escrow.ts](engine/escrow.ts) `closeWallet`). Content and tests: [explain.ts](scenario/explain.ts), [Drawer.tsx](components/workspace/Drawer.tsx), [Diagrams.tsx](components/workspace/Diagrams.tsx), [explain.test.ts](scenario/__tests__/explain.test.ts).
 
 ![Chapter 1, motor highlight at 2.2x](docs/screens/camera-1-motor.png)
 ![Chapter 4, orange reasons with the spotlight](docs/screens/camera-4-partial.png)

@@ -262,26 +262,26 @@ button.chip:hover { color: var(--text-primary); border-color: var(--line-focus);
 .drawerWhen { font-size: 11px; color: var(--text-faint); white-space: nowrap; }
 .drawerToggle { margin-left: auto; display: flex; align-items: center; gap: 4px; font-size: 11.5px; color: var(--text-muted); white-space: nowrap; }
 .resize { position: absolute; top: 0; left: 0; right: 0; height: 6px; cursor: ns-resize; z-index: 2; }
-.drawerGrid { flex: 1; display: grid; grid-template-columns: 230px minmax(0, 1fr) 220px; min-height: 0; overflow: hidden; }
-.drawer[data-narrow="true"] .drawerGrid { grid-template-columns: 170px minmax(0, 1fr) 160px; }
-.drawerCol { padding: 10px 14px; display: flex; flex-direction: column; gap: 6px; min-width: 0; min-height: 0; overflow: hidden; }
+.drawerGrid { flex: 1; display: grid; grid-template-columns: 270px minmax(0, 1fr) 380px; min-height: 0; overflow: hidden; }
+.drawer[data-narrow="true"] .drawerGrid { grid-template-columns: 220px minmax(0, 1fr) 320px; }
+.drawerCol { padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; min-width: 0; min-height: 0; overflow: hidden; }
 .drawerCol + .drawerCol { border-left: 1px solid var(--line-hairline); }
 .steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; overflow-y: auto; min-height: 0; }
-.stepBtn { width: 100%; display: grid; grid-template-columns: 12px minmax(0, 1fr); gap: 7px; align-items: start; padding: 2px 4px; margin: 0 -4px; border: none; border-radius: 6px; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.stepBtn { width: 100%; display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 8px; align-items: start; padding: 4px 6px; margin: 0 -4px; border: none; border-radius: 6px; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .stepBtn:hover, .stepBtn[aria-current="step"] { background: var(--bg-sunken); }
 .stepBtn :global(.es-dot) { margin-top: 4px; }
 .stepText { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-.stepName { font-size: 11px; line-height: 1.25; }
-.stepWhen { font-size: 10px; line-height: 1.2; color: var(--text-faint); white-space: nowrap; }
+.stepName { font-size: 14px; line-height: 1.3; }
+.stepWhen { font-size: 12px; line-height: 1.3; color: var(--text-faint); white-space: nowrap; }
 .callTags { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.callMeta { display: grid; grid-template-columns: 70px minmax(0, 1fr); row-gap: 2px; font-size: 11.5px; }
-.callMeta > :nth-child(odd) { line-height: 17px; }
+.callMeta { display: grid; grid-template-columns: 86px minmax(0, 1fr); row-gap: 4px; font-size: 14px; }
+.callMeta > :nth-child(odd) { line-height: 20px; }
 .callMeta > :nth-child(even) { color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .json { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; min-height: 0; flex: 1; }
 .json[data-single="true"] { grid-template-columns: 1fr; }
 .jsonBox { display: flex; flex-direction: column; gap: 4px; min-width: 0; min-height: 0; }
 .jsonBox pre { margin: 0; font-size: 10px; line-height: 1.45; color: var(--text-secondary); white-space: pre-wrap; word-break: break-word; overflow: auto; background: var(--bg-sunken); border-radius: 6px; padding: 5px 8px; flex: 1; }
-.happened { margin: 0; font-size: 13.5px; line-height: 1.5; }
+.happened { margin: 0; font-size: 14px; line-height: 1.5; }
 .explorer { margin-top: auto; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-primary); text-decoration: underline; text-underline-offset: 3px; }
 
 /* ---------- Demo rail ---------- */
@@ -424,3 +424,49 @@ button.chip:hover { color: var(--text-primary); border-color: var(--line-focus);
 .remoteRow { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
 .remoteBtns { display: flex; flex-wrap: wrap; gap: 8px; }
 .remoteBtns button { min-height: 44px; }
+
+/* Drawer, opened: step icons, lit JSON fields, the Explained column and its Learn view. */
+.stepIcon { width: 20px; height: 20px; border-radius: 6px; display: grid; place-items: center; background: var(--bg-sunken); color: var(--state-success); border: 1px solid var(--line-hairline); }
+.stepIcon[data-tone="alert"] { color: var(--state-alert); }
+.jsonLines { margin: 0; font-size: 14px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; overflow: auto; background: var(--bg-sunken); border-radius: 6px; padding: 8px 10px; flex: 1; }
+.jsonLit { color: var(--text-primary); font-weight: 500; background: var(--state-active-wash); border-radius: 3px; }
+.jsonDim { color: var(--text-faint); opacity: .7; }
+.learnBtn { display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 10px; border-radius: 7px; border: 1px solid var(--line-strong); background: none; color: var(--text-secondary); font: inherit; font-size: 14px; cursor: pointer; }
+.learnBtn[aria-pressed="true"] { background: var(--text-primary); color: var(--bg-page); border-color: transparent; }
+.exTitle { margin: 0; font-family: var(--font-display); font-size: 17px; font-weight: 600; line-height: 1.25; }
+.exLines { margin: 0; display: flex; flex-direction: column; gap: 8px; overflow: auto; min-height: 0; }
+.exLines dt { font-size: 11px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--text-faint); }
+.exLines dd { margin: 2px 0 0; font-size: 14px; line-height: 1.45; color: var(--text-primary); }
+.exFacts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px; padding-top: 8px; border-top: 1px solid var(--line-hairline); }
+.exFacts > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.exFacts :global(.es-num) { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.exFacts [data-tone="success"] { color: var(--state-success); }
+
+/* Diagrams */
+.diagram { margin: 0; flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
+.diagram svg { width: 100%; height: 100%; max-height: 220px; overflow: visible; }
+.dgBox { fill: var(--bg-sunken); stroke: var(--line-strong); stroke-width: 1.2; }
+.dgBox[data-tone="active"] { stroke: var(--state-active); fill: var(--state-active-wash); }
+.dgBox[data-tone="ok"] { stroke: var(--state-success); }
+.dgBox[data-tone="alert"] { stroke: var(--state-alert); fill: var(--state-alert-wash); }
+.dgLabel { font-family: var(--font-ui); font-size: 14px; font-weight: 600; fill: var(--text-primary); }
+.dgSub { font-family: var(--font-ui); font-size: 12px; fill: var(--text-muted); }
+.dgSub[data-tone="alert"] { fill: var(--state-alert); }
+.dgArrow { fill: none; stroke: var(--text-muted); stroke-width: 1.4; }
+.dgArrow[data-tone="ok"] { stroke: var(--state-success); }
+.dgArrow[data-tone="alert"] { stroke: var(--state-alert); stroke-dasharray: 4 3; }
+.dgFlow { fill: none; stroke: var(--state-active); stroke-width: 2.4; stroke-linecap: round; stroke-dasharray: 2 26; animation: dgFlow 1.6s linear infinite; }
+.dgFlow[data-tone="alert"] { display: none; }
+.dgLock { fill: none; stroke: var(--state-active); stroke-width: 1.8; }
+@keyframes dgFlow { to { stroke-dashoffset: -28; } }
+@media (prefers-reduced-motion: reduce) { .dgFlow { animation: none; display: none; } }
+
+/* The order wallet's lifecycle strip (drawer and Money card). */
+.life { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; width: 100%; }
+.lifeStep { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; color: var(--text-faint); min-width: 0; }
+.lifeStep i { display: block; height: 4px; border-radius: 2px; background: var(--line-strong); }
+.lifeStep[data-state="done"] { color: var(--text-secondary); }
+.lifeStep[data-state="done"] i { background: var(--state-success); }
+.lifeStep[data-state="current"] { color: var(--text-primary); font-weight: 600; }
+.lifeStep[data-state="current"] i { background: var(--state-active); }
+.lifeNote { font-size: 11px; font-weight: 400; color: var(--text-faint); line-height: 1.3; }

@@ -5,6 +5,7 @@ import type { WorkspaceState } from "@/scenario/types";
 import { PO, policy as seedPolicy, story, suppliers, wallet } from "@/seed/astro";
 import { formatInt, formatUsd, formatUsdShort, scaleTestnet, TESTNET_SCALE } from "@/engine/money";
 import { Badge, Dot, N, Panel, Stamp } from "../Panel";
+import { LifecycleStrip } from "../Diagrams";
 import s from "../shell.module.css";
 
 const haoyun = suppliers.find((x) => x.id === "haoyun")!;
@@ -50,6 +51,14 @@ function Spend({ novCents, height }: { novCents: number; height: number }) {
   );
 }
 
+/** PO 1042's wallet, from created to closed, always on the card once it exists. */
+const Life = ({ e }: { e: NonNullable<WorkspaceState["escrow"]> }) => (
+  <div className={s.lines} style={{ gap: 6 }}>
+    <span className="es-micro">Order wallet</span>
+    <LifecycleStrip at={e.lifecycle} focus />
+  </div>
+);
+
 export function MoneyPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }) {
   const e = st.escrow;
   const owner = st.wallet?.owner ?? "astro-robotics.testnet";
@@ -70,6 +79,7 @@ export function MoneyPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }
           {refusedPay && <span className={s.line}><Dot tone="alert" />Refused: a payment to <N>{short(refusedPay)}</N>, not on PO <N>{PO.number}</N>&apos;s list</span>}
         </div>
         <Cells items={[{ label: "Committed", cents: e.lockedCents }, { label: "Released", cents: e.releasedCents, tone: "success" }, { label: "Held", cents: held, tone: "attention" }, { label: "Returned", cents: e.reclaimedCents, tone: "success" }]} />
+        <Life e={e} />
         <Spend novCents={nov} height={62} />
         {scale}
       </div>
@@ -91,6 +101,7 @@ export function MoneyPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }
           <span className={s.muted}>Committed <N className={s.hi}>{formatUsdShort(e.lockedCents)}</N></span>
           <span className={s.muted}>Returned <N>{formatUsdShort(e.reclaimedCents)}</N></span>
         </div>
+        <Life e={e} />
       </div>
     );
   } else if (e) {
@@ -101,6 +112,7 @@ export function MoneyPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }
           <p className={s.sub}>Committed for PO <N>{PO.number}</N>. Visible to Haoyun. Pays Haoyun or Astro only.</p>
         </div>
         <Cells items={[{ label: "Committed", cents: e.lockedCents }, { label: "Released", cents: e.releasedCents }, { label: "Held", cents: 0 }, { label: "Returned", cents: e.reclaimedCents }]} />
+        <Life e={e} />
         <CanPay owner={owner} />
         <Spend novCents={nov} height={110} />
         {scale}

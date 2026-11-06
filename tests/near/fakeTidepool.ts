@@ -2,6 +2,9 @@
 // An in-memory stand-in for the Tidepool Agent API (/v1), for unit tests only. It enforces what the
 // live probe showed (docs/NOTES.md section 14): NEP-413 owner signatures, grant hashes, frozen,
 // destinations "only", per-transaction limits and balances, with the same error codes and layers.
+// Also grant revoke, the per-key agent cap (Tidepool: 25 agents per key, never deleted; the next
+// agent_create answers 429 quota_exceeded) and GET /v1/quotas. The quota answer's shape on Tidepool
+// is not recorded yet, so `quotas` can be switched off to test the agent_create refusal alone.
 // Unit tests use this and never create real agents.
 import { ed25519 } from "@noble/curves/ed25519.js";
 import { sha256 } from "@noble/hashes/sha2.js";
@@ -12,7 +15,9 @@ export const FAKE_BASE = "https://www.usetidepool.tech";
 
 interface Agent {
   id: string; account: string; ownerPub: string; policy: Record<string, any>; revision: number;
+  /** sha256 hashes of the grants still live. */
   grants: string[]; balances: Record<string, bigint>;
+  grantViews: { grant_id: string; label: string; credential: string; revoked_at: string | null }[];
 }
 interface Exec { correlation_id: string; status: string; failure_code: string | null; type: string; details: Record<string, unknown> }
 export interface Sent { method: string; path: string; headers: Record<string, string>; body: any }
@@ -24,7 +29,8 @@ const concat = (...a: Uint8Array[]) => { const o = new Uint8Array(a.reduce((n, x
 const b64 = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
 const err = (status: number, code: string, layer: string) => [status, { errors: [{ status: String(status), code, layer, title: code, detail: code, meta: { retryable: false } }], meta: { request_id: "req_fake" } }] as const;
 
-export function fakeTidepool() {
+export function fakeTidepool(o: { agentLimit?: number; quotas?: boolean } = {}) {
+  const agentLimit = o.agentLimit ?? 25;
   let n = 0;
   const id = (p: string) => `${p}_${String(++n).padStart(4, "0")}`;
   const agents = new Map<string, Agent>();
@@ -49,7 +55,7 @@ export function fakeTidepool() {
   function applyIntent(type: string, body: any, pub: string): Exec {
     if (type === "agent_create") {
       const accountBytes = sha256(new TextEncoder().encode(`acct-${n}`));
-      const a: Agent = { id: id("agent"), account: hex(accountBytes), ownerPub: pub, policy: body.policy, revision: 1, grants: [], balances: {} };
+      const a: Agent = { id: id("agent"), account: hex(accountBytes), ownerPub: pub, policy: body.policy, revision: 1, grants: [], balances: {}, grantViews: [] };
       agents.set(a.id, a);
       return done(type, { agent_id: a.id, revision: 1, policy_hash: "ph" + n });
     }
@@ -57,13 +63,24 @@ export function fakeTidepool() {
     if (!a) return done(type, {}, "FAILED", "agent_not_found");
     if (a.ownerPub !== pub) return done(type, {}, "FAILED", "not_owner");
     switch (type) {
-      case "grant_issue": { a.grants.push(body.credential); return done(type, { grant: { grant_id: id("grant"), label: body.label } }); }
+      case "grant_issue": {
+        const g = { grant_id: id("grant"), label: body.label, credential: body.credential, revoked_at: null };
+        a.grants.push(body.credential); a.grantViews.push(g);
+        return done(type, { grant: { grant_id: g.grant_id, label: g.label } });
+      }
+      case "grant_revoke": {
+        const g = a.grantViews.find((x) => x.grant_id === body.grant_id);
+        if (!g) return done(type, {}, "FAILED", "grant_not_found");
+        if (g.revoked_at) return done(type, {}, "FAILED", "grant_already_revoked");
+        g.revoked_at = "2026-11-06T00:00:00Z"; a.grants = a.grants.filter((c) => c !== g.credential);
+        return done(type, { grant_id: g.grant_id, committed_correlation_ids: [], committed_truncated: false });
+      }
       case "policy_update": {
         if (body.expected_revision !== a.revision) return done(type, {}, "FAILED", "revision_conflict");
         a.policy = body.policy; a.revision += 1;
         return done(type, { revision: a.revision, policy_hash: "ph" + n });
       }
-      case "agent_freeze": a.policy = { ...a.policy, frozen: true }; a.revision += 1; return done(type, { revision: a.revision });
+      case "agent_freeze": if (a.policy.frozen) return done(type, {}, "FAILED", "wallet_already_frozen"); a.policy = { ...a.policy, frozen: true }; a.revision += 1; return done(type, { revision: a.revision });
       case "agent_unfreeze": a.policy = { ...a.policy, frozen: false }; a.revision += 1; return done(type, { revision: a.revision });
     }
     return done(type, {}, "FAILED", "unsupported_intent_type");
@@ -111,7 +128,12 @@ export function fakeTidepool() {
   async function route(method: string, url: URL, headers: Record<string, string>, body: any): Promise<readonly [number, unknown]> {
     const p = url.pathname;
     if (!headers["x-api-key"]?.startsWith("naa_")) return err(401, "unauthorized", "auth");
+    if (method === "GET" && p === "/v1/quotas") {
+      if (o.quotas === false) return err(404, "no_route", "request");
+      return [200, { limits: { agents: agentLimit }, usage: { agents: agents.size } }];
+    }
     if (method === "POST" && p === "/v1/generate-intent") {
+      if (body.type === "agent_create" && agents.size >= agentLimit) return err(429, "quota_exceeded", "api");
       const correlation_id = id("intent");
       const payload = { message: JSON.stringify({ type: body.type, n }), nonce: btoa(String.fromCharCode(...sha256(new TextEncoder().encode(correlation_id)))), recipient: "verifier.tidepool-sandbox.testnet" };
       const { type, ...rest } = body;
@@ -139,6 +161,7 @@ export function fakeTidepool() {
     const sub = m![2];
     if (method === "GET" && sub === "wallet") return [200, { wallet_id: a.id, near_account_id: a.account, evm_account_id: null, solana_account_id: null }];
     if (method === "GET" && sub === "policy") return [200, { wallet_id: a.id, revision: a.revision, policy: a.policy, status: "APPLIED" }];
+    if (method === "GET" && sub === "grants") return [200, { data: a.grantViews.map((g) => ({ grant_id: g.grant_id, label: g.label, revoked_at: g.revoked_at, agent_id: a.id })) }];
     if (method === "GET" && sub === "balances") return [200, { near_account_id: a.account, balances: Object.entries(a.balances).map(([asset_id, v]) => ({ asset_id, balance_raw: String(v) })) }];
     if (method === "POST" && sub && ["transfer", "withdraw", "deposit", "swap"].includes(sub)) {
       if (!body.dry) {

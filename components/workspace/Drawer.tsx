@@ -1,9 +1,14 @@
 "use client";
-// The developer drawer: a bar along the bottom with the latest step. Open it for every step so far,
-// the raw call (request and response) and what happened in plain words. Drag its top edge to resize.
+// The developer drawer: a bar along the bottom with the latest step. Opened, three columns answer
+// three questions. Steps: what has happened so far. Proof: what exactly ran (call, network, code
+// path, hash, then the request and response with the fields that matter lit and the rest dimmed).
+// Explained: what it means, in a title and three short lines, or (Learn) a small diagram.
+// Drag its top edge to resize.
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
-import type { Proof } from "@/scenario/types";
+import { BookOpen, ChevronDown, ChevronUp, Cpu, ExternalLink, FileCheck2, Scale, Send, ShieldCheck, Wallet, X } from "lucide-react";
+import type { Proof, WorkspaceState } from "@/scenario/types";
+import { EXPLAINERS, highlightFor, SIGNED_NOTE, stepKind, type ExplainerId, type StepKind } from "@/scenario/explain";
+import { Diagram } from "./Diagrams";
 import { Dot } from "./Panel";
 import { PLAIN } from "./plain";
 import s from "./shell.module.css";
@@ -16,11 +21,20 @@ export function stepTime(p: Proof): string {
   return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
 }
 
-/** A long hash as its first and last characters, so the bar stays one line. */
-const shortHash = (h: string) => (h.length > 16 ? `${h.slice(0, 8)}…${h.slice(-6)}` : h);
-
 /** A refusal is the guard working: it gets the alert dot so it reads as a block, not a failure of the demo. */
 const toneOf = (p: Proof) => (p.kind === "refusal" || p.id.startsWith("refused") ? "alert" : "success") as "alert" | "success";
+
+const KIND_ICON: Record<StepKind, typeof Cpu> = { enclave: Cpu, attestation: ShieldCheck, wallet: Wallet, policy: Scale, payment: Send, refusal: X };
+const KIND_NAME: Record<StepKind, string> = { enclave: "Enclave", attestation: "Attestation", wallet: "Wallet", policy: "Policy", payment: "Payment", refusal: "Refusal" };
+
+/** The explainer a proof opens on by default, when the story is not in an explainer moment. */
+const EXPLAINER_OF: Record<string, ExplainerId> = {
+  inference_attestation: "enclave", escrow_wallet: "wallet", dock_attestation: "signed", intents_payout: "payout", wallet_closed: "payout",
+};
+/** The camera's focus id for the Explained column, by proof (the camera keeps the lit JSON beside it in view). */
+const PROOF_FOCUS: Record<string, string> = {
+  inference_attestation: "developer.attestation", escrow_wallet: "developer.policy", dock_attestation: "developer.signed",
+};
 
 /** Splits a recorded response into what was sent and what came back, when it holds both. */
 function split(response: unknown): { request: unknown; response: unknown } | null {
@@ -32,30 +46,54 @@ function split(response: unknown): { request: unknown; response: unknown } | nul
   return { request: r[key], response: rest };
 }
 
-export function Drawer({ proof, open, onToggle, lastProof, history = [], narrow = false }: {
+/** JSON with the fields that matter lit and every other line dimmed. */
+function Json({ value, lit }: { value: unknown; lit: string[] }) {
+  const lines = JSON.stringify(value, null, 2).split("\n");
+  return (
+    <pre className={`es-num ${s.jsonLines}`}>
+      {lines.map((line, i) => {
+        const key = /^\s*"([^"]+)":/.exec(line)?.[1];
+        return <span key={i} className={key && lit.includes(key) ? s.jsonLit : s.jsonDim}>{line}{"\n"}</span>;
+      })}
+    </pre>
+  );
+}
+
+const shortHash = (h: string) => (h.length > 16 ? `${h.slice(0, 8)}…${h.slice(-6)}` : h);
+
+export function Drawer({ proof, open, onToggle, lastProof, history = [], narrow = false, explain = null, st = null }: {
   proof: Proof | null; open: boolean; onToggle: () => void; lastProof: Proof | null; history?: Proof[]; narrow?: boolean;
+  /** The explainer moment the story is in, if any: the right column shows it. */
+  explain?: ExplainerId | null;
+  st?: WorkspaceState | null;
 }) {
   // null: follow the newest step; an id: the step picked in the history.
   const [picked, setPicked] = useState<string | null>(null);
+  const [learn, setLearn] = useState(false);
   const chosen = picked ? history.find((h) => h.id === picked) ?? null : null;
   const p = chosen ?? proof ?? lastProof;
-  const [height, setHeight] = useState(250);
+  const [height, setHeight] = useState(330);
   const drag = useRef(false);
   const list = useRef<HTMLOListElement>(null);
   // The newest step stays in view as steps arrive.
   useEffect(() => { if (open && list.current) list.current.scrollTop = list.current.scrollHeight; }, [open, history.length]);
+  // A new explainer moment starts on its three lines.
+  useEffect(() => { queueMicrotask(() => setLearn(false)); }, [explain]);
   const live = p && !p.synthetic && !p.replay;
   const parts = p ? split(p.response) : null;
+  const ex = (explain && !chosen ? EXPLAINERS[explain] : p ? EXPLAINERS[EXPLAINER_OF[p.id]] : undefined) ?? null;
+  const lit = p ? highlightFor(p.id) : [];
+  const facts = ex?.facts && st ? ex.facts(st, p).filter((f) => f.v) : [];
 
   return (
-    <section className={s.drawer} data-open={open} data-narrow={narrow} aria-label="Developer drawer" style={open ? { height } : undefined}>
+    <section className={s.drawer} data-open={open} data-narrow={narrow} aria-label="Developer drawer" style={open ? { height: explain ? Math.max(height, 440) : height } : undefined}>
       {open && (
         <div className={s.resize} role="separator" aria-orientation="horizontal" aria-label="Drag to resize the developer drawer"
           onPointerDown={(e) => { drag.current = true; e.currentTarget.setPointerCapture(e.pointerId); }}
           onPointerMove={(e) => {
             if (!drag.current) return;
             const bottom = e.currentTarget.parentElement!.getBoundingClientRect().bottom;
-            setHeight(Math.min(window.innerHeight * 0.8, Math.max(140, bottom - e.clientY)));
+            setHeight(Math.min(window.innerHeight * 0.8, Math.max(160, bottom - e.clientY)));
           }}
           onPointerUp={() => { drag.current = false; }} />
       )}
@@ -76,51 +114,82 @@ export function Drawer({ proof, open, onToggle, lastProof, history = [], narrow 
       {open && p && (
         <div className={s.drawerGrid}>
           <nav className={s.drawerCol} aria-label="Steps so far">
-            <span className="es-micro">Steps so far · <span className="es-num">{history.length}</span></span>
+            <span className="es-micro">Steps · <span className="es-num">{history.length}</span></span>
             <ol className={s.steps} ref={list}>
-              {history.map((h, i) => (
-                <li key={`${h.id}-${i}`}>
-                  <button type="button" className={s.stepBtn} aria-current={h.id === p.id ? "step" : undefined}
-                    onClick={() => setPicked(i === history.length - 1 ? null : h.id)}>
-                    <Dot tone={toneOf(h)} />
-                    <span className={s.stepText}>
-                      <span className={s.stepName}>{h.label}</span>
-                      <span className={`es-num ${s.stepWhen}`}><time>{stepTime(h)}</time> · Ch {h.scene + 1}</span>
-                    </span>
-                  </button>
-                </li>
-              ))}
+              {history.map((h, i) => {
+                const kind = stepKind(h);
+                const Icon = KIND_ICON[kind];
+                return (
+                  <li key={`${h.id}-${i}`}>
+                    <button type="button" className={s.stepBtn} aria-current={h.id === p.id ? "step" : undefined}
+                      onClick={() => setPicked(i === history.length - 1 ? null : h.id)}>
+                      <span className={s.stepIcon} data-tone={toneOf(h)} title={KIND_NAME[kind]}><Icon size={14} strokeWidth={2} aria-label={KIND_NAME[kind]} /></span>
+                      <span className={s.stepText}>
+                        <span className={s.stepName}>{h.label}</span>
+                        <span className={`es-num ${s.stepWhen}`}><time>{stepTime(h)}</time> · Ch {h.scene + 1}</span>
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
             </ol>
             {picked && <button type="button" className={s.linkBtn} onClick={() => setPicked(null)}>Follow the latest</button>}
           </nav>
-          <div className={s.drawerCol}>
+          <div className={s.drawerCol} aria-label="Proof">
+            <span className="es-micro">Proof</span>
             <div className={s.callTags}>
               <span className="es-tag es-tag-mono" style={{ color: "var(--text-primary)" }}>{p.call}</span>
-              <span className="es-tag es-tag-mono">{live ? "live" : p.synthetic ? "synthetic" : "replay"}</span>
               <span className="es-tag es-tag-mono">{p.network}</span>
+              <span className="es-tag es-tag-mono">{live ? "live" : p.synthetic ? "synthetic" : "replay"}</span>
             </div>
             <div className={s.callMeta}>
-              <span className="es-micro">{p.wallMs ? "Ran at" : "When"}</span><span className="es-num">{stepTime(p)} · Chapter {p.scene + 1}</span>
               <span className="es-micro">Code path</span><span className="es-num" title={p.codePath}>{p.codePath}</span>
-              <span className="es-micro">Hash</span><span className="es-num" title={p.hash} data-focus="developer.hash">{p.hash}</span>
+              <span className="es-micro">Hash</span>
+              <span className="es-num" title={p.hash}>
+                {p.explorerUrl
+                  ? <a className={s.explorer} style={{ marginTop: 0 }} href={p.explorerUrl} target="_blank" rel="noreferrer">{shortHash(p.hash)}<ExternalLink size={12} strokeWidth={2} aria-hidden="true" /></a>
+                  : <span data-focus="developer.hash">{p.hash}</span>}
+              </span>
             </div>
             <div className={s.json} data-single={!parts}>
               {parts ? (
                 <>
-                  <div className={s.jsonBox}><span className="es-micro">Request</span><pre className="es-num">{JSON.stringify(parts.request, null, 2)}</pre></div>
-                  <div className={s.jsonBox}><span className="es-micro">Response</span><pre className="es-num">{JSON.stringify(parts.response, null, 2)}</pre></div>
+                  <div className={s.jsonBox}><span className="es-micro">Request</span><Json value={parts.request} lit={lit} /></div>
+                  <div className={s.jsonBox}><span className="es-micro">Response</span><Json value={parts.response} lit={lit} /></div>
                 </>
               ) : (
-                <div className={s.jsonBox}><span className="es-micro">Response</span><pre className="es-num">{JSON.stringify(p.response, null, 2)}</pre></div>
+                <div className={s.jsonBox}><span className="es-micro">Response</span><Json value={p.response} lit={lit} /></div>
               )}
             </div>
           </div>
-          <aside className={s.drawerCol} aria-label="What happened">
-            <span className="es-micro">What happened</span>
-            <p className={s.happened}>{PLAIN[p.id] ?? p.label}</p>
-            {p.explorerUrl
-              ? <a className={s.explorer} href={p.explorerUrl} target="_blank" rel="noreferrer">View on explorer<ExternalLink size={12} strokeWidth={2} aria-hidden="true" /></a>
-              : <span className={s.note} style={{ marginTop: "auto" }}>{p.synthetic ? "Synthetic placeholder: no explorer link yet." : "No explorer link for this call."}</span>}
+          <aside className={s.drawerCol} aria-label="Explained" data-focus={PROOF_FOCUS[p.id]}>
+            <div className={s.headRow}>
+              <span className="es-micro">Explained</span>
+              {ex && (
+                <button type="button" className={`${s.learnBtn} ${s.push}`} aria-pressed={learn} onClick={() => setLearn((x) => !x)}>
+                  <BookOpen size={13} strokeWidth={2} aria-hidden="true" />Learn
+                </button>
+              )}
+            </div>
+            <p className={s.exTitle}>{ex?.title ?? p.label}</p>
+            {ex && learn ? (
+              <Diagram id={ex.diagram} lifecycle={st?.escrow?.lifecycle ?? null} />
+            ) : ex && st ? (
+              <dl className={s.exLines}>
+                <div><dt>What happened</dt><dd>{ex.happened(st)}</dd></div>
+                <div><dt>Why it matters for Astro</dt><dd>{ex.matters(st)}</dd></div>
+                <div><dt>Why NEAR</dt><dd>{ex.whyNear}</dd></div>
+                {facts.length > 0 && (
+                  <div className={s.exFacts}>
+                    {facts.map((f) => <span key={f.k}><span className="es-micro">{f.k}</span><span className="es-num" data-tone={f.tone}>{f.v}</span></span>)}
+                  </div>
+                )}
+                {ex.id === "signed" && <p className={s.note}><FileCheck2 size={13} strokeWidth={2} aria-hidden="true" style={{ verticalAlign: "-2px", marginRight: 4 }} />{SIGNED_NOTE}</p>}
+              </dl>
+            ) : (
+              <dl className={s.exLines}><div><dt>What happened</dt><dd>{PLAIN[p.id] ?? p.label}</dd></div></dl>
+            )}
+            {!p.explorerUrl && <span className={s.note} style={{ marginTop: "auto" }}>{p.synthetic ? "Synthetic placeholder: no explorer link yet." : "No explorer link for this call."}</span>}
           </aside>
         </div>
       )}

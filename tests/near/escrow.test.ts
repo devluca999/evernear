@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EscrowAdapter, poPolicy, testnetUnits } from "@/convex/near/escrow";
+import { AccountsFull, EscrowAdapter, poPolicy, testnetUnits } from "@/convex/near/escrow";
 import { BASE_USDC, NEAR_USDC, grantHash, grantToken } from "@/convex/near/agentapi";
 import { createEscrow } from "@/engine/escrow";
 import { fakeTidepool, FAKE_BASE } from "./fakeTidepool";
@@ -10,8 +10,7 @@ const HAOYUN = "0x2003975a521c6fa45238dbc402c9e4adcb8863e0";
 const LOCKED = 3_800_000; // $38,000 in the story: 2,000 motors at $19.00
 const RELEASE = 3_420_000; // 1,800 of 2,000 arrived
 
-async function setup() {
-  const tp = fakeTidepool();
+async function setup(tp = fakeTidepool()) {
   const { owner } = testOwner();
   const { proofs, sink } = sinkRecorder();
   // Astro's treasury agent, as scripts made it: transfer and swap, any destination.
@@ -127,14 +126,84 @@ describe("EscrowAdapter on the Agent API", () => {
     expect(lastTransfer.body).toMatchObject({ asset: BASE_USDC, amount: "3800000", recipient: s.treasuryAccount });
   });
 
-  it("reuses a pool account for the next PO: it rewrites the policy instead of creating an agent", async () => {
+  it("opens a new account for every order: two orders, two agents, and no reuse option", async () => {
     const s = await setup();
     const first = await s.esc.open({ po: "1042", supplier: HAOYUN, lockedCents: LOCKED });
-    const agentsBefore = s.tp.agents.size;
-    const again = await s.esc.open({ po: "1043", supplier: HAOYUN, lockedCents: 1_000_000, slot: first.agentId });
-    expect(again.agentId).toBe(first.agentId);
-    expect(s.tp.agents.size).toBe(agentsBefore);
-    expect(s.tp.agents.get(first.agentId)!.policy.limits.per_transaction[BASE_USDC]).toBe("10000000");
+    const second = await s.esc.open({ po: "1043", supplier: HAOYUN, lockedCents: 1_000_000 });
+    expect(second.agentId).not.toBe(first.agentId);
+    expect(second.account).not.toBe(first.account);
+    expect(s.tp.agents.get(first.agentId)!.policy.limits.per_transaction[BASE_USDC]).toBe("38000000");
+    expect(s.tp.agents.get(second.agentId)!.policy.limits.per_transaction[BASE_USDC]).toBe("10000000");
+    expect(s.tp.sent.filter((x) => x.body?.type === "policy_update")).toEqual([]);
+  });
+
+  it("closes a settled wallet: revokes Evernear's grant, freezes it and records the Wallet closed proof", async () => {
+    const s = await setup();
+    const { acct, escrow } = await openAndLock(s);
+    expect(escrow.lifecycle).toBe("funded");
+    const paid = await s.esc.release({ escrow, agentId: acct.agentId, to: HAOYUN, cents: RELEASE, po: "1042", ref: "run1", nowMs: 1 });
+    if (!paid.ok) throw new Error();
+    expect(paid.escrow.lifecycle).toBe("partly_released");
+    const back = await s.esc.reclaim({ escrow: paid.escrow, agentId: acct.agentId, po: "1042", ref: "run1", nowMs: 2 });
+    if (!back.ok) throw new Error();
+    expect(back.escrow.lifecycle).toBe("settled");
+    const c = await s.esc.close({ escrow: back.escrow, agentId: acct.agentId, grantId: acct.grantId, po: "1042" });
+    expect(c).toMatchObject({ ok: true, escrow: { closed: true, lifecycle: "closed" } });
+    const a = s.tp.agents.get(acct.agentId)!;
+    expect(a.policy.frozen).toBe(true);
+    expect(a.grants).toEqual([]);
+    expect(a.grantViews).toEqual([expect.objectContaining({ grant_id: acct.grantId, revoked_at: expect.any(String) })]);
+    const intents = s.tp.sent.filter((x) => x.path === "/v1/generate-intent").map((x) => x.body.type);
+    expect(intents.slice(-2)).toEqual(["grant_revoke", "agent_freeze"]);
+    expect(s.proofs.at(-1)).toMatchObject({
+      kind: "wallet", label: "Wallet closed: PO 1042 frozen, grant revoked, kept as the order's receipt", codePath: "convex/near/escrow.ts#close", network: "testnet",
+      response: { agent_id: acct.agentId, frozen: true, grant: "revoked", lifecycle: "closed", balance: "0", reused: false }, synthetic: false,
+    });
+    // Revoked: even a move the policy allows is refused at the grant now.
+    expect(await s.esc.policyRefusal({ agentId: acct.agentId, to: HAOYUN, cents: 1, po: "1042", ref: "after" })).toMatchObject({ ok: false, code: "grant_invalid" });
+  });
+
+  it("a closed wallet refuses release, reclaim, refund and a second close in code, and makes no API call", async () => {
+    const s = await setup();
+    const { acct, escrow } = await openAndLock(s);
+    const refunded = await s.esc.refundIfDue({ escrow, agentId: acct.agentId, po: "1042", ref: "run1", nowMs: 10_001 });
+    if (!refunded.ok) throw new Error();
+    const c = await s.esc.close({ escrow: refunded.escrow, agentId: acct.agentId, grantId: acct.grantId, po: "1042" });
+    if (!c.ok) throw new Error();
+    const closed = c.escrow;
+    const before = s.tp.sent.length;
+    expect(await s.esc.release({ escrow: closed, agentId: acct.agentId, to: HAOYUN, cents: 1, po: "1042", ref: "run1", nowMs: 1 })).toEqual({ ok: false, reason: "closed" });
+    expect(await s.esc.reclaim({ escrow: closed, agentId: acct.agentId, po: "1042", ref: "run1", nowMs: 2 })).toEqual({ ok: false, reason: "closed" });
+    expect(await s.esc.refundIfDue({ escrow: closed, agentId: acct.agentId, po: "1042", ref: "run1", nowMs: 20_000 })).toEqual({ ok: false, reason: "closed" });
+    expect(await s.esc.close({ escrow: closed, agentId: acct.agentId, grantId: acct.grantId, po: "1042" })).toEqual({ ok: false, reason: "closed" });
+    expect(s.tp.sent.length).toBe(before);
+  });
+
+  it("will not close a wallet that still holds money, before any call", async () => {
+    const s = await setup();
+    const { acct, escrow } = await openAndLock(s);
+    const before = s.tp.sent.length;
+    expect(await s.esc.close({ escrow, agentId: acct.agentId, grantId: acct.grantId, po: "1042" })).toEqual({ ok: false, reason: "not_settled" });
+    expect(s.tp.sent.length).toBe(before);
+  });
+
+  it("refuses to open an account with accounts_full when the quota says the key is used up, and records the refusal", async () => {
+    const s = await setup(fakeTidepool({ agentLimit: 2 }));
+    await s.esc.open({ po: "1042", supplier: HAOYUN, lockedCents: LOCKED });
+    const agents = s.tp.agents.size;
+    await expect(s.esc.open({ po: "1043", supplier: HAOYUN, lockedCents: LOCKED })).rejects.toBeInstanceOf(AccountsFull);
+    expect(s.tp.agents.size).toBe(agents);
+    expect(s.tp.sent.filter((x) => x.path === "/v1/generate-intent" && x.body.type === "agent_create")).toHaveLength(2);
+    expect(s.proofs.at(-1)).toMatchObject({
+      kind: "refusal", label: "This key has used all 2 order wallets; a new Tidepool key is needed", call: "GET /v1/quotas",
+      codePath: "convex/near/escrow.ts#open", response: { status: "refused", reason: "accounts_full", limit: 2, used: 2 },
+    });
+  });
+
+  it("without a quota answer it still refuses with accounts_full when agent_create hits the cap", async () => {
+    const s = await setup(fakeTidepool({ agentLimit: 1, quotas: false }));
+    await expect(s.esc.open({ po: "1042", supplier: HAOYUN, lockedCents: LOCKED })).rejects.toBeInstanceOf(AccountsFull);
+    expect(s.proofs.at(-1)).toMatchObject({ kind: "refusal", call: "POST /v1/generate-intent agent_create", response: { reason: "accounts_full", code: "quota_exceeded" } });
   });
 
   it("the kill switch freezes the PO account: every later move is refused with wallet_frozen", async () => {

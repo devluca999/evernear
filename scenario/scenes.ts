@@ -4,6 +4,7 @@
 // Amounts are computed by the engine, never typed in. Layouts follow the V2 storyboard.
 import type { Beat, Event, Focus, Gate, Message, PanelId } from "./types";
 import type { Stage } from "./stages";
+import type { ExplainerId } from "./explain";
 import { MOTOR_PART, offers, PO, policy, routineReorder, suppliers } from "../seed/astro";
 import { plainEngine } from "../engine/plain";
 import { formatUsd, formatUsdShort, scaleTestnet, TESTNET_SCALE } from "../engine/money";
@@ -48,6 +49,7 @@ const buyer = (text: string, photo?: string): Event => msg({ channel: "telegram"
 const stage = (to: Stage): Event => ({ type: "stage", to });
 const routine = (to: Stage): Event => ({ type: "routine", to });
 const proof = (key: string, label?: string): Event => ({ type: "proof", key, ...(label ? { label } : {}) });
+const explain = (id: ExplainerId | null): Event => ({ type: "explain", id });
 const quoteOf = (id: string) => offers.find((o) => o.supplierId === id && o.part === MOTOR_PART)!.unitCents;
 const offer = (supplierId: string, unitCents: number, note: string, tone: "success" | "attention" | "alert"): Event => ({ type: "offer", supplierId, unitCents, note, tone });
 
@@ -108,16 +110,19 @@ export const scenes: Scene[] = [
     [3500, bot("Ultra Motion is out for 6 weeks. 14 robots ordered, motors for 6. Start sourcing?", { refersTo: "inbox" })],
     [6000, buyer("Start sourcing"), { id: "start_sourcing", who: "Luca", panels: ["inbox"], status: "Stockbot needs you", prompt: "Tap Start sourcing in the Inbox panel.", action: "Start sourcing" }],
   ] },
-  { id: 3, title: "Search", durationMs: 12000, layout: ["map", "products"], grid: { cols: "620fr 400fr" },
+  { id: 3, title: "Search", durationMs: 16000, layout: ["map", "products"], grid: { cols: "620fr 400fr" },
     line: "Stockbot searches for a motor that fits the 10MA. One fits, two are close.", status: "Searching 4 suppliers", enter: "Search for a replacement motor", beats: [
     [300, stage("sourcing")],
     [700, { type: "search", query: "AM17 actuator motor · NEMA 17 · 6 mm shaft · 48 V" }, step("Search typed", "map.search", 1.8, { holdMs: 2600 })],
     [1200, proof("inference_attestation")],
-    [4000, { type: "fitment", supplierId: "kansai" }, step("Pins resolve", "map.results", 1.4, { holdMs: 2600 })],
-    [4500, { type: "fitment", supplierId: "rheinwerk" }],
-    [5000, { type: "fitment", supplierId: "huaxin" }],
-    [5500, { type: "fitment", supplierId: "haoyun" }],
-    [8000, bot(`Haoyun Precision fits every spec. Rheinwerk fits but is ${capMultiple}x the price cap and not approved; Huaxin misses 3 BOM lines.`, { refersTo: "map" }),
+    [2800, explain("enclave"), step("Private inference", "developer.attestation", 1.5)],
+    [4800, explain("attestation"), step("Attestation", "developer.attestation", 1.8)],
+    [6800, explain(null)],
+    [7200, { type: "fitment", supplierId: "kansai" }, step("Pins resolve", "map.results", 1.4, { holdMs: 2600 })],
+    [7700, { type: "fitment", supplierId: "rheinwerk" }],
+    [8200, { type: "fitment", supplierId: "huaxin" }],
+    [8700, { type: "fitment", supplierId: "haoyun" }],
+    [11000, bot(`Haoyun Precision fits every spec. Rheinwerk fits but is ${capMultiple}x the price cap and not approved; Huaxin misses 3 BOM lines.`, { refersTo: "map" }),
       step("Orange reasons", "map.results.partial", 2.0, { spotlight: true })],
   ] },
   { id: 4, title: "Negotiation", durationMs: 15000, layout: ["inbox", "rules"], grid: { cols: "1fr", rows: "440fr 228fr" }, phone: true, clock: "14:33",
@@ -142,7 +147,7 @@ export const scenes: Scene[] = [
     [12100, { type: "price_quote", unitCents: PO.revisedUnitCents, from: "Haoyun Precision" }],
     [12200, offer("haoyun", PO.revisedUnitCents, "+2.5%, inside your 3% limit", "success")],
   ] },
-  { id: 5, title: "Approve and commit", durationMs: 13000, layout: ["rules", "money"], grid: { cols: "416fr 388fr" }, phone: true, clock: "14:58",
+  { id: 5, title: "Approve and commit", durationMs: 14000, layout: ["rules", "money"], grid: { cols: "416fr 388fr" }, phone: true, clock: "14:58",
     line: `Two people sign, then ${formatUsdShort(PO.revisedTotalCents)} is committed to PO ${PO.number}.`, status: "Waiting on approvals", enter: `Send PO ${PO.number} for approval`, beats: [
     [300, stage("approval")],
     [1000, bot(`PO ${PO.number}: 2,000 motors from Haoyun at $19.00, a new supplier, over the $10K cap. 2 approvals needed.`, { refersTo: "rules", card: "approval" }),
@@ -155,9 +160,10 @@ export const scenes: Scene[] = [
     [6600, stage("confirmed")],
     [8000, { type: "lock_funds" }, step("Funds move", "money.escrow", 2.0)],
     [8100, stage("funds_locked")],
-    [10500, proof("escrow_wallet"), step("Proof", "developer.hash", 2.2)],
+    [9500, proof("escrow_wallet")],
+    [10500, explain("wallet"), step("Order wallet", "developer.policy", 1.6)],
   ] },
-  { id: 6, title: "Day 9 · Chicago dock", durationMs: 16000, layout: ["map", "orders"], grid: { cols: "560fr 440fr" }, phone: true, clock: "08:41",
+  { id: 6, title: "Day 9 · Chicago dock", durationMs: 17000, layout: ["map", "orders"], grid: { cols: "560fr 440fr" }, phone: true, clock: "08:41",
     line: "The motors fly to Chicago. The packing slip says 1,800 of 2,000.", status: `Tracking shipment ${PO.number}`, enter: "Ship to Chicago", beats: [
     [300, { type: "shipment", progress: 0, docs: docs("working") }],
     [400, { type: "checkpoint", id: "packed" }],
@@ -177,19 +183,25 @@ export const scenes: Scene[] = [
     [6100, { type: "checkpoint", id: "dock" }],
     [8500, { type: "dock", receivedQty: RECEIVED }, step("Dock count", "dock.count", 2.0)],
     [8600, proof("dock_attestation")],
-    [10500, bot("1,800 of 2,000 arrived.", { refersTo: "money", card: "release" })],
-    [13500, { type: "phone", open: true }, releaseGate(PO.revisedUnitCents)],
+    [9600, explain("signed"), step("Signed result", "developer.signed", 1.7)],
+    [11600, explain(null)],
+    [12000, bot("1,800 of 2,000 arrived.", { refersTo: "money", card: "release" })],
+    [15000, { type: "phone", open: true }, releaseGate(PO.revisedUnitCents)],
   ] },
-  { id: 7, title: "Paid", durationMs: 12000, layout: ["money", "stock"], grid: { cols: "1fr 1fr" },
+  { id: 7, title: "Paid", durationMs: 13000, layout: ["money", "stock"], grid: { cols: "1fr 1fr" },
     line: "Haoyun is paid for what arrived. A payment to a lookalike address is refused.", status: `PO ${PO.number} settled`, beats: [
     [500, { type: "release", to: "0x000000000000000000000000000000000000dead" }],
     [600, proof("refused_release")],
     [3000, { type: "release", to: suppliers.find((s) => s.id === "haoyun")!.receiveAddress }, step("Paid and refused", "money.payout", 1.8)],
     [3100, stage("paid")],
     [3200, proof("intents_payout")],
-    [6000, { type: "end_card" }],
-    [6200, stage("closed")],
-    [10000, { type: "reclaim" }],
+    [5000, explain("payout"), step("Wallet lifecycle", "money.lifecycle", 1.6)],
+    [7500, explain(null)],
+    [8000, { type: "end_card" }],
+    [8200, stage("closed")],
+    [11000, { type: "reclaim" }],
+    [11500, { type: "close_wallet" }],
+    [11600, proof("wallet_closed")],
   ] },
 ];
 

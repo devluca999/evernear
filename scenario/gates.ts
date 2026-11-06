@@ -75,6 +75,8 @@ export function describeStop(b: Beat, sceneTitle: (id: number) => string, suppli
     case "demand": return "Count robots ordered against motors on hand";
     case "offer": return "Lay the offers side by side";
     case "proof": return "Show the proof";
+    case "explain": return ev.id ? "Explain what just happened" : "Continue";
+    case "close_wallet": return "Close the order's wallet";
     default: return "Continue";
   }
 }

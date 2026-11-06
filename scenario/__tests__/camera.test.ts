@@ -53,22 +53,26 @@ describe("camera motion", () => {
 
 describe("focus plan", () => {
   const plan = SCENARIOS.happy.timeline.filter((b) => b.focus).map((b) => [b.scene + 1, b.step, b.focus!.id, b.focus!.zoom]);
-  it("follows the plan: 14 steps across the eight chapters", () => {
+  it("follows the plan: 18 steps across the eight chapters, five of them explainers", () => {
     expect(plan).toEqual([
       [1, "Product switch", "products.figure", 1.5],
       [1, "Motor highlight", "products.motor", 2.2],
       [2, "The gap", "stock.shortfall", 1.8],
       [3, "Ultra's reply", "inbox.reply", 1.7],
       [4, "Search typed", "map.search", 1.8],
+      [4, "Private inference", "developer.attestation", 1.5],
+      [4, "Attestation", "developer.attestation", 1.8],
       [4, "Pins resolve", "map.results", 1.4],
       [4, "Orange reasons", "map.results.partial", 2.0],
       [5, "Offers side by side", "negotiation.threads", 1.3],
       [5, "Haoyun's offer", "negotiation.haoyun", 1.9],
       [6, "Approvals", "rules.approvals", 1.8],
       [6, "Funds move", "money.escrow", 2.0],
-      [6, "Proof", "developer.hash", 2.2],
+      [6, "Order wallet", "developer.policy", 1.6],
       [7, "Dock count", "dock.count", 2.0],
+      [7, "Signed result", "developer.signed", 1.7],
       [8, "Paid and refused", "money.payout", 1.8],
+      [8, "Wallet lifecycle", "money.lifecycle", 1.6],
     ]);
   });
   it("keeps every zoom in every scenario between 1.0 and 2.5", () => {

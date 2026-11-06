@@ -33,7 +33,7 @@ describe("workspace", () => {
     expect(within(drawer).getByText("POST /v1/agents/{id}/transfer")).toBeTruthy();
     expect(within(drawer).getByText("Request")).toBeTruthy();
     expect(within(drawer).getByText("Response")).toBeTruthy();
-    expect(within(screen.getByLabelText("What happened")).getByText(/can only pay Haoyun or go back to Astro/)).toBeTruthy();
+    expect(within(screen.getByLabelText("Explained")).getByText(/It can pay Haoyun or return to Astro, nothing else/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Collapse developer drawer" }));
     expect(drawer.getAttribute("data-open")).toBe("false");
   });
@@ -47,7 +47,7 @@ describe("workspace", () => {
     expect(items.at(-1)!.getAttribute("aria-current")).toBe("step");
     fireEvent.click(items[0]);
     expect(items[0].getAttribute("aria-current")).toBe("step");
-    expect(within(screen.getByLabelText("What happened")).getByText(/Astro opened its own wallet/)).toBeTruthy();
+    expect(within(screen.getByLabelText("Explained")).getByText(/Astro opened its own wallet/)).toBeTruthy();
     fireEvent.click(within(hist).getByRole("button", { name: "Follow the latest" }));
     expect(items.at(-1)!.getAttribute("aria-current")).toBe("step");
   });
@@ -89,11 +89,11 @@ describe("workspace", () => {
     const bar = screen.getByRole("button", { name: "Open developer drawer" });
     expect(bar.textContent).toContain("refused a withdraw to 0x000000000000000000000000000000000000dead");
     fireEvent.click(bar);
-    expect(within(screen.getByLabelText("What happened")).getByText(/refused by the PO account itself\. The guard works\./)).toBeTruthy();
+    expect(within(screen.getByLabelText("Explained")).getByText(/refused by the PO account itself\. The guard works\./)).toBeTruthy();
     expect(stateAt(r.atMs + 500).refused.map((x) => x.kind)).toContain("wrong_address_release");
   });
   it("shows the end line below the cards, then the money goes back at the deadline", () => {
-    at(sceneStartMs(7) + 6500);
+    at(sceneStartMs(7) + 8500);
     const end = screen.getByRole("region", { name: "End card" });
     expect(end.closest("main")).toBeTruthy();
     expect(end.textContent).toContain("0 wires. 0 days waiting. 1 human decision.");

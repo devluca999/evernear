@@ -3,8 +3,8 @@
 // base URL switch, and agentApiBase refuses it without Luca's explicit yes.
 //
 // Two kinds of call:
-// - owner intents (agent_create, grant_issue, policy_update, agent_freeze, agent_unfreeze), signed by
-//   Astro's owner key with NEP-413; and
+// - owner intents (agent_create, grant_issue, grant_revoke, policy_update, agent_freeze, agent_unfreeze),
+//   signed by Astro's owner key with NEP-413; and
 // - agent actions (transfer, withdraw, swap, deposit) under a grant token. Grant tokens are derived at
 //   run time from AGENT_API_KEY, so a token is never stored; Tidepool keeps only its sha256.
 // Every call writes a proof row through the sink, refusals included.
@@ -76,7 +76,7 @@ const TERMINAL = new Set(["SUCCESS", "FAILED", "REFUNDED", "UNCERTAIN", "NEEDS_R
 
 export class AgentApiClient {
   private api: AgentApi;
-  private network: "testnet" | "mainnet";
+  readonly network: "testnet" | "mainnet";
   constructor(private o: { fetch: Fetch; apiKey?: string; baseUrl: string; owner?: Owner; sink: ProofSink; idem?: () => string; maxPolls?: number }) {
     if (!o.apiKey) throw new Error("AGENT_API_KEY not configured");
     this.network = new URL(o.baseUrl).host === MAINNET_HOST ? "mainnet" : "testnet";
@@ -133,10 +133,42 @@ export class AgentApiClient {
 
   async wallet(agentId: string) { return (await this.api.getWallet(agentId)) as unknown as { wallet_id: string; near_account_id: string }; }
   async policy(agentId: string) { return (await this.api.getPolicy(agentId)) as unknown as { revision: number; policy: { frozen?: boolean; [k: string]: unknown } }; }
+  /** The grants on an agent, revoked ones included (`revoked_at` set). */
+  async grants(agentId: string) { return (await this.api.listGrants(agentId)) as unknown as { grant_id: string; label: string; revoked_at: string | null }[]; }
+  /** GET /v1/quotas, as returned: its shape differs between deployments, so agentRoom reads it. */
+  async quotas(): Promise<unknown> { return this.api.getPartnerQuota(); }
   async balance(agentId: string, asset: string): Promise<bigint> {
     const b = (await this.api.getBalances(agentId)) as unknown as { balances: { asset_id: string; balance_raw: string }[] };
     return BigInt(b.balances.find((x) => x.asset_id === asset)?.balance_raw ?? "0");
   }
+}
+
+/**
+ * How many agents this key may hold and how many it holds, from a GET /v1/quotas answer, or null when
+ * the answer has no agent count we know. Tidepool caps a key at 25 agents in total (never deleted);
+ * the mainnet API caps new agents per rolling 24 h. Both read the same way here: no room, no new agent.
+ */
+export function agentRoom(q: unknown): { limit: number; used: number } | null {
+  const o = (q ?? {}) as { limits?: Record<string, unknown>; usage?: Record<string, unknown>; agents?: Record<string, unknown> };
+  const num = (x: unknown) => (typeof x === "number" && Number.isFinite(x) ? x : undefined);
+  const pairs: [unknown, unknown][] = [
+    [o.limits?.agents, o.usage?.agents],
+    [o.limits?.max_agents, o.usage?.agents],
+    [o.limits?.total_agents, o.usage?.total_agents],
+    [o.agents?.limit, o.agents?.used],
+    [o.limits?.daily_agents, o.usage?.agents_last_24_hours],
+  ];
+  for (const [l, u] of pairs) {
+    const limit = num(l), used = num(u);
+    if (limit !== undefined && used !== undefined) return { limit, used };
+  }
+  return null;
+}
+
+/** True when an agent_create failed because the key has no agents left (Tidepool: 429 quota_exceeded). */
+export function isAgentQuotaError(e: unknown): boolean {
+  if (e instanceof AgentApiError) return /quota/i.test(e.code ?? "");
+  return e instanceof Error && /^agent_create ended .*quota/i.test(e.message);
 }
 
 export { PATH as AGENT_API_PATH };

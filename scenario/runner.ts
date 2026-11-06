@@ -1,6 +1,6 @@
 import { plainEngine } from "../engine/plain";
 import { requiredApprovals, checkPriceChange } from "../engine/policy";
-import { createEscrow, release, reclaimHeld } from "../engine/escrow";
+import { closeWallet, createEscrow, release, reclaimHeld } from "../engine/escrow";
 import { cents } from "../engine/money";
 import { bom10MA, offers, policy as defaultPolicy, suppliers, PO, routineReorder, demand } from "../seed/astro";
 import type { Policy } from "../engine/types";
@@ -29,7 +29,7 @@ export function initialState(policy: Policy = defaultPolicy): WorkspaceState {
     approvals: [], limitApprovals: [],
     price: { originalCents: PO.originalUnitCents, limitBps: policy.priceChangeLimitBps, history: [] },
     escrow: null, shipment: { progress: 0, docs: [], checkpoints: [] }, dock: null, refused: [], endCard: false,
-    policy, halted: null, product: null, highlight: null, search: null, offers: [],
+    policy, halted: null, product: null, highlight: null, search: null, offers: [], explain: null,
   };
 }
 
@@ -47,7 +47,7 @@ function apply(s: WorkspaceState, b: Beat): WorkspaceState {
   const policy = s.policy;
   if (s.halted && !AFTER_HALT.has(ev.type)) return s;
   switch (ev.type) {
-    case "scene": return { ...s, scene: ev.id, layout: ev.layout };
+    case "scene": return { ...s, scene: ev.id, layout: ev.layout, explain: null };
     case "layout": return { ...s, layout: ev.panels };
     case "phone": return { ...s, phoneOpen: ev.open };
     case "wallet": return { ...s, wallet: { owner: OWNER, agentKeyCapCents: policy.autoApproveUnderCents } };
@@ -140,6 +140,12 @@ function apply(s: WorkspaceState, b: Beat): WorkspaceState {
     case "product": return { ...s, product: ev.id, highlight: null };
     case "highlight": return { ...s, highlight: ev.part };
     case "search": return { ...s, search: ev.query };
+    case "explain": return { ...s, explain: ev.id };
+    case "close_wallet": {
+      const r = closeWallet(s.escrow!);
+      if (!r.ok) throw new Error(`scenario bug: close refused (${r.reason})`);
+      return { ...s, escrow: r.escrow };
+    }
     case "offer": return { ...s, offers: [...s.offers.filter((o) => o.supplierId !== ev.supplierId), { supplierId: ev.supplierId, unitCents: ev.unitCents, note: ev.note, tone: ev.tone }] };
   }
 }

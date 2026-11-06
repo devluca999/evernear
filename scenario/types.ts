@@ -77,7 +77,11 @@ export type Event =
   /** Map: the search Stockbot types to find a replacement part. */
   | { type: "search"; query: string }
   /** Negotiation: a supplier's offer, shown side by side with the others. */
-  | { type: "offer"; supplierId: string; unitCents: number; note: string; tone: "success" | "attention" | "alert" };
+  | { type: "offer"; supplierId: string; unitCents: number; note: string; tone: "success" | "attention" | "alert" }
+  /** An explainer moment opens (an id) or ends (null): the drawer shows what it means. */
+  | { type: "explain"; id: import("./explain").ExplainerId | null }
+  /** The order's wallet is frozen, the agent's grant revoked; it stays as the receipt. */
+  | { type: "close_wallet" };
 
 /** A beat that waits for the viewer: the clock stops just before it until they click. */
 export interface Gate {
@@ -139,4 +143,6 @@ export interface WorkspaceState {
   search: string | null;
   /** Offers in hand, one per supplier, latest first replaced. */
   offers: { supplierId: string; unitCents: number; note: string; tone: "success" | "attention" | "alert" }[];
+  /** The explainer the drawer is showing, if any. */
+  explain: import("./explain").ExplainerId | null;
 }

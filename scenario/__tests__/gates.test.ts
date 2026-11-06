@@ -66,7 +66,7 @@ describe("present mode stops", () => {
     expect(stops.map(say)).toEqual(expect.arrayContaining([
       "Switch to the 10MA", "Highlight the actuator motor", "Search for a replacement motor", "Check every match against the 10MA BOM",
       "Lay the offers side by side", "Deliver Haoyun's reply", "Up to 3%", "Send PO 1042 for approval", "YES, approve as Luca", "YES, approve as Jordy",
-      "Commit the PO total", "Show the proof", "Ship to Chicago", "Count the delivery at the dock", "YES, release $34,200",
+      "Commit the PO total", "Explain what just happened", "Ship to Chicago", "Count the delivery at the dock", "YES, release $34,200",
       "Try a payment to a wrong address", "Pay Haoyun for what arrived", "At the deadline, return the rest to Astro",
     ]));
     // The negotiation comes before the approvals.

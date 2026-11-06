@@ -32,6 +32,7 @@ import { StatsBar } from "./StatsBar";
 import { Camera, type CameraState } from "./Camera";
 import { openChannel, type RemoteCommand, type RemoteState } from "./presentChannel";
 import type { Focus } from "@/scenario/types";
+import { EXPLAINERS } from "@/scenario/explain";
 import s from "./shell.module.css";
 
 const PANELS: Record<PanelId, (p: { st: WorkspaceState; pulse: boolean }) => React.ReactNode> = {
@@ -283,7 +284,11 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
   const boardRef = useRef(board), lockedRef = useRef(locked), placedRef = useRef(placed);
   useEffect(() => { boardRef.current = board; lockedRef.current = locked; placedRef.current = placed; });
 
-  const drawerOpen = drawerOpenState || !!pinned;
+  // An explainer moment opens the drawer on its proof; collapsing it holds until the next moment.
+  const [shutExplain, setShutExplain] = useState<string | null>(null);
+  const explainOn = !!st.explain && shutExplain !== st.explain;
+  const explainProof = st.explain ? st.proofs.findLast((p) => p.id === EXPLAINERS[st.explain!].proof) ?? null : null;
+  const drawerOpen = drawerOpenState || !!pinned || explainOn;
   const actions: WorkspaceActions = {
     openPhoto: (checkpointId, index) => { setPlaying(false); setViewer({ checkpointId, index }); },
     openProof: (id) => { setPinnedProof(id); },
@@ -410,8 +415,9 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
                 <p className={s.endSub}>{endText.sub}</p>
               </div>
             )}
-            <Drawer proof={pinned ?? lastProof} lastProof={lastProof} history={st.proofs} open={drawerOpen} narrow={phoneOn}
-              onToggle={() => { if (pinned) setPinnedProof(null); setDrawerOpen(!drawerOpen); }} />
+            <Drawer proof={pinned ?? (explainOn ? explainProof : null) ?? lastProof} lastProof={lastProof} history={st.proofs} open={drawerOpen} narrow={phoneOn}
+              explain={explainOn ? st.explain : null} st={st}
+              onToggle={() => { if (pinned) setPinnedProof(null); if (explainOn) setShutExplain(st.explain); setDrawerOpen(!drawerOpen); }} />
           </div>
         </div>
         {viewer && (

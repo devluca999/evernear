@@ -9,7 +9,7 @@ import { agentApiBase, ownerFromPkcs8, TIDEPOOL_BASE } from "../../convex/near/a
 import { Gmail } from "../../convex/near/gmail";
 import { Inference } from "../../convex/near/inference";
 import { NEARAI_BASE, OUTLAYER_TESTNET, type Fetch, type ProofSink } from "../../convex/near/http";
-import { createEscrow } from "../../engine/escrow";
+import { createEscrow, type Escrow } from "../../engine/escrow";
 import { PO, routineReorder } from "../../seed/astro";
 import { quotes } from "../../scenarios/suppliers";
 import { createRecorder, type ProofKey, type Recorder } from "./recorder";
@@ -76,7 +76,7 @@ export interface Ctx {
   /** Divides every amount, so a wallet with little fake USDC can rehearse. Default 1. */
   scale: number;
   now: () => number;
-  state: { escrowAccount?: string; escrowApiKey?: string; lockRequestId?: string; approved?: boolean; po?: { agentId: string; account: string; ref: string; treasury: string } };
+  state: { escrowAccount?: string; escrowApiKey?: string; lockRequestId?: string; approved?: boolean; po?: { agentId: string; account: string; ref: string; treasury: string; grantId?: string; settled?: Escrow } };
   /** Values the recorder must scrub. A derived key is added the moment it exists. */
   secrets: string[];
 }
@@ -195,13 +195,13 @@ export const steps: Step[] = [
       if (!c.state.approved) return skipped("no approvals: nothing is committed before both approvals");
       const e = escrow(c, () => {});
       const treasury = await e.treasuryAccount();
-      const acct = await escrow(c).open({ po: PO.number, supplier: c.env.HAOYUN_BASE_ADDRESS!.toLowerCase(), lockedCents: PO.revisedTotalCents, slot: c.env.REHEARSE_PO_AGENT_ID || undefined });
+      const acct = await escrow(c).open({ po: PO.number, supplier: c.env.HAOYUN_BASE_ADDRESS!.toLowerCase(), lockedCents: PO.revisedTotalCents });
       const f = await escrow(c).fund({ cents: PO.revisedTotalCents });
       if (!f.ok) return skipped(`treasury could not be funded (${f.reason}); the faucet allows one drip per hour`);
       const ref = `rehearse-${PO.number}-${c.now()}`;
       const r = await escrow(c).lock({ po: PO.number, ref, agentId: acct.agentId, account: acct.account, cents: PO.revisedTotalCents });
       if (!r.ok) return skipped(`commit refused (${r.code})`);
-      c.state.po = { agentId: acct.agentId, account: acct.account, ref, treasury };
+      c.state.po = { agentId: acct.agentId, account: acct.account, ref, treasury, grantId: acct.grantId };
       return done();
     },
   },
@@ -251,6 +251,17 @@ export const steps: Step[] = [
       if (!paid.ok) return skipped(`payout refused (${paid.reason})`);
       const back = await escrow(c, () => {}).reclaim({ escrow: paid.escrow, agentId: po.agentId, po: PO.number, ref: po.ref, nowMs: c.now() });
       if (!back.ok) return skipped(`held part not returned (${back.reason})`);
+      po.settled = back.escrow;
+      return done();
+    },
+  },
+  {
+    keys: ["wallet_closed"], title: "Scene 8: close the order's wallet: grant revoked, frozen, kept as the order's receipt",
+    run: async (c) => {
+      const po = c.state.po;
+      if (!po?.settled) return skipped("nothing settled (the payout step was skipped)");
+      const r = await escrow(c).close({ escrow: po.settled, agentId: po.agentId, grantId: po.grantId, po: PO.number });
+      if (!r.ok) return skipped(`wallet not closed (${r.reason})`);
       return done();
     },
   },

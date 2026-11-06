@@ -11,5 +11,6 @@ export const PLAIN: Record<string, string> = {
   escrow_wallet: "$38,000 (shown at 1:1,000) moved into this PO's own account. From there it can only pay Haoyun or go back to Astro.",
   dock_attestation: "The dock count was checked by an attested program. Only its result can release money.",
   refused_release: "A payment to an address that is not Haoyun's was refused by the PO account itself. The guard works.",
+  wallet_closed: "Nothing is left in PO 1042's wallet. It is frozen, Evernear's grant is revoked, and it stays as the order's receipt. It is never reused.",
   intents_payout: "Haoyun was paid for the 1,800 motors that arrived, on Base Sepolia. The $3,800 for the missing 200 goes back to Astro.",
 };

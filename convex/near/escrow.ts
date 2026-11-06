@@ -1,15 +1,18 @@
 // Per-PO escrow: one Agent API account per PO (Tidepool testnet), owned by Astro's owner key.
 // Its policy lets money go to exactly two places: a withdraw to the supplier's address on Base
 // Sepolia, and a transfer back to Astro's treasury account; at most the PO amount per transaction;
-// `frozen` is the kill switch. Two layers refuse a wrong address: the engine's three-exit rule (here,
+// `frozen` is the kill switch. Each order gets a fresh account and never shares it: once the order
+// is settled the account is closed (Evernear's grant revoked, the account frozen) and kept as the
+// order's receipt. A key holds 25 agents on Tidepool, so `open` refuses with accounts_full when none
+// is left. Two layers refuse a wrong address: the engine's three-exit rule (here,
 // before any call) and the account's policy (in the Agent API, shown live by policyRefusal).
 //
 // Honest limit: this is a commitment, not a lock. Tidepool's server enforces the policy, not the
 // chain, and Astro as owner can sign a policy change or unfreeze at any time. The supplier cannot
 // enforce it. Amounts run at 1:1,000 of the story (engine/money.ts TESTNET_SCALE).
-import { AgentApiClient, BASE_USDC, NEAR_USDC, grantHash, grantToken, type ActResult, type Owner } from "./agentapi";
+import { AgentApiClient, BASE_USDC, NEAR_USDC, agentRoom, grantHash, grantToken, isAgentQuotaError, type ActResult, type Owner } from "./agentapi";
 import type { Fetch, ProofSink } from "./http";
-import { release as ruleRelease, reclaimHeld, refundOnDeadline, type Escrow } from "../../engine/escrow";
+import { closeWallet, release as ruleRelease, reclaimHeld, refundOnDeadline, type Escrow } from "../../engine/escrow";
 import { formatUsd, scaleTestnet, TESTNET_SCALE } from "../../engine/money";
 
 const PATH = "convex/near/escrow.ts";
@@ -38,7 +41,7 @@ export function poPolicy(i: { supplier: string; owner: string; lockedCents: numb
   };
 }
 
-/** Astro's treasury: funds each PO account. Any destination, since PO accounts are made as needed. */
+/** Astro's treasury: funds each PO account. Any destination, since each order gets a new account. */
 export function treasuryPolicy() {
   return {
     frozen: false, actions: ["swap", "transfer"], confidential: false, owner_approval: false, assets: "any",
@@ -47,8 +50,14 @@ export function treasuryPolicy() {
   };
 }
 
-export interface PoAccount { agentId: string; account: string; grantHash: string }
+export interface PoAccount { agentId: string; account: string; grantHash: string; grantId?: string }
 type Moved = { ok: true; escrow: Escrow } | { ok: false; reason: string };
+
+/** The key has no agent left for a new order wallet. A refusal proof row was recorded before this is thrown. */
+export class AccountsFull extends Error {
+  readonly reason = "accounts_full";
+  constructor(readonly limit?: number) { super("accounts_full"); }
+}
 
 export class EscrowAdapter {
   private client: AgentApiClient;
@@ -58,6 +67,8 @@ export class EscrowAdapter {
   }
 
   private grant = (label: string) => grantToken(this.o.apiKey!, label);
+  // The "pool:" prefix is kept from when accounts were reused: it is only the token's derivation
+  // string, and changing it would orphan the grant of every account opened before.
   private poGrant = (agentId: string) => this.grant(`pool:${agentId}`);
   private treasuryId() {
     if (!this.o.treasuryId) throw new Error("AGENT_TREASURY_ID not configured");
@@ -68,9 +79,10 @@ export class EscrowAdapter {
     if (!ow) throw new Error("owner key not configured (AGENT_OWNER_PRIVATE_KEY_PKCS8)");
     return { type: "near", account_id: ow.accountId, public_key: ow.publicKey };
   }
-  private async issueGrant(agentId: string, label: string, token: string) {
-    await this.client.owned("grant_issue", { agent_id: agentId, label, credential: grantHash(token), expires_at: new Date(Date.now() + 90 * 86_400_000).toISOString() },
+  private async issueGrant(agentId: string, label: string, token: string): Promise<string | undefined> {
+    const st = await this.client.owned("grant_issue", { agent_id: agentId, label, credential: grantHash(token), expires_at: new Date(Date.now() + 90 * 86_400_000).toISOString() },
       { kind: "policy", label: `Grant issued to Evernear (${label})`, codePath: `${PATH}#grant` });
+    return (st.details?.grant as { grant_id?: string } | null | undefined)?.grant_id;
   }
 
   /** One time setup (scripts): Astro's treasury agent and its grant. Returns the agent id. */
@@ -87,25 +99,40 @@ export class EscrowAdapter {
     return this.treasuryAcct;
   }
 
-  /** A PO account with the PO's policy: reuses a pool account when given one (rewrites its policy), else creates one. */
-  async open(i: { po: string; supplier: string; lockedCents: number; slot?: string }): Promise<PoAccount> {
+  /** Records the accounts_full refusal as a proof row, then throws AccountsFull. */
+  private async full(po: string, call: string, room: { limit: number; used: number } | null, code?: string): Promise<never> {
+    const limit = room?.limit ?? 25;
+    await this.o.sink({ kind: "refusal", label: `This key has used all ${limit} order wallets; a new Tidepool key is needed`, call, codePath: `${PATH}#open`,
+      network: this.client.network, hash: "none", response: { po, status: "refused", reason: "accounts_full", limit: room?.limit ?? null, used: room?.used ?? null, code: code ?? null }, replay: false, synthetic: false });
+    throw new AccountsFull(room?.limit);
+  }
+
+  /** How many agents the key may hold and holds, or null when the quota answer is missing or unknown. */
+  async room(): Promise<{ limit: number; used: number } | null> {
+    try { return agentRoom(await this.client.quotas()); } catch { return null; }
+  }
+
+  /**
+   * A new PO account for this order, with the PO's policy, and Evernear's grant on it. Never reuses
+   * an account. Refuses with AccountsFull (and a proof row) when the key has no agent left: from the
+   * quota answer before any intent, or from agent_create's own quota refusal.
+   */
+  async open(i: { po: string; supplier: string; lockedCents: number }): Promise<PoAccount> {
+    const room = await this.room();
+    if (room && room.used >= room.limit) return this.full(i.po, "GET /v1/quotas", room);
     const policy = poPolicy({ supplier: i.supplier, owner: await this.treasuryAccount(), lockedCents: i.lockedCents });
     const label = `PO ${i.po} account: pays only the supplier or Astro, at most ${shown(i.lockedCents)}`;
-    let agentId = i.slot;
-    if (agentId) {
-      let cur = await this.client.policy(agentId);
-      if (cur.policy.frozen) {
-        await this.client.owned("agent_unfreeze", { agent_id: agentId }, { kind: "policy", label: `PO account unfrozen for PO ${i.po}`, codePath: `${PATH}#open` });
-        cur = await this.client.policy(agentId);
-      }
-      await this.client.owned("policy_update", { agent_id: agentId, expected_revision: cur.revision, policy }, { kind: "policy", label, codePath: `${PATH}#open` });
-    } else {
-      const st = await this.client.owned("agent_create", { name: `Evernear PO account (first PO ${i.po})`, owner: this.ownerRef(), policy }, { kind: "policy", label, codePath: `${PATH}#open` });
+    let agentId: string;
+    try {
+      const st = await this.client.owned("agent_create", { name: `Evernear PO ${i.po} account`, owner: this.ownerRef(), policy }, { kind: "policy", label, codePath: `${PATH}#open` });
       agentId = st.details!.agent_id as string;
-      await this.issueGrant(agentId, "evernear pool", this.poGrant(agentId));
+    } catch (e) {
+      if (isAgentQuotaError(e)) return this.full(i.po, "POST /v1/generate-intent agent_create", room, (e as { code?: string }).code ?? "quota_exceeded");
+      throw e;
     }
+    const grantId = await this.issueGrant(agentId, `evernear PO ${i.po}`, this.poGrant(agentId));
     const account = (await this.client.wallet(agentId)).near_account_id;
-    return { agentId, account, grantHash: grantHash(this.poGrant(agentId)) };
+    return { agentId, account, grantHash: grantHash(this.poGrant(agentId)), grantId };
   }
 
   /** Makes sure the treasury holds enough Base USDC: a faucet drip if NEAR USDC is short, then a swap. */
@@ -168,6 +195,37 @@ export class EscrowAdapter {
     const rule = refundOnDeadline(i.escrow, { nowMs: i.nowMs });
     if (!rule.ok) return { ok: false, reason: rule.reason };
     return this.back({ ...i, next: rule.escrow, step: "refund", kind: "refund", label: `Deadline passed, refunded to Astro for PO ${i.po}: ${shown(rule.amountCents)}` });
+  }
+
+  /**
+   * Closes a settled order's account for good: Astro revokes Evernear's grant and freezes the account,
+   * then a "Wallet closed" proof row is recorded. Refused by the engine (closeWallet) before any call
+   * when the escrow still holds money or is already closed. The account is never handed to another order.
+   */
+  async close(i: { escrow: Escrow; agentId: string; grantId?: string; po: string }): Promise<Moved> {
+    const rule = closeWallet(i.escrow);
+    if (!rule.ok) return { ok: false, reason: rule.reason };
+    let live: string[];
+    try {
+      live = (await this.client.grants(i.agentId)).filter((g) => !g.revoked_at).map((g) => g.grant_id);
+    } catch {
+      live = i.grantId ? [i.grantId] : [];
+    }
+    for (const grant_id of live) {
+      await this.client.owned("grant_revoke", { agent_id: i.agentId, grant_id }, { kind: "policy", label: `Evernear's grant on the PO ${i.po} account revoked`, codePath: `${PATH}#close` });
+    }
+    const pol = await this.client.policy(i.agentId);
+    const frozen = pol.policy.frozen ? null
+      : await this.client.owned("agent_freeze", { agent_id: i.agentId }, { kind: "freeze", label: `PO ${i.po} account frozen for good`, codePath: `${PATH}#close` });
+    const left = await this.client.balance(i.agentId, BASE_USDC);
+    const d = frozen?.details ?? {};
+    await this.o.sink({
+      kind: "wallet", label: `Wallet closed: PO ${i.po} frozen, grant revoked, kept as the order's receipt`, call: "POST /v1/submit-intent grant_revoke, agent_freeze",
+      codePath: `${PATH}#close`, network: this.client.network, hash: d.tx_hash ?? d.transaction_hash ?? frozen?.correlation_id ?? "none",
+      response: { agent_id: i.agentId, frozen: true, grants_revoked: live.length, grant: "revoked", lifecycle: "closed", balance: String(left), reused: false },
+      replay: false, synthetic: false,
+    });
+    return { ok: true, escrow: rule.escrow };
   }
 
   /** Kill switch: Astro freezes the PO account; every move after this is refused with wallet_frozen. */

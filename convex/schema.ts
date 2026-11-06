@@ -8,6 +8,11 @@ export const stage = v.union(
 
 export const network = v.union(v.literal("testnet"), v.literal("mainnet"), v.literal("offchain"));
 
+/** engine/escrow.ts Lifecycle: created, funded, partly released, settled (nothing left), closed (frozen, grant revoked). */
+export const lifecycle = v.union(
+  v.literal("created"), v.literal("funded"), v.literal("partly_released"), v.literal("settled"), v.literal("closed"),
+);
+
 export default defineSchema({
   companies: defineTable({ slug: v.string(), name: v.string(), city: v.string(), country: v.string(), ownerAccount: v.optional(v.string()) }).index("by_slug", ["slug"]),
   products: defineTable({ companyId: v.id("companies"), slug: v.string(), name: v.string(), kind: v.string() }).index("by_slug", ["slug"]),
@@ -31,17 +36,22 @@ export default defineSchema({
     photo: v.optional(v.string()), reading: v.optional(v.string()), restockId: v.optional(v.id("restocks")),
     externalId: v.optional(v.string()), receivedAt: v.number(),
   }).index("by_channel", ["channel", "receivedAt"]).index("by_external", ["channel", "externalId"]),
-  // Per-PO escrow state (engine/escrow.ts Escrow), committed in one Agent API account per PO
-  // (convex/near/deadline.ts). No key is stored here: grant tokens are derived at run time from
-  // AGENT_API_KEY and only their sha256 is kept. Amounts are story cents; the account runs at 1:`scale`.
+  // Per-PO escrow state (engine/escrow.ts Escrow), committed in a new Agent API account per order
+  // (convex/near/deadline.ts), never reused: once settled the account is closed and the row is the
+  // order's receipt. No key is stored here: grant tokens are derived at run time from AGENT_API_KEY
+  // and only their sha256 is kept (`grantId` is the grant's public id, used to revoke it).
+  // Amounts are story cents; the account runs at 1:`scale`. `lifecycle` is optional only for rows
+  // written before it existed (convex/near/deadline.ts toEscrow derives it for those).
   escrows: defineTable({
     restockId: v.optional(v.id("restocks")), po: v.string(), ref: v.string(), supplier: v.string(), owner: v.string(),
     lockedCents: v.number(), releasedCents: v.number(), reclaimedCents: v.number(), deadlineMs: v.number(), closed: v.boolean(),
-    escrowAccount: v.string(), agentId: v.string(), grantHash: v.string(), scale: v.number(),
+    lifecycle: v.optional(lifecycle),
+    escrowAccount: v.string(), agentId: v.string(), grantHash: v.string(), grantId: v.optional(v.string()), scale: v.number(),
     refundJobId: v.optional(v.id("_scheduled_functions")),
     outcome: v.optional(v.union(v.literal("released"), v.literal("reclaimed"), v.literal("refunded"))),
   }).index("by_po", ["po"]),
-  // The pool of reused PO accounts (Tidepool never deletes agents). Busy while an escrow is open.
+  // Legacy: the pool of reused PO accounts, from before order wallets were never reused (Nov 6).
+  // Nothing reads or writes it now; it stays declared only so rows on existing deployments validate.
   poAccounts: defineTable({ agentId: v.string(), account: v.string(), grantHash: v.string(), busy: v.boolean() })
     .index("by_busy", ["busy"]).index("by_agent", ["agentId"]),
   approvals: defineTable({ restockId: v.id("restocks"), approver: v.string(), signedAt: v.number(), proofId: v.optional(v.id("proofs")) }).index("by_restock", ["restockId"]),

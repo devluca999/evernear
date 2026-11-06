@@ -48,6 +48,10 @@ describe("record mode: keys", () => {
       [{ codePath: "convex/near/escrow.ts#release", kind: "refusal" }, null],
       [{ codePath: "convex/near/escrow.ts#release", kind: "payout" }, "intents_payout"],
       [{ codePath: "convex/near/escrow.ts#reclaim", kind: "reclaim" }, null],
+      [{ codePath: "convex/near/escrow.ts#close", kind: "wallet", label: "Wallet closed: PO 1042 frozen, grant revoked, kept as the order's receipt" }, "wallet_closed"],
+      [{ codePath: "convex/near/escrow.ts#close", kind: "freeze" }, null],
+      [{ codePath: "convex/near/escrow.ts#close", kind: "policy" }, null],
+      [{ codePath: "convex/near/escrow.ts#open", kind: "refusal" }, null],
     ];
     for (const [p, k] of cases) expect(keyFor(proof(p))).toBe(k);
   });
@@ -207,10 +211,12 @@ describe("rehearsal", () => {
     const vote = JSON.stringify({ signature: "sig", public_key: "ed25519:PK", account_id: "luca.testnet", nonce: "n" });
     const ask = async (q: string) => (q.startsWith("Paste") ? vote : "");
     const { written } = await rehearse({ env: { ...env, RECORD: "1" }, fetch, ask, log: () => {}, dir });
-    expect(written).toEqual(expect.arrayContaining(["policy_set", "approval_luca", "approval_jordy", "escrow_wallet", "refused_release", "intents_payout"]));
+    expect(written).toEqual(expect.arrayContaining(["policy_set", "approval_luca", "approval_jordy", "escrow_wallet", "refused_release", "intents_payout", "wallet_closed"]));
     // 1:1,000: $38.00 committed, $34.20 to Haoyun on Base, the held $3.80 back to Astro.
     expect(tp.payouts).toEqual([expect.objectContaining({ chain: "base", recipient: env.HAOYUN_BASE_ADDRESS!.toLowerCase(), amount: 34_200_000n })]);
     expect(JSON.parse(readFileSync(join(dir, "refused_release.json"), "utf8"))).toMatchObject({ kind: "refusal", response: { code: "policy_destination_denied", layer: "policy" } });
+    expect(JSON.parse(readFileSync(join(dir, "wallet_closed.json"), "utf8"))).toMatchObject({ kind: "wallet", codePath: "convex/near/escrow.ts#close", response: { frozen: true, grant: "revoked", lifecycle: "closed", reused: false }, replay: true, synthetic: false });
+    expect(tp.agents.get([...tp.agents.keys()].at(-1)!)!.policy.frozen).toBe(true);
     const payout = JSON.parse(readFileSync(join(dir, "intents_payout.json"), "utf8"));
     expect(payout).toMatchObject({ kind: "payout", network: "testnet", synthetic: false, replay: true });
     expect(payout.explorerUrl).toMatch(/^https:\/\/sepolia\.basescan\.org\/tx\/0x/);

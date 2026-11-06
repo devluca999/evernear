@@ -11,7 +11,7 @@ import type { ProofInput, ProofSink } from "../../convex/near/http";
 /** The scene proof keys, in scene order. Same keys as fixtures/synthetic/proofs.json. */
 export const PROOF_KEYS = [
   "wallet_created", "policy_set", "payment_receipt", "inference_attestation", "approval_luca", "approval_jordy",
-  "connector_receipt", "refused_email", "escrow_wallet", "dock_attestation", "intents_payout", "refused_release",
+  "connector_receipt", "refused_email", "escrow_wallet", "dock_attestation", "intents_payout", "refused_release", "wallet_closed",
 ] as const;
 export type ProofKey = (typeof PROOF_KEYS)[number];
 
@@ -31,6 +31,7 @@ export function keyFor(p: ProofInput): ProofKey | null {
     case "escrow.ts#lock": return p.kind === "escrow" ? "escrow_wallet" : null;
     case "escrow.ts#policyRefusal": return p.kind === "refusal" ? "refused_release" : null;
     case "escrow.ts#release": return p.kind === "payout" ? "intents_payout" : null; // the engine's own refusal is not a scene proof
+    case "escrow.ts#close": return p.kind === "wallet" ? "wallet_closed" : null; // not the revoke and freeze rows before it
     case "dockcheck.ts#verify": return "dock_attestation";
     default: return null;
   }

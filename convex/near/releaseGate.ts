@@ -4,15 +4,16 @@
 // the gate's keys are bound to (`bind: "wasm"`, worker/release-gate/README.md). It is never a
 // project or HTTPS call, which the gate's manifest refuses.
 //
-// The transaction is sent through OutLayer's custody wallet API (`POST /wallet/v1/call`, the same
-// route `outlayer run --wasm` takes when logged in with a wallet key), so the signer is the custody
-// wallet behind RELEASE_GATE_WALLET_KEY, and Evernear's server holds no NEAR private key.
+// Two runners: NearKeyReleaseGate signs the transaction with Evernear's NEAR testnet account and key
+// (RELEASE_GATE_NEAR_ACCOUNT, RELEASE_GATE_NEAR_KEY; the setup Luca chose), and OutlayerReleaseGate
+// sends it through OutLayer's custody wallet API (`POST /wallet/v1/call`, RELEASE_GATE_WALLET_KEY).
 //
 // Behind the ReleaseGate interface, so tests use a fake (tests/near/fakeReleaseGate.ts) and never
 // call OutLayer. Not configured (no RELEASE_GATE_WASM_URL): releaseGateFromEnv answers null and
 // the escrow keeps the server-derived grant, labelled so on every release proof.
 import { canonical, type GateEnrollOutput, type GateReleaseInput, type GateReleaseOutput, verifyGateSignature } from "../../engine/releaseGate";
 import { httpJson, outlayerBase, type Fetch } from "./http";
+import { callFunction } from "./nearTx";
 
 export const OUTLAYER_CONTRACT_TESTNET = "outlayer.testnet";
 /** 300 TGas, the most a call may attach. */
@@ -92,6 +93,51 @@ export class OutlayerReleaseGate implements ReleaseGate {
   }
 }
 
+/** The deposit and limits `outlayer run --wasm` sends; OutLayer refunds what the run does not use. */
+const CLI_DEPOSIT_YOCTO = 2_000_100_000_000_000_000_000n;
+const CLI_LIMITS = { max_execution_seconds: 10, max_instructions: 1_000_000_000, max_memory_mb: 128 };
+
+/** The gate's answer from a run's final return value; a failed execution shows only in the logs. */
+export function answerFromRun(value: string | null, logs: string[]): Record<string, unknown> {
+  if (value && value !== "null") return parseRunResult(value);
+  const why = logs.map((l) => /Execution failed: (.*)/.exec(l)?.[1]).find(Boolean);
+  throw new Error(`release gate run failed${why ? `: ${why.slice(0, 200)}` : ""}`);
+}
+
+/**
+ * The gate run signed by Evernear's own NEAR testnet account with its NEAR key (Convex env, never
+ * the database): a `request_execution` on outlayer.testnet with the same arguments the CLI sends.
+ * That account is the caller the gate's keys are bound to.
+ */
+export class NearKeyReleaseGate implements ReleaseGate {
+  constructor(private o: { fetch: Fetch; account: string; key: string; wasmUrl: string; wasmSha256: string; rpcUrl?: string }) {}
+  get wasmUrl() { return this.o.wasmUrl; }
+  get wasmSha256() { return this.o.wasmSha256; }
+
+  private async run(input: Record<string, unknown>): Promise<{ output: Record<string, unknown>; run: GateRun }> {
+    const args = {
+      input_data: canonical(input), params: null, payer_account_id: null, resource_limits: CLI_LIMITS, response_format: "Json", secrets_ref: null,
+      source: { WasmUrl: { build_target: "wasm32-wasip2", hash: this.o.wasmSha256, url: this.o.wasmUrl } },
+    };
+    const r = await callFunction({
+      fetch: this.o.fetch, rpcUrl: this.o.rpcUrl, account: this.o.account, key: this.o.key, receiverId: OUTLAYER_CONTRACT_TESTNET,
+      call: { methodName: "request_execution", args: new TextEncoder().encode(JSON.stringify(args)), gas: BigInt(GAS), deposit: CLI_DEPOSIT_YOCTO },
+    });
+    const run: GateRun = { call: `outlayer run --wasm (request_execution on ${OUTLAYER_CONTRACT_TESTNET}, signed by ${this.o.account})`, txHash: r.hash, requestId: null };
+    return { output: answerFromRun(r.value, r.logs), run };
+  }
+
+  async enroll(agentId: string) {
+    const { output, run } = await this.run({ mode: "enroll", agent_id: agentId });
+    return { output: output as unknown as GateEnrollOutput, run };
+  }
+
+  async release(input: GateReleaseInput) {
+    const { output, run } = await this.run(input as unknown as Record<string, unknown>);
+    return { output: output as unknown as GateReleaseOutput, run };
+  }
+}
+
 /** The gate from the env, or null when RELEASE_GATE_WASM_URL is not set. Half a configuration is refused, never a silent fallback. */
 export function releaseGateFromEnv(env: Record<string, string | undefined>, fetch: Fetch): ReleaseGate | null {
   const url = env.RELEASE_GATE_WASM_URL?.trim();
@@ -100,7 +146,14 @@ export function releaseGateFromEnv(env: Record<string, string | undefined>, fetc
   const key = env.RELEASE_GATE_WALLET_KEY?.trim();
   if (!url.startsWith("https://")) throw new GateConfigError("RELEASE_GATE_WASM_URL must be https");
   if (!sha || !/^[0-9a-f]{64}$/.test(sha)) throw new GateConfigError("release gate configured without RELEASE_GATE_WASM_SHA256");
-  if (!key) throw new GateConfigError("release gate configured without RELEASE_GATE_WALLET_KEY");
+  // Signed by Evernear's NEAR testnet account with its own key, when set (Luca, Nov 6).
+  const nearAccount = env.RELEASE_GATE_NEAR_ACCOUNT?.trim(), nearKey = env.RELEASE_GATE_NEAR_KEY?.trim();
+  if (nearAccount || nearKey) {
+    if (!nearAccount || !nearKey) throw new GateConfigError("release gate needs both RELEASE_GATE_NEAR_ACCOUNT and RELEASE_GATE_NEAR_KEY");
+    if (!nearAccount.endsWith(".testnet")) throw new GateConfigError("release gate runs on testnet only");
+    return new NearKeyReleaseGate({ fetch, account: nearAccount, key: nearKey, wasmUrl: url, wasmSha256: sha });
+  }
+  if (!key) throw new GateConfigError("release gate configured without RELEASE_GATE_NEAR_ACCOUNT and RELEASE_GATE_NEAR_KEY, or RELEASE_GATE_WALLET_KEY");
   return new OutlayerReleaseGate({ fetch, walletKey: key, wasmUrl: url, wasmSha256: sha, depositYocto: env.RELEASE_GATE_DEPOSIT_YOCTO?.trim() || undefined });
 }
 

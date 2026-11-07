@@ -202,6 +202,21 @@ export class EscrowAdapter {
     return { agentId, account, grantHash: hash, grantId, releasePath: "server" };
   }
 
+  /**
+   * Before a live run: how many order wallets the key has left, and whether Astro's treasury already
+   * holds enough test USDC (Base USDC, plus NEAR USDC it can swap) to commit `cents`. The faucet is not
+   * counted: it drips once an hour per agent, so a run must not depend on it.
+   */
+  async preflight(i: { cents: number }): Promise<{ walletsLeft: number | null; walletLimit: number | null; treasuryUnits: string; needUnits: string; covered: boolean }> {
+    const room = await this.room();
+    const t = this.treasuryId();
+    const base = await this.client.balance(t, BASE_USDC), near = await this.client.balance(t, NEAR_USDC);
+    const commit = testnetUnits(i.cents);
+    // Base USDC alone, or Base plus NEAR USDC to swap (the swap keeps a little back for its fee).
+    const covered = base >= commit || base + near >= commit + SWAP_HEADROOM;
+    return { walletsLeft: room ? Math.max(0, room.limit - room.used) : null, walletLimit: room?.limit ?? null, treasuryUnits: String(base + near), needUnits: String(commit), covered };
+  }
+
   /** Makes sure the treasury holds enough Base USDC: a faucet drip if NEAR USDC is short, then a swap. */
   async fund(i: { cents: number }): Promise<{ ok: boolean; reason?: string }> {
     const need = testnetUnits(i.cents);
@@ -250,8 +265,9 @@ export class EscrowAdapter {
     const signals = (Object.keys(i.evidence) as SignalId[]).filter((s) => evidenceId(i.evidence[s]));
     const counted = i.evidence.dock_count?.count;
     const receivedQty = typeof counted === "number" ? counted : undefined;
-    await this.recordSignals(i.po, i.stage, i.evidence);
     const rule = releaseStage(i.escrow, { stage: i.stage, to: i.to, signals, unitCents: i.unitCents, receivedQty, nowMs: i.nowMs });
+    // A wrong address is refused on the address alone: the stage's signals are not read again for it.
+    if (rule.ok || rule.reason !== "address_not_allowed") await this.recordSignals(i.po, i.stage, i.evidence);
     if (!rule.ok) {
       const why = rule.reason === "missing_signal" ? `missing ${rule.missing!.join(", ")}` : rule.reason;
       await this.o.sink({

@@ -17,9 +17,29 @@ export const LIVE_DEADLINE_MS = 30 * 60_000;
 export const LIVE_RUNS_PER_HOUR = 6;
 const HAOYUN = suppliers.find((s) => s.id === "haoyun")!.receiveAddress;
 const OFF_LIST = "0x000000000000000000000000000000000000dead";
-const ORDER = ["commit", "advance", "refuse", "pay", "reclaim"] as const;
+/** The story's order: the balance is paid at the dock (chapter 7), the wrong-address attempt comes in Paid (chapter 8). */
+const ORDER = ["commit", "advance", "pay", "refuse", "reclaim"] as const;
 /** The unit price each scenario commits at, fixed here: the happy path at Haoyun's $1,260, the adjusted one at $1,320. */
 const UNIT_CENTS = { happy: PO.revisedUnitCents, adjusted: PO.confirmedUnitCents } as const;
+
+/**
+ * Before a live run, for the page: order wallets left on the Tidepool key and whether Astro's treasury
+ * covers the commit. `ok` is false, with a plain message, when no wallet is left or the money is short.
+ */
+export const preflight = action({
+  args: { scenario: v.optional(v.union(v.literal("happy"), v.literal("adjusted"))) },
+  handler: async (ctx, { scenario }): Promise<{ ok: boolean; walletsLeft: number | null; walletLimit: number | null; treasuryUsd: number; needUsd: number; message: string }> => {
+    if (process.env.LIVE_ENABLED !== "1") return { ok: false, walletsLeft: null, walletLimit: null, treasuryUsd: 0, needUsd: 0, message: "Live mode is off on this deployment." };
+    const cents = UNIT_CENTS[scenario ?? "happy"] * PO.quantity;
+    const p = await ctx.runAction(internal.near.deadline.preflight, { cents });
+    const usd = (units: string) => Number(BigInt(units) / 10_000n) / 100;
+    const treasuryUsd = usd(p.treasuryUnits), needUsd = usd(p.needUnits);
+    const base = { walletsLeft: p.walletsLeft, walletLimit: p.walletLimit, treasuryUsd, needUsd };
+    if (p.walletsLeft === 0) return { ok: false, ...base, message: "No order wallets left on this Tidepool key (all " + p.walletLimit + " used). A new key is needed before a live run." };
+    if (!p.covered) return { ok: false, ...base, message: "Astro's treasury holds $" + treasuryUsd.toFixed(2) + " test USDC; a live order needs $" + needUsd.toFixed(2) + ". Top it up from the faucet first." };
+    return { ok: true, ...base, message: (p.walletsLeft ?? "An unknown number of") + " order wallets left on this key; the treasury covers the $" + needUsd.toFixed(2) + " commit." };
+  },
+});
 
 /** Starts a run, or refuses while another is open or the hourly limit is reached. */
 export const start = mutation({
@@ -81,7 +101,8 @@ export const runStep = action({
         // Both layers, live: the engine refuses the off-list address in code, then the account refuses the same withdraw sent straight to it.
         const escrow = await ctx.runQuery(internal.near.escrowState.get, { escrowId });
         if (!escrow) throw new Error("no escrow");
-        const due = PO.receivedQty * (escrow.lockedCents / PO.quantity) - escrow.releasedCents;
+        // After the balance, what is left is the held part: the wrong address tries to take that.
+        const due = Math.max(1, escrow.lockedCents - escrow.releasedCents - escrow.reclaimedCents);
         await ctx.runAction(internal.near.deadline.releaseStage, { runId, escrowId, stage: "balance", to: OFF_LIST, dockCount: PO.receivedQty });
         const r = await ctx.runAction(internal.near.deadline.policyRefusal, { runId, escrowId, to: OFF_LIST, cents: due });
         if (!r.refused) throw new Error("the PO account paid an off-list address");

@@ -2,7 +2,7 @@
 
 Evernear is an agent that sources a scarce part, checks it fits, negotiates, commits the money and pays the supplier only for what arrived, on NEAR. The buyer's money stays in the buyer's own wallet the whole time; Evernear never holds funds.
 
-> **Status, Nov 5 2026.** Every NEAR call runs on testnet. The per-PO escrow and the payout run on [Tidepool](#tidepool), a community-run testnet of the NEAR Intents Agent API, at 1:1,000 of the story amounts; they have run live once through Convex (`docs/NOTES.md` section 14). Every proof on screen today is a synthetic placeholder from [`fixtures/synthetic/`](fixtures/synthetic/proofs.json), labelled "synthetic" in the UI ([test](components/__tests__/workspace.test.tsx)). Real recordings replace them before submission.
+> **Status, Nov 6 2026.** Every NEAR call runs on testnet. The per-PO escrow and the payout run on [Tidepool](#tidepool), a community-run testnet of the NEAR Intents Agent API, at 1:1,000 of the story amounts. The money steps are real: a full order ran live through the release gate in OutLayer's enclave on Nov 6, and the happy path replays that run from [`fixtures/recorded/live-run.json`](fixtures/recorded/live-run.json) (read from the Convex proofs table) with its real hashes and explorer buttons. Still synthetic, and labelled so: the steps before the money (Astro's wallet and rules, the routine reorder, private inference, the Gmail counter offer, the approvals), the attested dock check (its worker is not deployed), the bad paths, and the shipment signals, which come from a simulated tracking feed in live runs too.
 
 ## Run it
 
@@ -123,6 +123,22 @@ Everstock's production engine is private. Evernear ships a deliberately plain re
 The per-PO escrow and the payout use the official [`@near-intents-agent-api/sdk`](https://github.com/NEAR-Intents-Agent-API/skills) against [Tidepool](https://www.usetidepool.tech), a community-run testnet of the NEAR Intents Agent API and 1Click. **Tidepool is not affiliated with NEAR.** It runs NEAR's Intents verifier on testnet, and its tokens have no value. The base URL comes from `AGENT_API_BASE_URL` ([agentapi.ts](convex/near/agentapi.ts)), so mainnet is a base URL switch; it is refused without Luca's explicit yes ([test](tests/near/agentapi.test.ts) "agentApiBase"). No real assets are sent to Tidepool.
 
 The faucet drips 100 test USDC an hour, so the demo runs at 1:1,000: $63.00 committed, $18.90 advance, $36.54 balance, $7.56 back. The screen keeps the story amounts and labels the scale ([RulesPanel.tsx](components/workspace/panels/RulesPanel.tsx), [test](components/__tests__/design.test.tsx) "commitment at 1:1,000").
+
+## The developer drawer as a transaction log
+
+Record in Present mode with Live on and the drawer open: every real call appears in the drawer's Steps the moment it lands, in story order, with the time it ran, the story day (3 Nov commit, 5 Nov advance, 11 Nov balance, 11 Dec return) and the chapter. The commit, the advance, the refused wrong-address payment, the balance, the return to Astro and the wallet closing are all there, and each release gate run has its own entry before the payout it sent. Clicking an older entry opens its proof; "Follow the latest" goes back. The history stays for the whole run. Under each entry's title:
+
+| Entry | Under the title |
+| --- | --- |
+| A payout on Base Sepolia | **View on Basescan** (sepolia.basescan.org/tx/...), with "Base Sepolia" and the short hash |
+| A NEAR testnet transaction: a release gate run, the commit, the treasury swap, the return to Astro | **View on NearBlocks** (testnet.nearblocks.io/txns/...), with "NEAR testnet" and the short hash |
+| A payout whose hash is not known yet | **Confirming**, not a link, until the hash lands |
+| A Tidepool step with no public chain (account policy, grants, freeze, wallet closed) | "Tidepool testnet, no public explorer" |
+| The refused wrong-address payment | "Refused, nothing sent" |
+| A shipment signal | "Simulated feed, no transaction" |
+| A synthetic placeholder | "Synthetic placeholder, nothing sent", never a button |
+
+Buttons open in a new tab, so the demo keeps its place, and are decided from the hash alone: there is never a link without a real transaction hash ([liveLog.ts](scenario/liveLog.ts), [tests](scenario/__tests__/liveLog.test.ts), [component test](components/__tests__/explorer.test.tsx)). Before a live run starts, the rail shows how many order wallets are left on the Tidepool key and whether Astro's treasury covers the commit, and refuses to start with a plain message when either is short ([live.ts](convex/live.ts) `preflight`). Hiding the demo rail keeps Live on; the right arrow and the `/present` remote still play the next step. Without Live, the happy path replays the recorded run ([record-live-run.mjs](scripts/record-live-run.mjs)), so the same history and buttons show without spending an order wallet.
 
 ## Two-stage escrow
 

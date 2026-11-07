@@ -1,0 +1,732 @@
+{
+  "_note": "A real live run on Tidepool testnet through the release gate, read from the Convex proofs table. Replayed by the drawer as its history; nothing here was typed by hand.",
+  "runId": "jn758qn2qd645qnmvxj4h88e1h8hshee",
+  "deployment": "cheerful-rabbit-364",
+  "releasePath": "gate",
+  "startedAt": 1794014444871,
+  "done": [
+    "commit",
+    "advance",
+    "refuse",
+    "pay",
+    "reclaim"
+  ],
+  "rows": [
+    {
+      "_id": "k970hsjtrf7m7bef3pkz9b4mjd8hrye1",
+      "at": 1794014462849,
+      "kind": "policy",
+      "label": "PO 1042 account: pays only the supplier or Astro, at most $63.00 (1:1,000 of $63,000.00)",
+      "call": "POST /v1/submit-intent agent_create",
+      "codePath": "convex/near/escrow.ts#open",
+      "network": "testnet",
+      "hash": "intent_d928c19645dd2164be722dab",
+      "explorerUrl": null,
+      "response": {
+        "details": {
+          "agent_id": "agent_9ab195d10797557d177ca925",
+          "policy_hash": "c16de38e38bdefb68bad0f7118bf687e39fc01899c44e453207573e4103167aa",
+          "revision": 1,
+          "transaction_hash": null
+        },
+        "failure_code": null,
+        "status": "SUCCESS",
+        "type": "agent_create"
+      },
+      "scene": 6
+    },
+    {
+      "_id": "k9798pa1mwp1vmmwkx8k6y9dnh8hrnnn",
+      "at": 1794014462893,
+      "kind": "enclave",
+      "label": "Release gate enrolled for PO 1042: the grant token was derived in OutLayer's enclave and only its hash left it",
+      "call": "outlayer run --wasm (request_execution on outlayer.testnet, signed by evernear-luca.testnet)",
+      "codePath": "convex/near/escrow.ts#enroll",
+      "network": "testnet",
+      "hash": "D7u85U3bUT8qy9JKMdoVnzTC992wp5qUE8j7aAZsqxjT",
+      "explorerUrl": null,
+      "response": {
+        "agent_id": "agent_9ab195d10797557d177ca925",
+        "grant_hash": "4dba4175207ab5c57474ceec805e00de34e1485af0cb8aa8ea92ab9c9bfdd165",
+        "mode": "enroll",
+        "public_key": "bb9fc757702e5765b38c7b65d6bbd6daec00d6ae08c1f7010af8a9858f798f2b",
+        "request_id": null,
+        "wasm_sha256": "04f6d241fc0514dc9a2199c5d9a3f945d33f63e2304900792632485dbc261979",
+        "wasm_url": "https://test.fastfs.io/evernear-luca.testnet/outlayer.testnet/04f6d241fc0514dc9a2199c5d9a3f945d33f63e2304900792632485dbc261979.wasm"
+      },
+      "scene": 6
+    },
+    {
+      "_id": "k97e25wmghxsk4sb7qm7wa894n8hrc91",
+      "at": 1794014462923,
+      "kind": "policy",
+      "label": "Grant issued to the release gate for PO 1042: only its enclave can derive the token",
+      "call": "POST /v1/submit-intent grant_issue",
+      "codePath": "convex/near/escrow.ts#grant",
+      "network": "testnet",
+      "hash": "intent_5cc0c0de1957ba19dbe2aca6",
+      "explorerUrl": null,
+      "response": {
+        "details": {
+          "grant": {
+            "credential": "4dba4175207ab5c57474ceec805e00de34e1485af0cb8aa8ea92ab9c9bfdd165",
+            "expires_at": "2027-02-05T01:21:02.366Z",
+            "grant_id": "grant_f2033585fb02b56a391252cc",
+            "issued_at": "2026-11-07T01:21:02.595Z",
+            "label": "release gate PO 1042",
+            "owner_epoch": 0,
+            "owner_message": {
+              "credential": "4dba4175207ab5c57474ceec805e00de34e1485af0cb8aa8ea92ab9c9bfdd165",
+              "domain": "tidepool-agent-api.agent-grant.v1",
+              "expires_at_ms": 1801790462366,
+              "issued_at_ms": 1794014462595,
+              "network": "testnet",
+              "nonce": "grant_f2033585fb02b56a391252cc",
+              "owner": {
+                "account_id": "e6c1d43a7d90094dbeabf630c06687f0b1c24cea68830ae4123c3b5df014616b",
+                "public_key": "ed25519:GXnCF7cFoERECLCkvKzUfk8xeZjtkuNhvwAkQ18ZNNdg",
+                "type": "near"
+              },
+              "owner_epoch": 0,
+              "recipient": "tidepool-agent-api",
+              "tenant_id": "8909ee40bd86459bf6a929d2",
+              "wallet_id": "agent_9ab195d10797557d177ca925"
+            },
+            "revoked_at": null,
+            "revoked_reason": null,
+            "wallet_id": "agent_9ab195d10797557d177ca925"
+          }
+        },
+        "failure_code": null,
+        "status": "SUCCESS",
+        "type": "grant_issue"
+      },
+      "scene": 6
+    },
+    {
+      "_id": "k97f2sjfdfm4sg23qsdq90kgb58hrx84",
+      "at": 1794014468199,
+      "kind": "swap",
+      "label": "Treasury swapped test USDC into Base Sepolia USDC",
+      "call": "POST /v1/agents/{id}/swap",
+      "codePath": "convex/near/escrow.ts#fund",
+      "network": "testnet",
+      "hash": "8JLEFyqqrgoPuWx3VxUYWeMVBfFxu6sQFP4mGgVfHRaf",
+      "explorerUrl": "https://testnet.nearblocks.io/txns/8JLEFyqqrgoPuWx3VxUYWeMVBfFxu6sQFP4mGgVfHRaf",
+      "response": {
+        "details": {
+          "action": "swap",
+          "amount_out": "62999620",
+          "deposit_address": null,
+          "destination_tx_hash": "8JLEFyqqrgoPuWx3VxUYWeMVBfFxu6sQFP4mGgVfHRaf",
+          "expected_amount_out": "62999620",
+          "expires_at": null,
+          "failure_reason": null,
+          "intent_hash": "35sKA63fVFo1MiVmCaHYbA9cefot19gLaYpuhuYWXcRu",
+          "memo": null,
+          "min_amount": null,
+          "near_account_id": "1e8dd17b4671e0cf935248a5ea38b4094703efdad7d16bb1db6b4c5e770e2df3",
+          "provider_status": "SUCCESS",
+          "refund_to": null,
+          "request": {
+            "amount": "63005921",
+            "asset": "nep141:usdc.tidepool-sandbox.testnet",
+            "chain": "near",
+            "confidential": false,
+            "destination_asset": "nep141:base-0x38d81431b9f76d9699af7517040d5221d9dea252.tp-omft.testnet",
+            "memo": null,
+            "min_amount_out": null,
+            "origin_asset": "nep141:usdc.tidepool-sandbox.testnet",
+            "recipient": null
+          },
+          "tx_hash": "8JLEFyqqrgoPuWx3VxUYWeMVBfFxu6sQFP4mGgVfHRaf"
+        },
+        "failure_code": null,
+        "request": {
+          "amount": "63005921",
+          "destination_asset": "nep141:base-0x38d81431b9f76d9699af7517040d5221d9dea252.tp-omft.testnet",
+          "origin_asset": "nep141:usdc.tidepool-sandbox.testnet"
+        },
+        "status": "SUCCESS"
+      },
+      "scene": 6
+    },
+    {
+      "_id": "k971a0g5gf3gtdzxfykadfa1ks8hrrzy",
+      "at": 1794014468234,
+      "kind": "escrow",
+      "label": "Committed for PO 1042: $63.00 (1:1,000 of $63,000.00)",
+      "call": "POST /v1/agents/{id}/transfer",
+      "codePath": "convex/near/escrow.ts#lock",
+      "network": "testnet",
+      "hash": "366nhBeJvx6Ch7kpx2ZR8ZchQvBDrxVhtPFe8J62ynC1",
+      "explorerUrl": "https://testnet.nearblocks.io/txns/366nhBeJvx6Ch7kpx2ZR8ZchQvBDrxVhtPFe8J62ynC1",
+      "response": {
+        "details": {
+          "action": "transfer",
+          "amount_out": null,
+          "deposit_address": null,
+          "destination_tx_hash": "366nhBeJvx6Ch7kpx2ZR8ZchQvBDrxVhtPFe8J62ynC1",
+          "expected_amount_out": null,
+          "expires_at": null,
+          "failure_reason": null,
+          "intent_hash": "F7Qeod5BP7c1mV27zgsvVjsfetKGUNimCEPFVGqEpGGb",
+          "memo": null,
+          "min_amount": null,
+          "near_account_id": "1e8dd17b4671e0cf935248a5ea38b4094703efdad7d16bb1db6b4c5e770e2df3",
+          "provider_status": "SUCCESS",
+          "refund_to": null,
+          "request": {
+            "amount": "63000000",
+            "asset": "nep141:base-0x38d81431b9f76d9699af7517040d5221d9dea252.tp-omft.testnet",
+            "chain": "near",
+            "confidential": false,
+            "destination_asset": null,
+            "memo": null,
+            "min_amount_out": null,
+            "origin_asset": null,
+            "recipient": "a93551f550a56e968c8b397622b429e9274e349635411c33721ac0cf7204455a"
+          },
+          "tx_hash": "366nhBeJvx6Ch7kpx2ZR8ZchQvBDrxVhtPFe8J62ynC1"
+        },
+        "failure_code": null,
+        "request": {
+          "amount": "63000000",
+          "asset": "nep141:base-0x38d81431b9f76d9699af7517040d5221d9dea252.tp-omft.testnet",
+          "recipient": "a93551f550a56e968c8b397622b429e9274e349635411c33721ac0cf7204455a"
+        },
+        "status": "SUCCESS"
+      },
+      "scene": 6
+    },
+    {
+      "_id": "k977e9q41c9j06871xkgs076p58hskda",
+      "at": 1794014483784,
+      "kind": "signal",
+      "label": "Signal: bill of lading issued for PO 1042 (simulated feed)",
+      "call": "tracking.events (simulated carrier and customs feed)",
+      "codePath": "scenarios/tracking.ts#signal",
+      "network": "offchain",
+      "hash": "sim-bol",
+      "explorerUrl": null,
+      "response": {
+        "at": "2026-11-05T13:40:00Z",
+        "event": "bill_of_lading",
+        "id": "sim-bol",
+        "po": "1042",
+        "ref": "AWB 784-SIMULATED",
+        "source": "simulated"
+      },
+      "scene": 8
+    },
+    {
+      "_id": "k979wyh9rc74cxxd8zq0gewtz98hsqdq",
+      "at": 1794014483836,
+      "kind": "signal",
+      "label": "Signal: export cleared for PO 1042 (simulated feed)",
+      "call": "tracking.events (simulated carrier and customs feed)",
+      "codePath": "scenarios/tracking.ts#signal",
+      "network": "offchain",
+      "hash": "sim-export",
+      "explorerUrl": null,
+      "response": {
+        "at": "2026-11-05T20:15:00Z",
+        "event": "export_cleared",
+        "id": "sim-export",
+        "po": "1042",
+        "ref": "CN export entry, simulated",
+        "source": "simulated"
+      },
+      "scene": 8
+    },
+    {
+      "_id": "k97c384zhszy2tq5s9tkvzt4pd8hr17x",
+      "at": 1794014483856,
+      "kind": "payout",
+      "label": "Advance paid to Haoyun on Base Sepolia for PO 1042: $18.90 (1:1,000 of $18,900.00). Sent by the release gate in OutLayer's enclave; Evernear's server holds no grant that can pay",
+      "call": "outlayer run --wasm (request_execution on outlayer.testnet, signed by evernear-luca.testnet), then POST /v1/agents/{id}/withdraw from the enclave",
+      "codePath": "convex/near/escrow.ts#release",
+      "network": "testnet",
+      "hash": "0x5d8dab61c8c5cffd8339041ec581d8b23faffc3fc1f291a914e170511935973b",
+      "explorerUrl": "https://sepolia.basescan.org/tx/0x5d8dab61c8c5cffd8339041ec581d8b23faffc3fc1f291a914e170511935973b",
+      "response": {
+        "details": {
+          "action": "withdraw",
+          "amount_out": null,
+          "deposit_address": null,
+          "destination_chain": "base",
+          "destination_tx_hash": "0x5d8dab61c8c5cffd8339041ec581d8b23faffc3fc1f291a914e170511935973b",
+          "destination_tx_url": "https://sepolia.basescan.org/tx/0x5d8dab61c8c5cffd8339041ec581d8b23faffc3fc1f291a914e170511935973b",
+          "expected_amount_out": null,
+          "expires_at": null,
+          "failure_reason": null,
+          "intent_hash": "D7nZ3CFzDtATJL4VtA6EhJPbp4DZKdqgATy5qTXrbgNV",
+          "memo": null,
+          "min_amount": null,
+          "near_account_id": "a93551f550a56e968c8b397622b429e9274e349635411c33721ac0cf7204455a",
+          "provider_status": "SUCCESS",
+          "refund_to": null,
+          "request": {
+            "amount": "18900000",
+            "asset": "nep141:base-0x38d81431b9f76d9699af7517040d5221d9dea252.tp-omft.testnet",
+            "chain": "base",
+            "confidential": false,
+            "destination_asset": null,
+            "memo": null,
+            "min_amount_out": null,
+            "origin_asset": null,
+            "recipient": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0"
+          },
+          "tx_hash": "6qWRaBGAHNsk5N85HFxAoQHqPt7ok1rtpTza3fqj6nDr"
+        },
+        "failure_code": null,
+        "gate": {
+          "agent_id": "agent_9ab195d10797557d177ca925",
+          "amount_cents": 1890000,
+          "evidence_sha256": "06ccf20a762a5d71ebc45437389ad969a8cc7142e9813884f27b1e991c1d1e46",
+          "held_cents": 4410000,
+          "ok": true,
+          "po": "1042",
+          "public_key": "bb9fc757702e5765b38c7b65d6bbd6daec00d6ae08c1f7010af8a9858f798f2b",
+          "signals": [
+            "sim-bol",
+            "sim-export"
+          ],
+          "signature": "af819e93e7997cabccb250b253012c7a3cf0d8ae65911f68784a9cdd4d15a72e09eeb08e900d834604314d204d90d191559268ea5bce4f268532a47b09da2c0f",
+          "stage": "advance",
+          "to": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+          "tx": {
+            "correlation_id": "exec_f8be0e9360d787bdb390a9ac",
+            "http_status": 202,
+            "status": "PROCESSING"
+          }
+        },
+        "gate_tx": "3fQzuEroAQyrmeMhBbpirQ97JH7ML2DCNVmMxX7T6XLV",
+        "held_cents": 4410000,
+        "released_by": "gate",
+        "request": {
+          "amount": "18900000",
+          "asset": "nep141:base-0x38d81431b9f76d9699af7517040d5221d9dea252.tp-omft.testnet",
+          "chain": "base",
+          "recipient": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0"
+        },
+        "sent_by": "Sent by the release gate in OutLayer's enclave; Evernear's server holds no grant that can pay",
+        "signals": [
+          "bill_of_lading",
+          "export_cleared"
+        ],
+        "stage": "advance",
+        "status": "SUCCESS"
+      },
+      "scene": 8
+    },
+    {
+      "_id": "k977n0grrqezf4y1wf3djj0bn98hsnfs",
+      "at": 1794014494007,
+      "kind": "signal",
+      "label": "Signal: import customs cleared for PO 1042 (simulated feed)",
+      "call": "tracking.events (simulated carrier and customs feed)",
+      "codePath": "scenarios/tracking.ts#signal",
+      "network": "offchain",
+      "hash": "sim-import",
+      "explorerUrl": null,
+      "response": {
+        "at": "2026-11-11T06:50:00Z",
+        "event": "import_cleared",
+        "id": "sim-import",
+        "po": "1042",
+        "ref": "US CBP entry, simulated",
+        "source": "simulated"
+      },
+      "scene": 8
+    },
+    {
+      "_id": "k976nsb7pf6enj6aq9wsvhx75s8hrwq2",
+      "at": 1794014494101,
+      "kind": "signal",
+      "label": "Signal: dock count attested for PO 1042 (simulated feed)",
+      "call": "dock check count",
+      "codePath": "scenarios/tracking.ts#signal",
+      "network": "offchain",
+      "hash": "dock-1042",
+      "explorerUrl": null,
+      "response": {
+        "at": "2026-11-07T01:21:33.990Z",
+        "count": 44,
+        "event": "dock_count",
+        "id": "dock-1042",
+        "po": "1042",
+        "source": "simulated"
+      },
+      "scene": 8
+    },
+    {
+      "_id": "k97ene3z7ynrm261sny4xyrg1d8hrr20",
+      "at": 1794014494177,
+      "kind": "refusal",
+      "label": "Balance refused before any call: address_not_allowed",
+      "call": "engine/escrow.ts releaseStage",
+      "codePath": "convex/near/escrow.ts#release",
+      "network": "testnet",
+      "hash": "none",
+      "explorerUrl": null,
+      "response": {
+        "missing": [],
+        "reason": "address_not_allowed",
+        "stage": "balance",
+        "status": "refused",
+        "to": "0x000000000000000000000000000000000000dead"
+      },
+      "scene": 8
+    },
+    {
+      "_id": "k97eetbyfnyq601tdwm68bw6c98hsq3w",
+      "at": 1794014494640,
+      "kind": "refusal",
+      "label": "PO 1042 account refused a withdraw to 0x000000000000000000000000000000000000dead from Evernear's server, which holds no grant on it: refused",
+      "call": "POST /v1/agents/{id}/withdraw",
+      "codePath": "convex/near/escrow.ts#policyRefusal",
+      "network": "testnet",
+      "hash": "none",
+      "explorerUrl": null,
+      "response": {
+        "code": "grant_invalid",
+        "layer": "grant",
+        "request": {
+          "amount": "36540000",
+          "asset": "nep141:base-0x38d81431b9f76d9699af7517040d5221d9dea252.tp-omft.testnet",
+          "chain": "base",
+          "recipient": "0x000000000000000000000000000000000000dead"
+        },
+        "sent_by": "Evernear's server, without a grant",
+        "status": 403
+      },
+      "scene": 8
+    },
+    {
+      "_id": "k97e68t9p2tyaf27fznhz5dhf18hse29",
+      "at": 1794014509839,
+      "kind": "signal",
+      "label": "Signal: import customs cleared for PO 1042 (simulated feed)",
+      "call": "tracking.events (simulated carrier and customs feed)",
+      "codePath": "scenarios/tracking.ts#signal",
+      "network": "offchain",
+      "hash": "sim-import",
+      "explorerUrl": null,
+      "response": {
+        "at": "2026-11-11T06:50:00Z",
+        "event": "import_cleared",
+        "id": "sim-import",
+        "po": "1042",
+        "ref": "US CBP entry, simulated",
+        "source": "simulated"
+      },
+      "scene": 8
+    },
+    {
+      "_id": "k97cbsmr0tbg1f6frvyacadvwh8hsw1r",
+      "at": 1794014509883,
+      "kind": "signal",
+      "label": "Signal: dock count attested for PO 1042 (simulated feed)",
+      "call": "dock check count",
+      "codePath": "scenarios/tracking.ts#signal",
+      "network": "offchain",
+      "hash": "dock-1042",
+      "explorerUrl": null,
+      "response": {
+        "at": "2026-11-07T01:21:35.719Z",
+        "count": 44,
+        "event": "dock_count",
+        "id": "dock-1042",
+        "po": "1042",
+        "source": "simulated"
+      },
+      "scene": 8
+    },
+    {
+      "_id": "k97faqagd1z5g06ry800gk8wrx8hrdvs",
+      "at": 1794014509908,
+      "kind": "payout",
+      "label": "Balance paid to Haoyun on Base Sepolia for PO 1042: $36.54 (1:1,000 of $36,540.00). Sent by the release gate in OutLayer's enclave; Evernear's server holds no grant that can pay",
+      "call": "outlayer run --wasm (request_execution on outlayer.testnet, signed by evernear-luca.testnet), then POST /v1/agents/{id}/withdraw from the enclave",
+      "codePath": "convex/near/escrow.ts#release",
+      "network": "testnet",
+      "hash": "0x0fcba0506d7873c2fa9065d74309f703d349df3beb37c299c63a8e8536cd6045",
+      "explorerUrl": "https://sepolia.basescan.org/tx/0x0fcba0506d7873c2fa9065d74309f703d349df3beb37c299c63a8e8536cd6045",
+      "response": {
+        "details": {
+          "action": "withdraw",
+          "amount_out": null,
+          "deposit_address": null,
+          "destination_chain": "base",
+          "destination_tx_hash": "0x0fcba0506d7873c2fa9065d74309f703d349df3beb37c299c63a8e8536cd6045",
+          "destination_tx_url": "https://sepolia.basescan.org/tx/0x0fcba0506d7873c2fa9065d74309f703d349df3beb37c299c63a8e8536cd6045",
+          "expected_amount_out": null,
+          "expires_at": null,
+          "failure_reason": null,
+          "intent_hash": "DCRPvmSZWET415pBozmbpngDFWvKeytTc1RJKALP2GxH",
+          "memo": null,
+          "min_amount": null,
+          "near_account_id": "a93551f550a56e968c8b397622b429e9274e349635411c33721ac0cf7204455a",
+          "provider_status": "SUCCESS",
+          "refund_to": null,
+          "request": {
+            "amount": "36540000",
+            "asset": "nep141:base-0x38d81431b9f76d9699af7517040d5221d9dea252.tp-omft.testnet",
+            "chain": "base",
+            "confidential": false,
+            "destination_asset": null,
+            "memo": null,
+            "min_amount_out": null,
+            "origin_asset": null,
+            "recipient": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0"
+          },
+          "tx_hash": "GJotyDGtSZbTBpyKTKREXgYLJ7u5H2BkDHmVf5zfCWis"
+        },
+        "failure_code": null,
+        "gate": {
+          "agent_id": "agent_9ab195d10797557d177ca925",
+          "amount_cents": 3654000,
+          "evidence_sha256": "a8da6ebeef388c3a1e239de7cfca9a26dacd4371f737dab3c7a595d6cefab5e3",
+          "held_cents": 756000,
+          "ok": true,
+          "po": "1042",
+          "public_key": "bb9fc757702e5765b38c7b65d6bbd6daec00d6ae08c1f7010af8a9858f798f2b",
+          "signals": [
+            "sim-import",
+            "dock-1042"
+          ],
+          "signature": "dd496be3b6002ceeba5de2168135b45b49d6a7200838d39a0c79a056b96b1e05fb1b752a964c35fcd3e1b3ff4be9b017033a2a091dde2d8d1ee7d95fbf15cc02",
+          "stage": "balance",
+          "to": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+          "tx": {
+            "correlation_id": "exec_73148342b443daaf7c8a68ba",
+            "http_status": 202,
+            "status": "PROCESSING"
+          }
+        },
+        "gate_tx": "9d8vrp3xstjBjcbpMmoMtnhwT73v8nHj5Wyo8m12AHTm",
+        "held_cents": 756000,
+        "released_by": "gate",
+        "request": {
+          "amount": "36540000",
+          "asset": "nep141:base-0x38d81431b9f76d9699af7517040d5221d9dea252.tp-omft.testnet",
+          "chain": "base",
+          "recipient": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0"
+        },
+        "sent_by": "Sent by the release gate in OutLayer's enclave; Evernear's server holds no grant that can pay",
+        "signals": [
+          "import_cleared",
+          "dock_count"
+        ],
+        "stage": "balance",
+        "status": "SUCCESS"
+      },
+      "scene": 8
+    },
+    {
+      "_id": "k97esexg211xyfst70jgfrwk7n8hrvkx",
+      "at": 1794014514166,
+      "kind": "policy",
+      "label": "PO 1042 account may now pay only Astro: the supplier's destination removed before the held part moves",
+      "call": "POST /v1/submit-intent policy_update",
+      "codePath": "convex/near/escrow.ts#ownerOnly",
+      "network": "testnet",
+      "hash": "intent_47d74e68eaf99aceb75de7f7",
+      "explorerUrl": null,
+      "response": {
+        "details": {
+          "policy_hash": "fa3ac24f37f88943891f7c23467ada4337644a12f24762aa21ea14d4861e2e56",
+          "revision": 2,
+          "transaction_hash": null
+        },
+        "failure_code": null,
+        "status": "SUCCESS",
+        "type": "policy_update"
+      },
+      "scene": 8
+    },
+    {
+      "_id": "k973wpbrxn0r6ds36zdzkh28358hs7t8",
+      "at": 1794014514205,
+      "kind": "policy",
+      "label": "Grant issued to Evernear for PO 1042: it can only return money to Astro",
+      "call": "POST /v1/submit-intent grant_issue",
+      "codePath": "convex/near/escrow.ts#grant",
+      "network": "testnet",
+      "hash": "intent_9969e3f4e4c1899d9b7d1deb",
+      "explorerUrl": null,
+      "response": {
+        "details": {
+          "grant": {
+            "credential": "e78c26f8c0069466309da95001055f08277a4ea6db0ffb3221c0e7856b77f505",
+            "expires_at": "2027-02-05T01:21:51.445Z",
+            "grant_id": "grant_91f2f637e925263ace97bceb",
+            "issued_at": "2026-11-07T01:21:51.621Z",
+            "label": "owner-only PO 1042",
+            "owner_epoch": 0,
+            "owner_message": {
+              "credential": "e78c26f8c0069466309da95001055f08277a4ea6db0ffb3221c0e7856b77f505",
+              "domain": "tidepool-agent-api.agent-grant.v1",
+              "expires_at_ms": 1801790511445,
+              "issued_at_ms": 1794014511621,
+              "network": "testnet",
+              "nonce": "grant_91f2f637e925263ace97bceb",
+              "owner": {
+                "account_id": "e6c1d43a7d90094dbeabf630c06687f0b1c24cea68830ae4123c3b5df014616b",
+                "public_key": "ed25519:GXnCF7cFoERECLCkvKzUfk8xeZjtkuNhvwAkQ18ZNNdg",
+                "type": "near"
+              },
+              "owner_epoch": 0,
+              "recipient": "tidepool-agent-api",
+              "tenant_id": "8909ee40bd86459bf6a929d2",
+              "wallet_id": "agent_9ab195d10797557d177ca925"
+            },
+            "revoked_at": null,
+            "revoked_reason": null,
+            "wallet_id": "agent_9ab195d10797557d177ca925"
+          }
+        },
+        "failure_code": null,
+        "status": "SUCCESS",
+        "type": "grant_issue"
+      },
+      "scene": 8
+    },
+    {
+      "_id": "k97ak03cv3ra8fx4qsqzra55an8hs13j",
+      "at": 1794014514227,
+      "kind": "reclaim",
+      "label": "Held part returned to Astro for PO 1042: $7.56 (1:1,000 of $7,560.00)",
+      "call": "POST /v1/agents/{id}/transfer",
+      "codePath": "convex/near/escrow.ts#reclaim",
+      "network": "testnet",
+      "hash": "4rrfjsTZxqEf2dcrSVFVUYfqfKjZddS576jrZyuxvdEM",
+      "explorerUrl": "https://testnet.nearblocks.io/txns/4rrfjsTZxqEf2dcrSVFVUYfqfKjZddS576jrZyuxvdEM",
+      "response": {
+        "details": {
+          "action": "transfer",
+          "amount_out": null,
+          "deposit_address": null,
+          "destination_tx_hash": "4rrfjsTZxqEf2dcrSVFVUYfqfKjZddS576jrZyuxvdEM",
+          "expected_amount_out": null,
+          "expires_at": null,
+          "failure_reason": null,
+          "intent_hash": "GkobLNjFc8rNoQhfq4NatbLBq1akiASdgEQKZkVwuGpM",
+          "memo": null,
+          "min_amount": null,
+          "near_account_id": "a93551f550a56e968c8b397622b429e9274e349635411c33721ac0cf7204455a",
+          "provider_status": "SUCCESS",
+          "refund_to": null,
+          "request": {
+            "amount": "7560000",
+            "asset": "nep141:base-0x38d81431b9f76d9699af7517040d5221d9dea252.tp-omft.testnet",
+            "chain": "near",
+            "confidential": false,
+            "destination_asset": null,
+            "memo": null,
+            "min_amount_out": null,
+            "origin_asset": null,
+            "recipient": "1e8dd17b4671e0cf935248a5ea38b4094703efdad7d16bb1db6b4c5e770e2df3"
+          },
+          "tx_hash": "4rrfjsTZxqEf2dcrSVFVUYfqfKjZddS576jrZyuxvdEM"
+        },
+        "failure_code": null,
+        "request": {
+          "amount": "7560000",
+          "asset": "nep141:base-0x38d81431b9f76d9699af7517040d5221d9dea252.tp-omft.testnet",
+          "recipient": "1e8dd17b4671e0cf935248a5ea38b4094703efdad7d16bb1db6b4c5e770e2df3"
+        },
+        "status": "SUCCESS"
+      },
+      "scene": 8
+    },
+    {
+      "_id": "k97572j5nw5hn06gv96zajchjx8hra60",
+      "at": 1794014515491,
+      "kind": "policy",
+      "label": "A grant on the PO 1042 account revoked",
+      "call": "POST /v1/submit-intent grant_revoke",
+      "codePath": "convex/near/escrow.ts#close",
+      "network": "testnet",
+      "hash": "intent_aa68177ff63ed3a023441c8d",
+      "explorerUrl": null,
+      "response": {
+        "details": {
+          "committed_correlation_ids": [],
+          "committed_truncated": false,
+          "grant_id": "grant_91f2f637e925263ace97bceb"
+        },
+        "failure_code": null,
+        "status": "SUCCESS",
+        "type": "grant_revoke"
+      },
+      "scene": 8
+    },
+    {
+      "_id": "k970vryvr2mdj99qbb6rgbn83d8hrqcx",
+      "at": 1794014515515,
+      "kind": "policy",
+      "label": "A grant on the PO 1042 account revoked",
+      "call": "POST /v1/submit-intent grant_revoke",
+      "codePath": "convex/near/escrow.ts#close",
+      "network": "testnet",
+      "hash": "intent_54c0b4b4045161dc924bf508",
+      "explorerUrl": null,
+      "response": {
+        "details": {
+          "committed_correlation_ids": [],
+          "committed_truncated": false,
+          "grant_id": "grant_f2033585fb02b56a391252cc"
+        },
+        "failure_code": null,
+        "status": "SUCCESS",
+        "type": "grant_revoke"
+      },
+      "scene": 8
+    },
+    {
+      "_id": "k970gmbewbeqdye6v29g4v5px18hs1rr",
+      "at": 1794014515556,
+      "kind": "freeze",
+      "label": "PO 1042 account frozen for good",
+      "call": "POST /v1/submit-intent agent_freeze",
+      "codePath": "convex/near/escrow.ts#close",
+      "network": "testnet",
+      "hash": "intent_20a10fdc0b02ebae8b5cd80a",
+      "explorerUrl": null,
+      "response": {
+        "details": {
+          "policy_hash": "f850bb63ea0aecb2dd672eda09ac4b1bb7fa5d0e7aa1edf8b3faafdfc4720011",
+          "revision": 3,
+          "transaction_hash": null
+        },
+        "failure_code": null,
+        "status": "SUCCESS",
+        "type": "agent_freeze"
+      },
+      "scene": 8
+    },
+    {
+      "_id": "k979j8adfnnjqzpbethvzr5rq58hrre4",
+      "at": 1794014515581,
+      "kind": "wallet",
+      "label": "Wallet closed: PO 1042 frozen, grant revoked, kept as the order's receipt",
+      "call": "POST /v1/submit-intent grant_revoke, agent_freeze",
+      "codePath": "convex/near/escrow.ts#close",
+      "network": "testnet",
+      "hash": "intent_20a10fdc0b02ebae8b5cd80a",
+      "explorerUrl": null,
+      "response": {
+        "agent_id": "agent_9ab195d10797557d177ca925",
+        "balance": "0",
+        "frozen": true,
+        "grant": "revoked",
+        "grants_revoked": 2,
+        "lifecycle": "closed",
+        "reused": false
+      },
+      "scene": 8
+    }
+  ]
+}

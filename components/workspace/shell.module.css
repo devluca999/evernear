@@ -483,3 +483,17 @@ button.chip:hover { color: var(--text-primary); border-color: var(--line-focus);
 .protectGrid { display: grid; grid-template-columns: 1.1fr 1fr 1fr 1.15fr; gap: 6px 12px; font-size: 12.5px; align-items: baseline; }
 .protectGrid > span { min-width: 0; }
 .protectWin { color: var(--text-primary); font-weight: 500; }
+
+/* The drawer as a live transaction log: an explorer button under each entry's title. */
+.stepItem { display: flex; flex-direction: column; gap: 4px; padding-bottom: 6px; }
+.stepExplorer { padding-left: 34px; }
+.proofExplorer { padding: 2px 0 4px; }
+.exRow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.exBtn { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--bg-raised); color: var(--text-primary); font: inherit; font-size: 14px; font-weight: 500; text-decoration: none; white-space: nowrap; }
+.exBtn:hover { border-color: var(--text-muted); }
+.exBtn[data-state="confirming"] { color: var(--text-muted); border-style: dashed; cursor: default; }
+.exMeta { font-size: 14px; color: var(--text-secondary); white-space: nowrap; }
+.exText { font-size: 14px; color: var(--text-muted); }
+.spin { animation: spin 1.2s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spin { animation: none; } }

@@ -46,6 +46,12 @@ export interface Proof {
   atMs?: number;
   /** When a live step really ran, wall-clock ms (live mode). */
   wallMs?: number;
+  /** A real row: the scene proof it stands in for (escrow_wallet, intents_payout...). */
+  key?: string;
+  /** The story date the step happens on (3 Nov, 5 Nov, 11 Nov, 11 Dec). */
+  day?: string;
+  /** A money step under way whose transaction has not landed yet. */
+  pending?: boolean;
 }
 
 export type Event =

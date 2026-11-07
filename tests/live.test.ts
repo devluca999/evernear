@@ -12,7 +12,7 @@ import { fakeReleaseGate, GATE_PUBLIC_KEY, outlayerWithGate } from "./near/fakeR
 const modules = import.meta.glob("../convex/**/*.ts");
 const ENV = ["AGENT_API_KEY", "AGENT_API_BASE_URL", "AGENT_OWNER_ACCOUNT_ID", "AGENT_OWNER_PUBLIC_KEY", "AGENT_OWNER_PRIVATE_KEY_PKCS8", "AGENT_TREASURY_ID", "LIVE_ENABLED",
   "RELEASE_GATE_WASM_URL", "RELEASE_GATE_WASM_SHA256", "RELEASE_GATE_WALLET_KEY", "RELEASE_GATE_PUBLIC_KEY"];
-const STEPS = ["commit", "advance", "refuse", "pay", "reclaim"] as const;
+const STEPS = ["commit", "advance", "pay", "refuse", "reclaim"] as const; // the story's order: the balance at the dock, then the wrong address in Paid
 
 async function world(live = true, gate = false) {
   const tp = fakeTidepool();
@@ -37,7 +37,7 @@ beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(Date.UTC(2026, 10, 10, 9
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); for (const k of ENV) delete process.env[k]; });
 
 describe("live mode", () => {
-  it("runs commit, the advance, the refused withdraw, the balance and the reclaim, in order, with proofs under the run", async () => {
+  it("runs commit, the advance, the balance, the refused withdraw and the reclaim, in the story's order, with proofs under the run", async () => {
     const { t, tp } = await world();
     const { runId } = await t.mutation(api.live.start, {});
     expect(await t.action(api.live.runStep, { runId: runId!, step: "pay" })).toEqual({ ok: false, reason: "out_of_order" });

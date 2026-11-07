@@ -33,6 +33,8 @@ import { Camera, type CameraState } from "./Camera";
 import { openChannel, type RemoteCommand, type RemoteState } from "./presentChannel";
 import type { Focus } from "@/scenario/types";
 import { EXPLAINERS } from "@/scenario/explain";
+import { liveEntries, mergeHistory, pendingEntry, type LiveRow } from "@/scenario/liveLog";
+import recordedRun from "@/fixtures/recorded/live-run.json";
 import s from "./shell.module.css";
 
 const PANELS: Record<PanelId, (p: { st: WorkspaceState; pulse: boolean }) => React.ReactNode> = {
@@ -241,8 +243,20 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
     return () => window.removeEventListener("keydown", onKey);
   }, [t, viewer, TL, LIST, scenarioId]);
 
-  const lastProof = st.proofs.at(-1) ?? null;
-  const pinned = pinnedProof ? st.proofs.find((p) => p.id === pinnedProof) ?? null : null;
+  // The drawer's history as a transaction log. Live: every real row of this run as it lands, plus a
+  // "Confirming" entry for a money step under way. Replay of the happy path: the recorded live run
+  // (fixtures/recorded/live-run.json), each step revealed as the story reaches it. The story's own
+  // placeholders for those steps step aside.
+  const liveRows = live.rows;
+  const realRows = useMemo<LiveRow[]>(() => (live.on ? liveRows : scenarioId === "happy" ? (recordedRun.rows as LiveRow[]) : []), [live.on, liveRows, scenarioId]);
+  const history = useMemo(() => {
+    const real = liveEntries(realRows, TL, { replay: !live.on, supplier: HAOYUN }).filter((p) => live.on || (p.atMs ?? 0) <= t);
+    const waiting = live.on && live.pending ? pendingEntry(live.pending, TL, HAOYUN) : null;
+    const landed = waiting && real.some((p) => p.key && (p.atMs ?? 0) === (waiting.atMs ?? 0) - 1 && p.kind === waiting.kind);
+    return mergeHistory(st.proofs, [...real, ...(waiting && !landed ? [waiting] : [])]);
+  }, [realRows, TL, live.on, live.pending, t, st.proofs]);
+  const lastProof = history.at(-1) ?? null;
+  const pinned = pinnedProof ? history.find((p) => p.id === pinnedProof) ?? null : null;
   const placed = arrange(board, st.layout);
   const ownBoard = board.some(Boolean);
   const gridMode = ownBoard || drag !== null;
@@ -287,7 +301,7 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
   // An explainer moment opens the drawer on its proof; collapsing it holds until the next moment.
   const [shutExplain, setShutExplain] = useState<string | null>(null);
   const explainOn = !!st.explain && shutExplain !== st.explain;
-  const explainProof = st.explain ? st.proofs.findLast((p) => p.id === EXPLAINERS[st.explain!].proof) ?? null : null;
+  const explainProof = st.explain ? history.findLast((p) => (p.key ?? p.id) === EXPLAINERS[st.explain!].proof) ?? null : null;
   const drawerOpen = drawerOpenState || !!pinned || explainOn;
   const actions: WorkspaceActions = {
     openPhoto: (checkpointId, index) => { setPlaying(false); setViewer({ checkpointId, index }); },
@@ -315,7 +329,9 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
     : st.stage === "paid" || st.stage === "closed" ? { tone: "success", text: scene.status ?? "Settled" }
     : { tone: "active", text: scene.status ?? "Working" };
   const navOpen = navChoice ?? st.scene === 0;
-  const synthetic = st.proofs.some((p) => p.synthetic) || (!st.proofs.length && !live.on);
+  const synthetic = history.some((p) => p.synthetic) || (!history.length && !live.on);
+  // What the rail's footnote says: every proof real, only the money steps real, or placeholders.
+  const proofsReal: "all" | "money" | "none" = !history.some((p) => p.synthetic) && history.length ? "all" : history.some((p) => !p.synthetic) || (scenarioId === "happy" && !live.on) ? "money" : "none";
   const endText = scenarioId === "standoff"
     ? { big: <>PO <N>{PO.number}</N> ended. <N>$0</N> moved.</>, sub: "Haoyun and QuickShip held at +10%, over Astro's 5% ceiling. Stockbot stopped before committing anything." }
     : { big: <><N>0</N> wires. <N>0</N> days waiting. <N>1</N> human decision.</>, sub: <>Astro Robotics · PO <N>{PO.number}</N> closed in <N>{story.closedInDays}</N> days</> };
@@ -359,8 +375,10 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
     return () => { ch.close(); channel.current = null; };
   }, []);
 
+  // Live, before the first step: how many order wallets are left and whether the treasury covers the commit.
   const liveStatus = live.on && (liveBusy || live.error)
     ? (live.error ? `Live call failed (${live.error}). The replay carries on.` : `Live on Tidepool testnet: ${heldStep} running`)
+    : live.on && !live.done.length && live.preflight ? live.preflight.message
     : null;
 
   return (
@@ -415,7 +433,7 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
                 <p className={s.endSub}>{endText.sub}</p>
               </div>
             )}
-            <Drawer proof={pinned ?? (explainOn ? explainProof : null) ?? lastProof} lastProof={lastProof} history={st.proofs} open={drawerOpen} narrow={phoneOn}
+            <Drawer proof={pinned ?? (explainOn ? explainProof : null) ?? lastProof} lastProof={lastProof} history={history} open={drawerOpen} narrow={phoneOn}
               explain={explainOn ? st.explain : null} st={st}
               onToggle={() => { if (pinned) setPinnedProof(null); if (explainOn) setShutExplain(st.explain); setDrawerOpen(!drawerOpen); }} />
           </div>
@@ -436,7 +454,7 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
         pick={(id) => pickScenario(id)} jump={jump} restart={restart}
         live={{ available: live.available, on: live.on, toggle: () => live.setOn(!live.on), status: liveStatus }}
         mode={mode} toggleMode={() => setMode((m) => (m === "dark" ? "light" : "dark"))}
-        synthetic={synthetic} hide={() => setRailHidden(true)}
+        synthetic={synthetic} proofsReal={proofsReal} hide={() => setRailHidden(true)}
         camera={{ on: cameraOn, follow, toggle: () => setCameraOn((c) => !c), toggleFollow: () => setFollow((f) => !f), focus: camState.focusId, next: nextFocus?.step ?? null }} />
       {railHidden && <RailShow onClick={() => setRailHidden(false)} />}
     </div>

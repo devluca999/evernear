@@ -98,6 +98,12 @@ async function store(ctx: ActionCtx, scene: number, e: Doc<"escrows">, next: Esc
   }
 }
 
+/** Before a live run: order wallets left on the key and whether the treasury covers the commit. Reads only. */
+export const preflight = internalAction({
+  args: { cents: v.number() },
+  handler: async (_ctx, { cents }) => adapter(() => {}).preflight({ cents }),
+});
+
 /** Opens a new account for this order, sets its policy, commits the total and starts the deadline clock. */
 export const lock = internalAction({
   args: { restockId: v.optional(v.id("restocks")), runId: v.optional(v.id("liveRuns")), po: v.string(), supplier: v.string(), cents: v.number(), orderedQty: v.optional(v.number()), deadlineMs: v.number() },

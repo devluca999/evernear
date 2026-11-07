@@ -281,12 +281,12 @@ describe("workspace", () => {
     const cells = [["Committed", a.lockedCents], ["Advance", a.advanceCents], ["Balance", a.balanceCents], ["Held", a.holdCents], ["Returned", 0]] as const;
     expect(screen.getByRole("region", { name: "Money" }).textContent).toContain(cells.map(([k, v]) => `${k}${formatUsdShort(v)}`).join(""));
   });
-  it("labels every synthetic proof on screen, and only those", () => {
+  it("says what is real: on the happy path the money steps are a recorded testnet run, the steps before are placeholders", () => {
     at(sceneStartMs(1));
-    const synthetic = stateAt(sceneStartMs(1)).proofs.some((p) => p.synthetic);
     const foot = rail();
-    expect(within(foot).getByText(synthetic ? "synthetic" : "testnet")).toBeTruthy();
-    expect(foot.textContent!.includes("Proofs on screen are placeholders")).toBe(synthetic);
+    expect(within(foot).getByText("testnet + synthetic")).toBeTruthy();
+    expect(foot.textContent).toContain("The money steps are a real testnet run through the release gate; the steps before them are placeholders.");
+    expect(stateAt(sceneStartMs(1)).proofs.some((p) => p.synthetic)).toBe(true);
   });
   it("ends on the end card", () => {
     at(totalDurationMs);

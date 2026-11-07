@@ -11,24 +11,17 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { LiveStep } from "@/scenario/gates";
 import type { Proof } from "@/scenario/types";
+import { liveKeyOf, type LiveRow } from "@/scenario/liveLog";
 
 const URL = process.env.NEXT_PUBLIC_CONVEX_URL;
 
-interface LiveProofRow { _id: string; at: number; kind: string; label: string; call: string; codePath: string; network: Proof["network"]; hash: string; explorerUrl?: string; response: unknown; scene: number }
+type LiveProofRow = LiveRow;
 
 export type ReleasePath = "gate" | "server";
-const SIGNAL_KEYS = new Set(["bill_of_lading", "export_cleared", "import_cleared"]);
+export { liveKeyOf };
 
-/** Which scene proof a live call stands in for. The advance and the balance are told apart by the stage in the response. */
-export function liveKeyOf(p: { codePath: string; kind: string; response?: unknown }): string | null {
-  const r = (p.response ?? {}) as { stage?: unknown; event?: unknown };
-  if (p.codePath.endsWith("escrow.ts#lock") && p.kind === "escrow") return "escrow_wallet";
-  if (p.codePath.endsWith("escrow.ts#policyRefusal") && p.kind === "refusal") return "refused_release";
-  if (p.codePath.endsWith("escrow.ts#release") && p.kind === "payout") return r.stage === "advance" ? "advance_payout" : "intents_payout";
-  if (p.codePath.endsWith("escrow.ts#close") && p.kind === "wallet") return "wallet_closed";
-  if (p.codePath.endsWith("tracking.ts#signal") && p.kind === "signal" && typeof r.event === "string" && SIGNAL_KEYS.has(r.event)) return `signal_${r.event}`;
-  return null;
-}
+/** What the deployment says before a run: order wallets left on the key and whether the treasury covers the commit. */
+export interface Preflight { ok: boolean; walletsLeft: number | null; walletLimit: number | null; treasuryUsd: number; needUsd: number; message: string }
 
 export function useLive() {
   // Created in the browser only, after the page loads (never during the prerender).
@@ -47,6 +40,21 @@ export function useLive() {
   const [pending, setPending] = useState<LiveStep | null>(null);
   const [releasePath, setReleasePath] = useState<ReleasePath | null>(null);
   const starting = useRef<Promise<Id<"liveRuns"> | null> | null>(null);
+  const [preflight, setPreflight] = useState<Preflight | null>(null);
+
+  // Before a run starts: how many order wallets are left and whether the treasury covers the commit.
+  const check = useCallback(async () => {
+    if (!client) return null;
+    try {
+      const p = (await client.action(api.live.preflight, {})) as Preflight;
+      setPreflight(p);
+      return p;
+    } catch (e) {
+      const p: Preflight = { ok: false, walletsLeft: null, walletLimit: null, treasuryUsd: 0, needUsd: 0, message: `Could not check the Tidepool key: ${(e as Error).message}` };
+      setPreflight(p);
+      return p;
+    }
+  }, [client]);
 
   useEffect(() => {
     if (!client || !runId) return;
@@ -61,13 +69,18 @@ export function useLive() {
 
   const ensureRun = useCallback(async () => {
     if (runId) return runId;
-    starting.current ??= client!.mutation(api.live.start, {}).then((r) => {
+    starting.current ??= check().then((p) => {
+      // Refuse before anything moves: no wallet left, or the treasury cannot cover the commit.
+      if (!p || !p.ok) { setError(p?.message ?? "could not check the Tidepool key"); return null; }
+      return client!.mutation(api.live.start, {});
+    }).then((r) => {
+      if (!r) return null;
       if (!r.runId) { setError(r.refused ?? "could not start"); return null; }
       setRunId(r.runId);
       return r.runId;
     });
     return starting.current;
-  }, [client, runId]);
+  }, [client, runId, check]);
 
   /** Runs a step once. Errors stop live mode for this run; the replay carries on. */
   const run = useCallback(async (step: LiveStep, scenario?: "happy" | "adjusted") => {
@@ -98,5 +111,11 @@ export function useLive() {
     return out;
   }, [proofs]);
 
-  return { available: !!client, on: on && !!client, setOn: (v: boolean) => { setOn(v); reset(); }, done, pending, error, run, byKey, reset, releasePath };
+  return {
+    available: !!client, on: on && !!client,
+    setOn: (v: boolean) => { setOn(v); reset(); if (v) void check(); },
+    done, pending, error, run, byKey, reset, releasePath,
+    /** Every real row of this run, in the order it landed. */
+    rows: proofs, preflight, check,
+  };
 }

@@ -5,9 +5,10 @@
 // Explained: what it means, in a title and three short lines, or (Learn) a small diagram.
 // Drag its top edge to resize.
 import { useEffect, useRef, useState } from "react";
-import { BookOpen, ChevronDown, ChevronUp, Cpu, ExternalLink, FileCheck2, Scale, Send, ShieldCheck, Wallet, X } from "lucide-react";
+import { BookOpen, ChevronDown, ChevronUp, Cpu, ExternalLink, FileCheck2, Loader, Scale, Send, ShieldCheck, Wallet, X } from "lucide-react";
 import type { Proof, WorkspaceState } from "@/scenario/types";
 import { EXPLAINERS, highlightFor, SIGNED_NOTE, stepKind, type ExplainerId, type StepKind } from "@/scenario/explain";
+import { explorerOf } from "@/scenario/liveLog";
 import { Diagram } from "./Diagrams";
 import { Dot } from "./Panel";
 import { PLAIN } from "./plain";
@@ -60,6 +61,36 @@ function Json({ value, lit }: { value: unknown; lit: string[] }) {
 }
 
 const shortHash = (h: string) => (h.length > 16 ? `${h.slice(0, 8)}…${h.slice(-6)}` : h);
+/** The scene proof an entry stands for: a real row's key, else its own id. */
+const keyOf = (p: Proof) => p.key ?? p.id;
+
+/**
+ * Under an entry's title: a button to the transaction on its chain's explorer (new tab), with the
+ * network and the short hash beside it; "Confirming" while the hash is not known; plain text when
+ * there is no public chain, the entry is synthetic, or the payment was refused.
+ */
+export function Explorer({ p }: { p: Proof }) {
+  const v = explorerOf(p);
+  if (v.kind === "button") {
+    return (
+      <span className={s.exRow}>
+        <a className={s.exBtn} href={v.href} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+          {v.label}<ExternalLink size={14} strokeWidth={2} aria-hidden="true" />
+        </a>
+        <span className={s.exMeta}>{v.network} · <span className="es-num">{v.short}</span></span>
+      </span>
+    );
+  }
+  if (v.kind === "confirming") {
+    return (
+      <span className={s.exRow}>
+        <span className={s.exBtn} data-state="confirming" role="status">Confirming<Loader size={14} strokeWidth={2} aria-hidden="true" className={s.spin} /></span>
+        <span className={s.exMeta}>{v.network}</span>
+      </span>
+    );
+  }
+  return <span className={s.exText}>{v.text}</span>;
+}
 
 export function Drawer({ proof, open, onToggle, lastProof, history = [], narrow = false, explain = null, st = null }: {
   proof: Proof | null; open: boolean; onToggle: () => void; lastProof: Proof | null; history?: Proof[]; narrow?: boolean;
@@ -81,8 +112,8 @@ export function Drawer({ proof, open, onToggle, lastProof, history = [], narrow 
   useEffect(() => { queueMicrotask(() => setLearn(false)); }, [explain]);
   const live = p && !p.synthetic && !p.replay;
   const parts = p ? split(p.response) : null;
-  const ex = (explain && !chosen ? EXPLAINERS[explain] : p ? EXPLAINERS[EXPLAINER_OF[p.id]] : undefined) ?? null;
-  const lit = p ? highlightFor(p.id) : [];
+  const ex = (explain && !chosen ? EXPLAINERS[explain] : p ? EXPLAINERS[EXPLAINER_OF[keyOf(p)]] : undefined) ?? null;
+  const lit = p ? highlightFor(keyOf(p)) : [];
   const facts = ex?.facts && st ? ex.facts(st, p).filter((f) => f.v) : [];
 
   return (
@@ -117,18 +148,19 @@ export function Drawer({ proof, open, onToggle, lastProof, history = [], narrow 
             <span className="es-micro">Steps · <span className="es-num">{history.length}</span></span>
             <ol className={s.steps} ref={list}>
               {history.map((h, i) => {
-                const kind = stepKind(h);
+                const kind = stepKind({ id: keyOf(h), kind: h.kind });
                 const Icon = KIND_ICON[kind];
                 return (
-                  <li key={`${h.id}-${i}`}>
+                  <li key={`${h.id}-${i}`} className={s.stepItem}>
                     <button type="button" className={s.stepBtn} aria-current={h.id === p.id ? "step" : undefined}
                       onClick={() => setPicked(i === history.length - 1 ? null : h.id)}>
                       <span className={s.stepIcon} data-tone={toneOf(h)} title={KIND_NAME[kind]}><Icon size={14} strokeWidth={2} aria-label={KIND_NAME[kind]} /></span>
                       <span className={s.stepText}>
                         <span className={s.stepName}>{h.label}</span>
-                        <span className={`es-num ${s.stepWhen}`}><time>{stepTime(h)}</time> · Ch {h.scene + 1}</span>
+                        <span className={`es-num ${s.stepWhen}`}><time>{stepTime(h)}</time>{h.day ? <> · {h.day}</> : null} · Ch {h.scene + 1}</span>
                       </span>
                     </button>
+                    <span className={s.stepExplorer}><Explorer p={h} /></span>
                   </li>
                 );
               })}
@@ -145,11 +177,10 @@ export function Drawer({ proof, open, onToggle, lastProof, history = [], narrow 
             <div className={s.callMeta}>
               <span className="es-micro">Code path</span><span className="es-num" title={p.codePath}>{p.codePath}</span>
               <span className="es-micro">Hash</span>
-              <span className="es-num" title={p.hash}>
-                {p.explorerUrl
-                  ? <a className={s.explorer} style={{ marginTop: 0 }} href={p.explorerUrl} target="_blank" rel="noreferrer">{shortHash(p.hash)}<ExternalLink size={12} strokeWidth={2} aria-hidden="true" /></a>
-                  : <span data-focus="developer.hash">{p.hash}</span>}
-              </span>
+              <span className="es-num" title={p.hash} data-focus="developer.hash">{p.hash ? shortHash(p.hash) : "not known yet"}</span>
+            </div>
+            <div className={s.proofExplorer}>
+              <Explorer p={p} />
             </div>
             <div className={s.json} data-single={!parts}>
               {parts ? (
@@ -162,7 +193,7 @@ export function Drawer({ proof, open, onToggle, lastProof, history = [], narrow 
               )}
             </div>
           </div>
-          <aside className={s.drawerCol} aria-label="Explained" data-focus={PROOF_FOCUS[p.id]}>
+          <aside className={s.drawerCol} aria-label="Explained" data-focus={PROOF_FOCUS[keyOf(p)]}>
             <div className={s.headRow}>
               <span className="es-micro">Explained</span>
               {ex && (
@@ -187,9 +218,8 @@ export function Drawer({ proof, open, onToggle, lastProof, history = [], narrow 
                 {ex.id === "signed" && <p className={s.note}><FileCheck2 size={13} strokeWidth={2} aria-hidden="true" style={{ verticalAlign: "-2px", marginRight: 4 }} />{SIGNED_NOTE}</p>}
               </dl>
             ) : (
-              <dl className={s.exLines}><div><dt>What happened</dt><dd>{PLAIN[p.id] ?? p.label}</dd></div></dl>
+              <dl className={s.exLines}><div><dt>What happened</dt><dd>{PLAIN[keyOf(p)] ?? p.label}</dd></div></dl>
             )}
-            {!p.explorerUrl && <span className={s.note} style={{ marginTop: "auto" }}>{p.synthetic ? "Synthetic placeholder: no explorer link yet." : "No explorer link for this call."}</span>}
           </aside>
         </div>
       )}

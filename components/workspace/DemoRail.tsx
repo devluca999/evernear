@@ -15,6 +15,8 @@ export interface RailProps {
   live: { available: boolean; on: boolean; toggle: () => void; status: string | null };
   mode: "dark" | "light"; toggleMode: () => void;
   synthetic: boolean; hide: () => void;
+  /** Which proofs are real: all of them, the money steps (a live or recorded testnet run), or none yet. */
+  proofsReal?: "all" | "money" | "none";
   camera?: { on: boolean; follow: boolean; toggle: () => void; toggleFollow: () => void; focus: string | null; next: string | null };
 }
 
@@ -114,8 +116,10 @@ export function DemoRail(p: RailProps) {
       </ol>
 
       <div className={s.railFoot}>
-        <span className="es-tag es-tag-mono">{p.synthetic ? "synthetic" : "testnet"}</span>
-        <span className={s.railFootText}>{p.synthetic ? "Proofs on screen are placeholders until real testnet recordings replace them." : "Proofs on screen are real testnet transactions."}</span>
+        <span className="es-tag es-tag-mono">{p.proofsReal === "all" ? "testnet" : p.proofsReal === "money" ? "testnet + synthetic" : "synthetic"}</span>
+        <span className={s.railFootText}>{p.proofsReal === "all" ? "Proofs on screen are real testnet transactions."
+          : p.proofsReal === "money" ? "The money steps are a real testnet run through the release gate; the steps before them are placeholders."
+          : "Proofs on screen are placeholders until real testnet recordings replace them."}</span>
       </div>
     </aside>
   );

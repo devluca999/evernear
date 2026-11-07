@@ -5,7 +5,7 @@ import { LocateFixed, Maximize2, Minimize2, Search, ZoomIn, ZoomOut } from "luci
 import { clampView, fullView, panBy, zoomAt, zoomOf, type View } from "../map/view";
 import type { WorkspaceState } from "@/scenario/types";
 import { bomFor, suppliers, offers, MOTOR_PART } from "@/seed/astro";
-import { matchKind, matchReason } from "../format";
+import { matchKind, matchReason, pinReason, searchSummary } from "../format";
 import { eta, isoDay, LANES } from "@/scenario/eta";
 import { formatUsd } from "@/engine/money";
 import { MAP } from "../map/generated";
@@ -65,17 +65,18 @@ function Doc({ at, state, k }: { at: Pt; state: "done" | "working" | "problem"; 
 }
 
 /** A supplier's headquarters: a dot and its icon (a two-letter mark), coloured by fitment state. */
-function Hq({ id, cls, selected, onPick, k }: { id: string; cls: string; selected: boolean; onPick: (id: string) => void; k: number }) {
-  const [x, y] = MAP.pins[SUPPLIER_CITY[id]];
+function Hq({ id, cls, selected, onPick, k, bare = false }: { id: string; cls: string; selected: boolean; onPick: (id: string) => void; k: number; bare?: boolean }) {
+  const [x, y] = pinAt(id, bare);
   const [dx, dy] = MARK_AT[id];
   const sup = suppliers.find((v) => v.id === id)!;
   return (
     <g transform={steady(x, y, k)} className={s.hq} data-selected={selected} role="button" tabIndex={0} aria-label={`${sup.name}, ${sup.city}`} aria-pressed={selected}
       onClick={() => onPick(id)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onPick(id); } }}>
-      {(dx < 0 || dy < -10) && <line x1={x} y1={y} x2={x + dx + 10} y2={y + dy + 12} className={s.hqLeader} />}
+      {!bare && (dx < 0 || dy < -10) && <line x1={x} y1={y} x2={x + dx + 10} y2={y + dy + 12} className={s.hqLeader} />}
       <circle cx={x} cy={y} r="3.2" className={cls} />
-      <rect x={x + dx} y={y + dy} width="20" height="13" rx="3" className={s.hqBadge} />
-      <text x={x + dx + 10} y={y + dy + 9.5} textAnchor="middle" className={s.hqMark}>{LANES[id].mark}</text>
+      {/* In the search the supplier's label names it; elsewhere a two-letter mark does. */}
+      {!bare && <rect x={x + dx} y={y + dy} width="20" height="13" rx="3" className={s.hqBadge} />}
+      {!bare && <text x={x + dx + 10} y={y + dy + 9.5} textAnchor="middle" className={s.hqMark}>{LANES[id].mark}</text>}
     </g>
   );
 }
@@ -102,18 +103,42 @@ function Typed({ text }: { text: string }) {
 }
 
 const MATCH_ORDER = ["haoyun", "quickship", "kansai", "rheinwerk", "huaxin"];
-const MATCH_TONE = { fits: "success", partial: "attention", fails: "alert" } as const;
 
 const lanePath = (id: string) => LANE_GEO[id].segments.map((seg) => polyline(seg)).join(" ");
 
-function Match({ f }: { f: WorkspaceState["fitment"][number] }) {
+/** Shenzhen and Dongguan are neighbours: in the search their pins sit a little apart so both show. */
+const NUDGE: Record<string, [number, number]> = { haoyun: [2.5, 2], huaxin: [-3.5, -3] };
+const pinAt = (id: string, bare: boolean): [number, number] => {
+  const [x, y] = MAP.pins[SUPPLIER_CITY[id]];
+  const [nx, ny] = bare ? NUDGE[id] ?? [0, 0] : [0, 0];
+  return [x + nx, y + ny];
+};
+
+/** Where each supplier's label sits beside its pin, in screen pixels, and which corner it hangs from. */
+const LABEL_AT: Record<string, { dx: number; dy: number; x: "left" | "right"; y: "top" | "middle" | "bottom" }> = {
+  haoyun: { dx: 16, dy: 16, x: "left", y: "top" },
+  huaxin: { dx: -16, dy: 16, x: "right", y: "top" },
+  quickship: { dx: -16, dy: -14, x: "right", y: "bottom" },
+  kansai: { dx: 18, dy: -4, x: "left", y: "middle" },
+  rheinwerk: { dx: 16, dy: 12, x: "left", y: "top" },
+};
+
+/** A checked supplier's label on the map: its name and one line of why, in its state colour. */
+function PinLabel({ f, view }: { f: WorkspaceState["fitment"][number]; view: View }) {
   const sup = suppliers.find((v) => v.id === f.supplierId)!;
-  const kind = matchKind(f);
+  const [x, y] = pinAt(f.supplierId, true);
+  const at = LABEL_AT[f.supplierId];
+  const why = pinReason(f, bomFor["10ma"].length);
+  const full = matchReason(f, bomFor["10ma"].length);
+  const left = ((x - view.x) / view.w) * 100, top = ((y - view.y) / view.h) * 100;
+  if (left < 0 || left > 100 || top < 0 || top > 100) return null;
+  const tx = at.x === "right" ? "-100%" : "0", ty = at.y === "bottom" ? "-100%" : at.y === "middle" ? "-50%" : "0";
   return (
-    <div className={sh.match} data-kind={kind}>
-      <Dot tone={MATCH_TONE[kind]} />
-      <span className={sh.matchName}>{sup.name}<span className={sh.note}> · {sup.city}</span></span>
-      <span className={sh.matchWhy}>{matchReason(f, bomFor["10ma"].length)}</span>
+    <div className={sh.pinTag} data-tone={why.tone} data-tag={why.tag} title={full} aria-label={`${sup.name}: ${full}`}
+      data-focus={why.tag === "late" ? "map.results.partial" : undefined}
+      style={{ left: `${left}%`, top: `${top}%`, transform: `translate(${at.dx}px, ${at.dy}px) translate(${tx}, ${ty})` }}>
+      <span className={sh.pinTagName}><Dot tone={why.tone} />{sup.name}</span>
+      <span className={sh.pinTagWhy}>{why.text}</span>
     </div>
   );
 }
@@ -165,21 +190,35 @@ export function MapPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }) 
   const pinCls = (c: keyof typeof MAP.pins) => (partial.has(c) ? s.pinPartial : failed.has(c) ? s.pinFail : passed.has(c) || (shipping && c === "Shenzhen") ? s.pinOk : s.pin);
   const searching = !!st.search && !shipping;
   const matches = MATCH_ORDER.map((id) => st.fitment.find((f) => f.supplierId === id)).filter((f) => f !== undefined);
+  const checked = new Set(st.fitment.map((f) => f.supplierId));
+  const done = searching && matches.length === MATCH_ORDER.length;
+  // In the story's search a supplier's pin appears when Stockbot has checked it, none before. A map
+  // you pin in another chapter shows them all.
+  const pinShown = (id: string) => shipping || checked.has(id) || !st.layout.includes("map");
 
   return (
     <Panel id="map" title="Map" pulse={pulse} meta={shipping ? <>Shipment <N>1042</N></> : "Suppliers"}>
+      <div className={s.mapPanel} data-search={searching}>
       {(() => {
         const map = (
           <>
       {expanded && <div className={s.mapScrim} onClick={() => setExpanded(false)} aria-hidden="true" />}
           <div className={s.mapWrap} data-expanded={expanded} role={expanded ? "dialog" : undefined} aria-label={expanded ? "Suppliers map, expanded" : undefined} data-focus={searching ? "map.results" : undefined}>
           {searching && (
-            <div className={sh.mapSearch} role="search" aria-label="Supplier search" data-focus="map.search">
-              <Search size={14} strokeWidth={2} aria-hidden="true" />
-              <span className="es-num"><Typed text={st.search!} /></span>
-              <span className={sh.caret} aria-hidden="true" />
+            <div className={sh.mapTop} data-focus="map.search">
+              <div className={sh.mapSearch} role="search" aria-label="Supplier search">
+                <Search size={14} strokeWidth={2} aria-hidden="true" />
+                <span className="es-num"><Typed text={st.search!} /></span>
+                {!done && <span className={sh.caret} aria-hidden="true" />}
+              </div>
+              <div className={sh.mapStatus} role="status" data-done={done}>
+                {done
+                  ? <><Dot tone="success" />{searchSummary(matches)}</>
+                  : <><Dot tone="active" pulse />Comparing suppliers: <N>{matches.length}</N> of <N>{MATCH_ORDER.length}</N></>}
+              </div>
             </div>
           )}
+          <div className={s.mapBox}>
           <svg ref={svgRef} className={s.map} data-dragging={dragging} viewBox={`${view.x} ${view.y} ${view.w} ${view.h}`} role="img"
             onPointerDown={(e) => { drag.current = { x: e.clientX, y: e.clientY }; moved.current = false; }}
             onPointerMove={(e) => {
@@ -207,10 +246,12 @@ export function MapPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }) 
               </>
             )}
             {pick && <path d={lanePath(pick)} className={s.lane} fill="none" />}
-            {suppliers.map((v) => <Hq key={v.id} id={v.id} cls={pinCls(SUPPLIER_CITY[v.id])} selected={pick === v.id} onPick={choose} k={k} />)}
+            {suppliers.filter((v) => pinShown(v.id)).map((v) => <Hq key={v.id} id={v.id} cls={pinCls(SUPPLIER_CITY[v.id])} selected={pick === v.id} onPick={choose} k={k} bare={searching} />)}
             <Pin name="Chicago" cls={s.pinHome} k={k} />
             {shipping && t > 0 && t < 1 && <Plane t={t} k={zoom} />}
           </svg>
+          {searching && matches.map((f) => <PinLabel key={f.supplierId} f={f} view={view} />)}
+          </div>
             <div className={s.mapControls} role="group" aria-label="Map zoom">
               <button type="button" className={s.mapBtn} aria-label="Zoom in" onClick={() => setView((v) => zoomAt(v, 1.5, 0.5, 0.5, W, H))}><ZoomIn size={14} strokeWidth={2} aria-hidden="true" /></button>
               <button type="button" className={s.mapBtn} aria-label="Zoom out" onClick={() => setView((v) => zoomAt(v, 1 / 1.5, 0.5, 0.5, W, H))}><ZoomOut size={14} strokeWidth={2} aria-hidden="true" /></button>
@@ -226,16 +267,7 @@ export function MapPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }) 
         // The workspace root carries the theme, so the map stays themed there.
         return expanded && portalRoot ? createPortal(map, portalRoot) : map;
       })()}
-      {searching && matches.length > 0 && !planOpen && (
-        <div className={sh.matches} aria-label="Search results">
-          {matches.filter((f) => matchKind(f) === "fits").map((f) => <Match key={f.supplierId} f={f} />)}
-          <div className={sh.lines} style={{ gap: 0 }} data-focus="map.results.partial">
-            {matches.filter((f) => matchKind(f) === "partial").map((f) => <Match key={f.supplierId} f={f} />)}
-          </div>
-          {matches.filter((f) => matchKind(f) === "fails").map((f) => <Match key={f.supplierId} f={f} />)}
-        </div>
-      )}
-      {!planOpen && !shipping && !(searching && matches.length > 0) && (
+      {!planOpen && !shipping && !searching && (
         <div className={sh.mapFoot}>
           <span className={sh.note} style={{ fontSize: 12 }}><N>{suppliers.length}</N> suppliers in <N>{new Set(suppliers.map((v) => v.country)).size}</N> countries{st.fitment.length ? <> · <N>{st.fitment.filter((f) => f.pass).length}</N> fits</> : null}</span>
           <button type="button" className={`es-btn es-btn-secondary es-btn-sm ${sh.push}`} onClick={() => setPlanOpen(true)}>Plan an order</button>
@@ -288,6 +320,7 @@ export function MapPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }) 
           <Tracking checkpoints={st.shipment.checkpoints} />
         </div>
       )}
+      </div>
     </Panel>
   );
 }

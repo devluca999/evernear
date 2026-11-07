@@ -378,17 +378,46 @@ button.chip:hover { color: var(--text-primary); border-color: var(--line-focus);
 @container (max-width: 520px) { .mapShip { grid-template-columns: 1fr; } }
 
 /* Negotiation: offers side by side, Haoyun's thread in full. */
-.threadsWrap { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 12px; padding: 14px; }
-.threads { min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
-.compare { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--bg-raised); min-height: 0; overflow: auto; }
-.compareGrid { display: grid; grid-template-columns: auto 1fr 1fr; gap: 6px 10px; font-size: 12.5px; align-items: baseline; }
-.thread { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border: 1px solid var(--line-hairline); border-radius: 10px; background: var(--bg-sunken); min-height: 0; overflow: auto; }
+/* Negotiation: the two threads side by side, Stockbot's comparison across both underneath. */
+/* The threads are as tall as their emails; once that is more than the card has, each scrolls on its own. */
+.threadsWrap { height: 100%; min-height: 0; box-sizing: border-box; display: flex; flex-direction: column; gap: 12px; padding: 14px; }
+.threadsWrap > .compare { flex: none; }
+.threads { flex: 0 1 auto; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 12px; }
+.compare { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--bg-raised); }
+.compareBody { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 24px; align-items: start; }
+.compareGrid { display: grid; grid-template-columns: auto 1fr 1fr; gap: 8px 14px; font-size: 14px; align-items: baseline; }
+.thread { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; border: 1px solid var(--line-hairline); border-radius: 10px; background: var(--bg-sunken); min-height: 0; overflow: auto; scroll-behavior: smooth; }
+.threadHead { display: flex; flex-direction: column; gap: 6px; }
 .thread[data-main="true"] { background: var(--bg-raised); border-color: var(--line-strong); }
-.threadMail { display: flex; flex-direction: column; gap: 4px; padding-top: 8px; border-top: 1px solid var(--line-hairline); }
+.threadMail { display: flex; flex-direction: column; gap: 4px; padding: 10px 8px 2px; margin: 0 -8px; border-top: 1px solid var(--line-hairline); border-radius: 6px; transition: background-color 400ms; }
+/* The email that just landed, lit for the hold. */
+.threadMail[data-new="true"] { background: color-mix(in srgb, var(--state-active) 12%, transparent); box-shadow: inset 3px 0 0 var(--state-active); }
 
 /* Map search: the query Stockbot types, and what came back. */
-.mapSearch { position: absolute; top: 10px; left: 10px; right: 60px; z-index: 2; display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--bg-raised); color: var(--text-muted); font-size: 12.5px; }
-.mapSearch .es-num { color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* The search bar and, under it, where the comparison stands. */
+.mapTop { position: absolute; top: 12px; left: 12px; width: min(720px, calc(100% - 68px)); z-index: 2; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.mapStatus { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line-strong);
+  background: var(--bg-raised); font-size: 14px; color: var(--text-primary); box-shadow: var(--elev-1); }
+.mapStatus[data-done="true"] { font-weight: 600; }
+/* A checked supplier on the map: name, then one line of why, in its state colour. */
+.pinTag { position: absolute; z-index: 1; display: flex; flex-direction: column; gap: 2px; padding: 6px 10px; border-radius: 8px; white-space: nowrap;
+  background: var(--bg-raised); border: 1px solid var(--line-strong); box-shadow: var(--elev-1); animation: pinPop 260ms cubic-bezier(0.25, 0.8, 0.3, 1.2) both; }
+.pinTag[data-tone="success"] { border-color: color-mix(in srgb, var(--state-success) 55%, transparent); }
+.pinTag[data-tone="attention"] { border-color: color-mix(in srgb, var(--state-attention) 70%, transparent); }
+.pinTag[data-tone="alert"] { border-color: color-mix(in srgb, var(--state-alert) 60%, transparent); }
+.pinTagName { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; font-weight: 600; color: var(--text-primary); }
+.pinTagWhy { font-size: 12.5px; padding-left: 14px; }
+.pinTag[data-tone="success"] .pinTagWhy { color: var(--state-success); }
+.pinTag[data-tone="attention"] .pinTagWhy { color: var(--state-attention); }
+.pinTag[data-tone="alert"] .pinTagWhy { color: var(--state-alert); }
+@keyframes pinPop { from { opacity: 0; scale: 0.85; } to { opacity: 1; scale: 1; } }
+@media (prefers-reduced-motion: reduce) { .pinTag { animation: none; } }
+/* Live: the money step running on testnet right now. */
+.liveRun { display: flex; align-items: center; gap: 10px; margin: 12px 16px 0; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--state-active);
+  background: color-mix(in srgb, var(--state-active) 10%, transparent); font-size: 14px; font-weight: 500; color: var(--text-primary); }
+.mapSearch { position: relative; align-self: stretch; z-index: 2; display: flex; align-items: center; gap: 8px; min-height: 38px; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--bg-raised); color: var(--text-muted); font-size: 14px; box-shadow: var(--elev-1); }
+/* The whole query shows; a long one wraps instead of being cut. */
+.mapSearch .es-num { color: var(--text-primary); min-width: 0; overflow-wrap: anywhere; }
 .caret { width: 1.5px; height: 15px; background: var(--state-active); flex: none; }
 .matches { display: flex; flex-direction: column; padding: 6px 14px 10px; border-top: 1px solid var(--line-hairline); }
 .match { display: grid; grid-template-columns: 14px minmax(0, 210px) minmax(0, 1fr); align-items: baseline; gap: 8px; padding: 6px 0; font-size: 12.5px; border-bottom: 1px solid var(--line-hairline); }
@@ -442,7 +471,11 @@ button.chip:hover { color: var(--text-primary); border-color: var(--line-focus);
 .exLines dd { margin: 2px 0 0; font-size: 14px; line-height: 1.45; color: var(--text-primary); }
 .exFacts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px; padding-top: 8px; border-top: 1px solid var(--line-hairline); }
 .exFacts > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.exFacts :global(.es-num) { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Values wrap rather than being cut: a signature or a hash shows whole. */
+.exFacts :global(.es-num) { font-size: 14px; overflow-wrap: anywhere; }
+/* In an explainer moment the Explained column gets more room. */
+.drawer[data-explain="true"] .drawerGrid { grid-template-columns: 240px minmax(0, 1fr) 460px; }
+.drawer[data-explain="true"][data-narrow="true"] .drawerGrid { grid-template-columns: 200px minmax(0, 1fr) 420px; }
 .exFacts [data-tone="success"] { color: var(--state-success); }
 
 /* Diagrams */

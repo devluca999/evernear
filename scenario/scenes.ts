@@ -6,6 +6,7 @@
 // for two signals (engine/escrow.ts releaseStage).
 import type { Beat, Event, Focus, Gate, Message, PanelId } from "./types";
 import type { Stage } from "./stages";
+import { isStop } from "./stops";
 import type { ExplainerId } from "./explain";
 import type { SignalId } from "../engine/escrow";
 import { RELEASE_RULES } from "../engine/escrow";
@@ -38,11 +39,16 @@ export interface Scene {
 const isGate = (x: Gate | Extra | undefined): x is Gate => !!x && "who" in x;
 /** The human moment a beat waits for, if any. */
 export const gateOf = (e: Entry): Gate | undefined => (isGate(e[2]) ? e[2] : e[2]?.gate);
-/** A named step with a camera focus: `step("Pins resolve", "map.results", 1.4)`. */
-const step = (name: string, id: string, zoom: number, more: Omit<Focus, "id" | "zoom"> & { gate?: Gate; clickTarget?: string } = {}): Extra => {
+/**
+ * A named step with a camera focus and what its frame must show in full:
+ * `step("Pins resolve", "map.results", 1.4, ["Comparing suppliers"])`.
+ */
+const step = (name: string, id: string, zoom: number, shows: string[], more: Omit<Focus, "id" | "zoom" | "shows"> & { gate?: Gate; clickTarget?: string } = {}): Extra => {
   const { gate, clickTarget, ...rest } = more;
-  return { step: name, focus: { id, zoom, ...rest }, ...(gate ? { gate } : {}), ...(clickTarget ? { clickTarget } : {}) };
+  return { step: name, focus: { id, zoom, shows, ...rest }, ...(gate ? { gate } : {}), ...(clickTarget ? { clickTarget } : {}) };
 };
+/** A chapter's steps this close behind its start play with the press that enters the chapter. */
+export const RIDE_MS = 1600;
 /** The products card's tab for a product: the presenter cursor clicks it before the switch. */
 const tab = (id: string) => `products.tab.${id}`;
 /** The phone's live answer button (a YES, a chip, or the button under the chat). */
@@ -96,19 +102,19 @@ const a = amounts(PO.revisedUnitCents);
 export const scenes: Scene[] = [
   { id: 0, title: "The 10MA", durationMs: 11000, layout: ["products", "money", "rules"], grid: { cols: "460fr 330fr 330fr" },
     line: "Astro makes three robots. The 10MA needs one AM-17 actuator motor.", status: "Stockbot ready", beats: [
-    [600, { type: "wallet" }],
+    [0, { type: "wallet" }],
     [1000, proof("wallet_created")],
     [2200, proof("policy_set")],
     [3400, { type: "product", id: "kip" }, { clickTarget: tab("kip") }],
     [4200, { type: "product", id: "porter" }, { clickTarget: tab("porter") }],
-    [5200, { type: "product", id: "10ma" }, step("Product switch", "products.figure", 1.5, { clickTarget: tab("10ma") })],
-    [8000, { type: "highlight", part: MOTOR_PART }, step("Motor highlight", "products.motor", 2.2)],
+    [5200, { type: "product", id: "10ma" }, step("Product switch", "products.figure", 1.5, ["10MA"], { clickTarget: tab("10ma") })],
+    [8000, { type: "highlight", part: MOTOR_PART }, step("Motor highlight", "products.motor", 2.2, ["48 V"])],
   ] },
   { id: 1, title: "The gap", durationMs: 10000, layout: ["stock", "orders"], grid: { cols: "560fr 440fr" },
     line: `${formatInt(demand.robotsOrdered)} robots ordered for ${needBy}, motors for ${formatInt(demand.motorsOnHand)}.`, status: "Checking stock", enter: "Check stock against orders", beats: [
     [300, { type: "demand", ordered: 200, shippedOut: 0, motorsOnHand: demand.motorsOnHand }],
     [900, { type: "demand", ordered: 380, shippedOut: 0, motorsOnHand: demand.motorsOnHand }],
-    [1500, { type: "demand", ordered: demand.robotsOrdered, shippedOut: 0, motorsOnHand: demand.motorsOnHand }, step("The gap", "stock.shortfall", 1.8)],
+    [1500, { type: "demand", ordered: demand.robotsOrdered, shippedOut: 0, motorsOnHand: demand.motorsOnHand }, step("The gap", "stock.shortfall", 1.8, ["robots ordered, motors for", "AM-17 actuator motor, on hand", "Reorder point"])],
     [4500, routine("sourcing")],
     [4800, routine("approval")],
     [5100, routine("confirmed")],
@@ -123,35 +129,37 @@ export const scenes: Scene[] = [
     line: `Ultra Motion is out for 6 weeks. ${PO.quantity} robots would miss ${needBy}.`, status: "Stockbot needs you", enter: "Ask Ultra Motion for motors", beats: [
     [500, msg({ channel: "email", direction: "in", from: "orders@ultra-motion.example", kind: "Re: PO 1037, AM-17 actuator motors", subject: "Re: PO 1037, AM-17 actuator motors", time: "08:14",
       text: "We are out of the AM-17 for 6 weeks. Our next build ships 15 Dec.",
-      reading: `No AM-17 before 15 Dec, a day after the ${needBy} ship date. ${PO.quantity} robots would miss it. Stockbot can source a replacement.` }), step("Ultra's reply", "inbox.reply", 1.7)],
+      reading: `No AM-17 before 15 Dec, a day after the ${needBy} ship date. ${PO.quantity} robots would miss it. Stockbot can source a replacement.` }), step("Ultra's reply", "inbox.reply", 1.7, ["We are out of the AM-17 for 6 weeks", "Stockbot read"])],
     [3500, bot(`Ultra Motion is out for 6 weeks. ${formatInt(demand.robotsOrdered)} robots ordered, motors for ${formatInt(demand.motorsOnHand)}. Start sourcing ${PO.quantity} AM-17s?`, { refersTo: "inbox" })],
     [6000, buyer("Start sourcing"), { id: "start_sourcing", who: "Luca", panels: ["inbox"], status: "Stockbot needs you", prompt: "Tap Start sourcing in the Inbox panel.", action: "Start sourcing", tap: "inbox.start" }],
   ] },
-  { id: 3, title: "Search", durationMs: 16000, layout: ["map", "products"], grid: { cols: "620fr 400fr" },
+  { id: 3, title: "Search", durationMs: 16000, layout: ["map"], grid: { cols: "1fr" },
     line: `Stockbot searches for an AM-17 that fits the 10MA and arrives by ${needBy}. Two fit.`, status: "Searching 5 suppliers", enter: "Search for a replacement motor", beats: [
     [300, stage("sourcing")],
-    [700, { type: "search", query: `AM-17 actuator motor · NEMA 17 · 6 mm shaft · 48 V · ${PO.quantity} by ${needBy}` }, step("Search typed", "map.search", 1.8, { holdMs: 2600 })],
+    [700, { type: "search", query: `AM-17 actuator motor · NEMA 17 · 6 mm shaft · 48 V · ${PO.quantity} by ${needBy}` }, step("Search typed", "map.search", 1.8, ["AM-17 actuator motor", "Comparing suppliers: 0 of 5"], { holdMs: 2600 })],
     [1200, proof("inference_attestation")],
-    [2800, explain("enclave"), step("Private inference", "developer.attestation", 1.5)],
-    [4800, explain("attestation"), step("Attestation", "developer.attestation", 1.8)],
+    [2800, explain("enclave"), step("Private inference", "developer.attestation", 1.5, ["Private inference in an enclave", "What happened"])],
+    [4800, explain("attestation"), step("Attestation", "developer.attestation", 1.8, ["The attestation", "What happened"])],
     [6800, explain(null)],
-    [7200, { type: "fitment", supplierId: "haoyun" }, step("Pins resolve", "map.results", 1.4, { holdMs: 2600 })],
-    [7500, { type: "fitment", supplierId: "quickship" }],
-    [7800, { type: "fitment", supplierId: "kansai" }],
-    [8100, { type: "fitment", supplierId: "rheinwerk" }],
-    [8400, { type: "fitment", supplierId: "huaxin" }],
+    [7200, { type: "fitment", supplierId: "haoyun" }, step("Pins resolve", "map.results", 1.4, ["Comparing suppliers", "Haoyun Precision"], { holdMs: 3600 })],
+    [7900, { type: "fitment", supplierId: "quickship" }],
+    [8600, { type: "fitment", supplierId: "kansai" }],
+    [9300, { type: "fitment", supplierId: "rheinwerk" }],
+    [10000, { type: "fitment", supplierId: "huaxin" }],
     [11000, bot(`Haoyun Precision and QuickShip Motion fit every spec and deliver before ${needBy}. Kansai fits but delivers on 22 Dec. Rheinwerk is ${capMultiple}x the ceiling; Huaxin misses 3 BOM lines.`, { refersTo: "map" }),
-      step("Orange reasons", "map.results.partial", 2.0, { spotlight: true })],
+      step("Orange reasons", "map.results.partial", 2.0, ["Kansai Servo Works", "Late"], { spotlight: true })],
   ] },
-  { id: 4, title: "Negotiation", durationMs: 17000, layout: ["inbox", "rules"], grid: { cols: "1fr", rows: "460fr 208fr" }, phone: true, clock: "14:33",
+  { id: 4, title: "Negotiation", durationMs: 17000, layout: ["inbox"], grid: { cols: "1fr" }, phone: true, clock: "14:33",
     line: "Haoyun and QuickShip both ask +10%. Your ceiling is 5%.", status: "Negotiating with two suppliers", enter: "Ask both for offers", beats: [
-    [300, offer("haoyun", PO.confirmedUnitCents, "+10% urgent fee", "attention")],
-    [400, offer("quickship", PO.confirmedUnitCents, "+10% urgent fee", "attention"), step("Offers side by side", "negotiation.threads", 1.3)],
-    [1500, msg({ channel: "email", direction: "in", from: haoyunMail, kind: "Quote", subject: "PO 1042 quote", time: "14:21", attachment: "quote_1042.pdf",
+    // Both quotes land with the press that enters the chapter, so the threads open with their emails.
+    [300, msg({ channel: "email", direction: "in", from: haoyunMail, kind: "Quote", subject: "PO 1042 quote", time: "14:21", attachment: "quote_1042.pdf",
       text: `All ${PO.quantity} AM-17 by ${needBy}. With the urgent fee the unit price is ${formatUsd(PO.confirmedUnitCents)}, ${pctOver(PO.confirmedUnitCents)}.`, reading: `${pctOver(PO.confirmedUnitCents)} over base. Your ceiling is 5%.` })],
-    [1600, { type: "price_quote", unitCents: PO.confirmedUnitCents, from: "Haoyun Precision" }],
-    [2400, msg({ channel: "email", direction: "in", from: quickshipMail, kind: "Quote", subject: "AM-17 quote", time: "14:24",
+    [350, { type: "price_quote", unitCents: PO.confirmedUnitCents, from: "Haoyun Precision" }],
+    [400, offer("haoyun", PO.confirmedUnitCents, "+10% urgent fee", "attention")],
+    [500, msg({ channel: "email", direction: "in", from: quickshipMail, kind: "Quote", subject: "AM-17 quote", time: "14:24",
       text: `We can ship fast. ${formatUsd(quickshipOffer.unitCents)} a motor, ${pctOver(quickshipOffer.unitCents)} for urgent delivery.`, reading: `${pctOver(quickshipOffer.unitCents)} over base. Your ceiling is 5%.` })],
+    [600, offer("quickship", PO.confirmedUnitCents, "+10% urgent fee", "attention"),
+      step("Offers side by side", "negotiation.threads", 1.3, ["Haoyun Precision", "QuickShip Motion", "+10% urgent fee", "With the urgent fee", "We can ship fast"])],
     [3400, bot(`Haoyun and QuickShip both ask ${pctOver(PO.confirmedUnitCents)}. Your ceiling is 5%, so I am countering both at ${formatUsd(PO.revisedUnitCents)}.`, { refersTo: "inbox" })],
     [4400, msg({ channel: "email", direction: "out", from: "Stockbot for Astro", to: haoyunMail, kind: "Counter offer · Gmail", subject: "Re: PO 1042 quote", time: "14:31",
       text: `Astro can accept ${formatUsd(PO.revisedUnitCents)} a unit, ${pctOver(PO.revisedUnitCents)}, for all ${PO.quantity} delivered by ${needBy}.`, reading: "Countered inside the 5% ceiling." })],
@@ -163,12 +171,12 @@ export const scenes: Scene[] = [
     [7500, msg({ channel: "email", direction: "in", from: haoyunMail, kind: "Final offer", subject: "Re: PO 1042 quote", time: "14:52", attachment: "quote_1042_final.pdf",
       text: `Agreed. ${formatUsd(PO.revisedUnitCents)} a unit, all ${PO.quantity} by ${needBy}, ${formatUsdShort(a.lockedCents)}. No discount.`, reading: "Exactly at the 5% ceiling. Everything on time." })],
     [7600, { type: "price_quote", unitCents: PO.revisedUnitCents, from: "Haoyun Precision" }],
-    [7700, offer("haoyun", PO.revisedUnitCents, `All ${PO.quantity} by ${needBy} at ${pctOver(PO.revisedUnitCents)}, ${formatUsdShort(a.lockedCents)}`, "success"), step("Haoyun's offer", "negotiation.haoyun", 1.9)],
+    [7700, offer("haoyun", PO.revisedUnitCents, `All ${PO.quantity} by ${needBy} at ${pctOver(PO.revisedUnitCents)}, ${formatUsdShort(a.lockedCents)}`, "success"), step("Haoyun's offer", "negotiation.haoyun", 1.9, ["Final offer", "Exactly at the 5% ceiling"])],
     [9500, msg({ channel: "email", direction: "in", from: quickshipMail, kind: "Final offer", subject: "Re: AM-17 quote", time: "14:55",
       text: `We can send ${quickshipOffer.nowQty} now at ${formatUsd(quickshipOffer.unitCents)} and the other ${quickshipOffer.laterQty} after ${needBy}, with ${quickshipOffer.nextOrderDiscountPercent}% off your next order.`,
       reading: `${pctOver(quickshipOffer.unitCents)}, over the ceiling. ${quickshipOffer.laterQty} motors late.` })],
     [9600, offer("quickship", quickshipOffer.unitCents, `${quickshipOffer.nowQty} now at ${pctOver(quickshipOffer.unitCents)}, ${quickshipOffer.laterQty} after ${needBy}, over the ceiling`, "alert")],
-    [11000, bot(recommendation, { refersTo: "inbox", chips: ["Choose Haoyun", "Choose QuickShip"] }), step("Recommendation", "negotiation.compare", 1.6)],
+    [11000, bot(recommendation, { refersTo: "inbox", chips: ["Choose Haoyun", "Choose QuickShip"] }), step("Recommendation", "negotiation.compare", 1.6, ["Stockbot compares", "Robots on time", "late robots put"])],
     [13500, buyer("Choose Haoyun"), { id: "pick_supplier", who: "Luca", panels: ["inbox"], status: "Stockbot needs you", prompt: "Haoyun ships all 50 on time within the ceiling. QuickShip is over it and late on 12.", action: "Choose Haoyun" }],
     [14500, bot(`Haoyun it is. Sending PO ${PO.number} for two approvals.`)],
   ] },
@@ -176,17 +184,17 @@ export const scenes: Scene[] = [
     line: `Two people sign, then ${formatUsdShort(a.lockedCents)} is committed to PO ${PO.number}.`, status: "Waiting on approvals", enter: `Send PO ${PO.number} for approval`, beats: [
     [300, stage("approval")],
     [1000, bot(`PO ${PO.number}: ${PO.quantity} motors from Haoyun at ${formatUsd(PO.revisedUnitCents)}, a new supplier, over the $10K cap. 2 approvals needed.`, { refersTo: "rules", card: "approval" }),
-      step("Approvals", "rules.approvals", 1.8, { holdMs: 2400 })],
+      step("Approvals", "rules.approvals", 1.8, ["Approval slots", "Jordan Bennett"], { holdMs: 2400 })],
     [2800, { type: "approval", by: "Luca", time: "14:56" }, { id: "approve_luca", who: "Luca", panels: ["rules"], status: "Waiting on Luca", prompt: `Reply YES on Telegram to sign PO ${PO.number}.`, action: "YES, approve as Luca" }],
     [2900, proof("approval_luca")],
     [4400, bot(`Jordan, PO ${PO.number} needs your signature. Luca signed at 14:56.`, { refersTo: "rules", card: "sign", to: "Jordan" })],
     [6200, { type: "approval", by: "Jordan", time: "14:58" }, { id: "approve_jordy", who: "Jordan", panels: ["rules"], status: "Waiting on Jordan", prompt: `Reply YES on Telegram to sign PO ${PO.number}.`, action: "YES, approve as Jordan" }],
     [6300, proof("approval_jordy")],
     [6600, stage("confirmed")],
-    [8000, { type: "lock_funds" }, step("Funds move", "money.escrow", 2.0)],
+    [8000, { type: "lock_funds" }, step("Funds move", "money.escrow", 2.0, ["Committed for PO 1042", "Pays Haoyun or Astro only"])],
     [8100, stage("funds_locked")],
     [9500, proof("escrow_wallet", `Committed for PO ${PO.number}: ${scaled(a.lockedCents)}`)],
-    [10500, explain("wallet"), step("Order wallet", "developer.policy", 1.6)],
+    [10500, explain("wallet"), step("Order wallet", "developer.policy", 1.6, ["The order's own wallet", "What happened"])],
   ] },
   { id: 6, title: "Shenzhen to the Chicago dock", durationMs: 21000, layout: ["map", "money"], grid: { cols: "560fr 440fr" }, phone: true, clock: "08:41",
     line: `The advance goes as the motors leave Shenzhen. At the dock, ${RECEIVED} of ${PO.quantity}: the balance pays for what arrived.`, status: `Tracking shipment ${PO.number}`, enter: "Ship from Shenzhen", beats: [
@@ -197,7 +205,7 @@ export const scenes: Scene[] = [
     [2200, signal("export_cleared")],
     [2300, proof("signal_export_cleared")],
     [2400, { type: "shipment", progress: 0, docs: docs("done") }],
-    [3000, { type: "release", stage: "advance", to: HAOYUN }, step("Advance released", "money.advance", 1.8)],
+    [3000, { type: "release", stage: "advance", to: HAOYUN }, step("Advance released", "money.advance", 1.8, ["Advance paid", "stays locked for the dock"])],
     [3100, proof("advance_payout", `Advance paid to Haoyun on Base Sepolia for PO ${PO.number}: ${scaled(a.advanceCents)}`)],
     [4600, { type: "checkpoint", id: "handover" }],
     [4800, stage("shipped")],
@@ -215,22 +223,22 @@ export const scenes: Scene[] = [
     [8600, bot("Truck at dock 3. Send a photo of the packing slip.", { refersTo: "orders" })],
     [9200, buyer("Packing slip", "packing_slip"), { id: "packing_slip", who: "Luca", panels: ["orders"], status: "At the dock, needs you", prompt: "The shipment is at the dock. Photograph the packing slip.", action: "Send packing slip photo" }],
     [9300, { type: "checkpoint", id: "dock" }],
-    [11000, { type: "dock", receivedQty: RECEIVED }, step("Dock count", "dock.count", 2.0)],
+    [11000, { type: "dock", receivedQty: RECEIVED }, step("Dock count", "dock.count", 2.0, ["Arrived", "44"])],
     [11100, signal("dock_count")],
     [11200, proof("dock_attestation", `Attested dock count: ${RECEIVED} of ${PO.quantity}, balance ${formatUsdShort(a.balanceCents)}`)],
-    [12200, explain("signed"), step("Signed result", "developer.signed", 1.7)],
+    [12200, explain("signed"), step("Signed result", "developer.signed", 1.7, ["The signed result", "Signature"])],
     [14200, explain(null)],
-    [14800, { type: "release", stage: "balance", to: HAOYUN }, step("Balance released", "money.payout", 1.8)],
+    [14800, { type: "release", stage: "balance", to: HAOYUN }, step("Balance released", "money.payout", 1.8, ["Paid to Haoyun Precision", "for what arrived"])],
     [14900, stage("paid")],
     [15000, proof("intents_payout", `Balance paid to Haoyun on Base Sepolia for PO ${PO.number}: ${scaled(a.balanceCents)}`)],
     [17000, bot(`${RECEIVED} of ${PO.quantity} arrived. ${formatUsdShort(a.balanceCents)} paid to Haoyun; ${formatUsdShort(a.holdCents)} held for the last ${PO.quantity - RECEIVED}.`, { refersTo: "money" })],
   ] },
   { id: 7, title: "Paid", durationMs: 14000, layout: ["money", "stock"], grid: { cols: "1fr 1fr" },
-    line: "Haoyun is paid for what arrived. A payment to a lookalike address is refused.", status: `PO ${PO.number} settled`, beats: [
-    [500, { type: "release", stage: "balance", to: WRONG }, step("Paid and refused", "money.payout", 1.8)],
+    line: "Haoyun is paid for what arrived. A payment to a lookalike address is refused.", status: `PO ${PO.number} settled`, enter: "Try a payment to a lookalike address", beats: [
+    [500, { type: "release", stage: "balance", to: WRONG }, step("Paid and refused", "money.payout", 1.8, ["Paid to Haoyun Precision", "Refused: a payment to"])],
     [600, proof("refused_release")],
-    [3000, { type: "reveal", what: "protected" }, step("What this protected", "money.protected", 1.5)],
-    [5500, explain("payout"), step("Wallet lifecycle", "money.lifecycle", 1.6)],
+    [3000, { type: "reveal", what: "protected" }, step("What this protected", "money.protected", 1.5, ["What this protected", "never left Astro"])],
+    [5500, explain("payout"), step("Wallet lifecycle", "money.lifecycle", 1.6, ["Created", "Closed"])],
     [8000, explain(null)],
     [8500, { type: "end_card" }],
     [8700, stage("closed")],
@@ -246,6 +254,7 @@ export function buildTimeline(list: Scene[]): Beat[] {
   let start = 0;
   for (const sc of list) {
     out.push({ atMs: start, scene: sc.id, ev: { type: "scene", id: sc.id, layout: sc.layout } });
+    const first = out.length;
     for (const e of sc.beats) {
       const [at, ev, x] = e;
       if (at >= sc.durationMs) throw new Error(`beat past end of scene ${sc.id}`);
@@ -254,6 +263,14 @@ export function buildTimeline(list: Scene[]): Beat[] {
       // A human moment is a tap: on its own button, else on the phone's.
       const clickTarget = extra?.clickTarget ?? (gate ? gate.tap ?? PHONE_TAP : undefined);
       out.push({ atMs: start + at, scene: sc.id, ev, ...(gate ? { gate } : {}), ...(extra?.step ? { step: extra.step } : {}), ...(extra?.focus ? { focus: extra.focus } : {}), ...(clickTarget ? { clickTarget } : {}) });
+    }
+    // Steps this close behind the chapter's start ride with the press that enters it (not in the
+    // first chapter, which the page opens on), up to the first human moment, which always waits.
+    if (sc.id > 0) {
+      for (const b of out.slice(first)) {
+        if (b.atMs - start > RIDE_MS || b.gate) break;
+        if (b.focus || isStop(b)) b.rides = true;
+      }
     }
     start += sc.durationMs;
   }
@@ -271,7 +288,7 @@ const negotiationHold: Scene = {
     [7500, msg({ channel: "email", direction: "in", from: haoyunMail, kind: "Final offer", subject: "Re: PO 1042 quote", time: "14:52",
       text: `All ${PO.quantity} by ${needBy}, but our urgent fee stands: ${formatUsd(HOLD_UNIT)} a unit.`, reading: `Holds at ${pctOver(HOLD_UNIT)}, over the 5% ceiling.` })],
     [7600, { type: "price_quote", unitCents: HOLD_UNIT, from: "Haoyun Precision" }],
-    [7700, offer("haoyun", HOLD_UNIT, `Holds at ${pctOver(HOLD_UNIT)}, over your 5% ceiling`, "attention"), step("Haoyun's offer", "negotiation.haoyun", 1.9)],
+    [7700, offer("haoyun", HOLD_UNIT, `Holds at ${pctOver(HOLD_UNIT)}, over your 5% ceiling`, "attention"), step("Haoyun's offer", "negotiation.haoyun", 1.9, ["Final offer", "our urgent fee stands"])],
     ...scenes[NEGOTIATION].beats.filter(([at]) => at >= 9500 && at < 11000),
     [11000, bot(`Both hold at ${pctOver(HOLD_UNIT)}, over your 5% ceiling. Nothing has been committed.`, { refersTo: "inbox" })],
   ],

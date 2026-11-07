@@ -93,11 +93,14 @@ export function StockPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }
           <span className={short ? s.attnInk : s.successInk} style={{ fontSize: 12 }}>{short ? "Short" : "Covered"}</span>
           <span className={s.note} style={{ fontSize: 12 }}>10MA build plan</span>
         </div>
-        <div className={s.lines} data-focus="stock.shortfall" style={{ gap: 6 }}>
-          <p className={s.big} style={{ fontSize: 34, lineHeight: 1.08 }}><N>{formatInt(ordered)}</N> robots ordered, motors for <N>{formatInt(motorsFor)}</N></p>
-          <p className={s.sub}>Each 10MA takes {demand.motorsPerRobot === 1 ? "one actuator motor" : `${demand.motorsPerRobot} actuator motors`}. <N>{formatInt(onHand)}</N> on hand, <N>{formatInt(needed)}</N> needed.</p>
+        {/* The camera frames the headline and the chart together. */}
+        <div className={s.lines} data-focus="stock.shortfall" style={{ gap: 14 }}>
+          <div className={s.lines} style={{ gap: 6 }}>
+            <p className={s.big} style={{ fontSize: 34, lineHeight: 1.08 }}><N>{formatInt(ordered)}</N> robots ordered, motors for <N>{formatInt(motorsFor)}</N></p>
+            <p className={s.sub}>Each 10MA takes {demand.motorsPerRobot === 1 ? "one actuator motor" : `${demand.motorsPerRobot} actuator motors`}. <N>{formatInt(onHand)}</N> on hand, <N>{formatInt(needed)}</N> needed.</p>
+          </div>
+          <ShortChart onHand={onHand} />
         </div>
-        <ShortChart onHand={onHand} />
         <div className={s.rows} role="table" aria-label="10MA build plan parts">
           <div className={s.row} role="row" style={{ gridTemplateColumns: "18px 1fr 62px 56px", minHeight: 24 }}>
             <span /><span className="es-micro" role="columnheader">Part</span><span className="es-micro" role="columnheader" style={{ textAlign: "right" }}>On hand</span><span className="es-micro" role="columnheader" style={{ textAlign: "right" }}>Needed</span>

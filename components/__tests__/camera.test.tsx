@@ -14,11 +14,13 @@ const mockMotion = (reduce: boolean) => {
 afterEach(() => { cleanup(); vi.useRealTimers(); });
 
 const stage = () => document.querySelector<HTMLElement>("[data-camera] > div")!;
-const view = (request: { seq: number; focus: { id: string; zoom: number } } | null, holdNext = false) => (
-  <Camera on follow={false} request={request} fullSeq={0} holdNext={holdNext}>
-    <div data-focus="money.escrow">$63,000</div>
+const view = (request: { seq: number; focus: { id: string; zoom: number; shows?: string[] } } | null, holdNext = false, text = "$63,000") => (
+  <Camera on follow={false} request={request ? { ...request, focus: { shows: [], ...request.focus } } : null} fullSeq={0} holdNext={holdNext}>
+    <div data-focus="money.escrow">{text}</div>
   </Camera>
 );
+/** The camera measures two frames after a step, once the card has laid out. */
+const frames = () => act(async () => { vi.advanceTimersByTime(40); });
 
 async function zoomTo(reduce: boolean, holdNext = false) {
   mockMotion(reduce);
@@ -26,6 +28,7 @@ async function zoomTo(reduce: boolean, holdNext = false) {
   const r = render(view(null, holdNext));
   await act(async () => { await Promise.resolve(); }); // the reduced-motion setting arrives
   r.rerender(view({ seq: 1, focus: { id: "money.escrow", zoom: 2 } }, holdNext));
+  await frames();
   return r;
 }
 
@@ -50,6 +53,20 @@ describe("presenter camera", () => {
   it("stays zoomed after the hold when the next step has its own focus", async () => {
     await zoomTo(false, true);
     await act(async () => { vi.advanceTimersByTime(IN_MS + DEFAULT_HOLD_MS + 10); });
+    expect(stage().style.transform).toContain("scale(2)");
+  });
+  it("waits until the card shows what the step declares, then zooms", async () => {
+    mockMotion(false);
+    vi.useFakeTimers();
+    const req = { seq: 1, focus: { id: "money.escrow", zoom: 2, shows: ["Committed for PO 1042"] } };
+    const r = render(view(null));
+    await act(async () => { await Promise.resolve(); });
+    r.rerender(view(req, false, "Connecting"));
+    await frames();
+    await act(async () => { vi.advanceTimersByTime(300); });
+    expect(stage().style.transform).toBe("translate(0px, 0px) scale(1)");
+    r.rerender(view(req, false, "$63,000 Committed for PO 1042"));
+    await act(async () => { vi.advanceTimersByTime(60); });
     expect(stage().style.transform).toContain("scale(2)");
   });
 });

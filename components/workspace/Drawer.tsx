@@ -37,6 +37,9 @@ const PROOF_FOCUS: Record<string, string> = {
   inference_attestation: "developer.attestation", escrow_wallet: "developer.policy", dock_attestation: "developer.signed",
 };
 
+/** An explainer moment opens the drawer this tall at least, so its column shows in full. */
+const EXPLAIN_H = 540;
+
 /** Splits a recorded response into what was sent and what came back, when it holds both. */
 function split(response: unknown): { request: unknown; response: unknown } | null {
   if (!response || typeof response !== "object") return null;
@@ -77,7 +80,7 @@ export function Explorer({ p }: { p: Proof }) {
         <a className={s.exBtn} href={v.href} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
           {v.label}<ExternalLink size={14} strokeWidth={2} aria-hidden="true" />
         </a>
-        <span className={s.exMeta}>{v.network} · <span className="es-num">{v.short}</span></span>
+        <span className={s.exMeta}>{v.network} · <span className="es-num" data-abbr>{v.short}</span></span>
       </span>
     );
   }
@@ -117,7 +120,7 @@ export function Drawer({ proof, open, onToggle, lastProof, history = [], narrow 
   const facts = ex?.facts && st ? ex.facts(st, p).filter((f) => f.v) : [];
 
   return (
-    <section className={s.drawer} data-open={open} data-narrow={narrow} aria-label="Developer drawer" style={open ? { height: explain ? Math.max(height, 440) : height } : undefined}>
+    <section className={s.drawer} data-open={open} data-narrow={narrow} data-explain={!!explain} aria-label="Developer drawer" style={open ? { height: explain ? Math.max(height, EXPLAIN_H) : height } : undefined}>
       {open && (
         <div className={s.resize} role="separator" aria-orientation="horizontal" aria-label="Drag to resize the developer drawer"
           onPointerDown={(e) => { drag.current = true; e.currentTarget.setPointerCapture(e.pointerId); }}
@@ -135,7 +138,9 @@ export function Drawer({ proof, open, onToggle, lastProof, history = [], narrow 
           <>
             <Dot tone={toneOf(p)} />
             <span className={s.drawerText}>{p.label}</span>
-            <span className={`es-num ${s.drawerHash}`} data-focus="developer.hash" title={p.hash}>{shortHash(p.hash)}</span>
+            {p.pending
+              ? <span className={s.drawerHash} role="status">Confirming<Loader size={12} strokeWidth={2} aria-hidden="true" className={s.spin} style={{ marginLeft: 6, verticalAlign: "-2px" }} /></span>
+              : <span className={`es-num ${s.drawerHash}`} data-focus="developer.hash" data-abbr title={p.hash}>{shortHash(p.hash)}</span>}
             <span className={`es-num ${s.drawerWhen}`}>{stepTime(p)} · Chapter {p.scene + 1}</span>
           </>
         )}
@@ -177,7 +182,7 @@ export function Drawer({ proof, open, onToggle, lastProof, history = [], narrow 
             <div className={s.callMeta}>
               <span className="es-micro">Code path</span><span className="es-num" title={p.codePath}>{p.codePath}</span>
               <span className="es-micro">Hash</span>
-              <span className="es-num" title={p.hash} data-focus="developer.hash">{p.hash ? shortHash(p.hash) : "not known yet"}</span>
+              <span className="es-num" title={p.hash} data-focus="developer.hash" data-abbr>{p.hash ? shortHash(p.hash) : "not known yet"}</span>
             </div>
             <div className={s.proofExplorer}>
               <Explorer p={p} />
@@ -212,7 +217,7 @@ export function Drawer({ proof, open, onToggle, lastProof, history = [], narrow 
                 <div><dt>Why NEAR</dt><dd>{ex.whyNear}</dd></div>
                 {facts.length > 0 && (
                   <div className={s.exFacts}>
-                    {facts.map((f) => <span key={f.k}><span className="es-micro">{f.k}</span><span className="es-num" data-tone={f.tone}>{f.v}</span></span>)}
+                    {facts.map((f) => <span key={f.k}><span className="es-micro">{f.k}</span><span className="es-num" data-tone={f.tone} data-abbr={f.v.includes("…") || undefined} title={f.v}>{f.v}</span></span>)}
                   </div>
                 )}
                 {ex.id === "signed" && <p className={s.note}><FileCheck2 size={13} strokeWidth={2} aria-hidden="true" style={{ verticalAlign: "-2px", marginRight: 4 }} />{SIGNED_NOTE}</p>}

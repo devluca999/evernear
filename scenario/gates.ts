@@ -36,14 +36,7 @@ export function liveStepOf(b: Beat, supplierAddress: string): LiveStep | null {
   return null;
 }
 
-/**
- * Present mode stops at every beat worth narrating: a new chapter, a message, a named step with a
- * camera focus, an off-list attempt, the commit, the dock count, a payment, the reclaim, a rules
- * change, the end. Beats that only animate (fitment pins resolving, shipment progress, checkpoints,
- * the rail, the phone) play between stops.
- */
-const STOP_TYPES = new Set(["message", "refused", "lock_funds", "dock", "release", "reclaim", "rules", "end_card"]);
-export const isStop = (b: Beat) => !!b.gate || !!b.focus || STOP_TYPES.has(b.ev.type) || (b.ev.type === "scene" && b.scene > 0);
+export { isStop } from "./stops";
 
 const SENDER: Record<string, string> = { "haoyun-precision.example": "Haoyun", "ultra-motion.example": "Ultra Motion", "quickship-motion.example": "QuickShip" };
 

@@ -7,6 +7,8 @@ import { formatInt, formatUsd, formatUsdShort, scaleTestnet, TESTNET_SCALE } fro
 import { Badge, Dot, N, Panel, Stamp } from "../Panel";
 import { LifecycleStrip } from "../Diagrams";
 import { RELEASE_RULES } from "@/engine/escrow";
+import { Loader } from "lucide-react";
+import { useActions } from "../actions";
 import s from "../shell.module.css";
 
 const haoyun = suppliers.find((x) => x.id === "haoyun")!;
@@ -30,7 +32,7 @@ function CanPay({ owner }: { owner: string }) {
   return (
     <div className={s.rows}>
       <span className="es-micro" style={{ paddingBottom: 4 }}>Order wallet can pay</span>
-      <div className={s.row}><Dot tone="success" /><span>Haoyun Precision</span><N className={s.rowEnd}>{short(haoyun.receiveAddress)}</N></div>
+      <div className={s.row}><Dot tone="success" /><span>Haoyun Precision</span><span className={`es-num ${s.rowEnd}`} data-abbr title={haoyun.receiveAddress}>{short(haoyun.receiveAddress)}</span></div>
       <div className={s.row}><Dot tone="success" /><span>Astro Robotics</span><N className={s.rowEnd}>{short(owner)}</N></div>
       <div className={s.row}><Dot tone="alert" /><span className={s.muted}>Anyone else</span><span className={s.rowEnd}>Refused</span></div>
     </div>
@@ -91,7 +93,19 @@ const Life = ({ e }: { e: NonNullable<WorkspaceState["escrow"]> }) => (
   </div>
 );
 
+/** Live: the money step running on testnet right now. Next waits until it is confirmed. */
+function Running({ text }: { text: string }) {
+  return (
+    <div className={s.liveRun} role="status" data-focus="money.running">
+      <Loader size={15} strokeWidth={2} aria-hidden="true" className={s.spin} />
+      <span>{text}</span>
+      <span className={`${s.push} ${s.note}`}>Confirming</span>
+    </div>
+  );
+}
+
 export function MoneyPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }) {
+  const { live } = useActions();
   const e = st.escrow;
   const owner = st.wallet?.owner ?? "astro-robotics.testnet";
   const routine = st.routine.stage === "paid" || st.routine.stage === "closed" ? st.routine.totalCents : 0;
@@ -118,7 +132,7 @@ export function MoneyPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }
         <div className={s.lines} data-focus="money.payout" style={{ gap: 8 }}>
           <div className={s.headRow} style={{ gap: 12 }}><N className={s.big} >{<span style={{ fontSize: 32, fontWeight: 500 }}>{formatUsdShort(e.releasedCents)}</span>}</N><Stamp word="Paid" time={story.paidAt} /></div>
           <p className={s.sub}>Paid to Haoyun Precision on its own chain: <N className={s.hi}>{formatUsdShort(advanceCents)}</N> on departure, <N className={s.hi}>{formatUsdShort(balanceCents)}</N> for what arrived. <N className={s.hi}>{formatUsdShort(held || e.reclaimedCents)}</N> {e.reclaimedCents ? "went back to Astro at the deadline." : "held until the deadline."}</p>
-          {refusedPay && <span className={s.line}><Dot tone="alert" />Refused: a payment to <N>{short(refusedPay)}</N>, not on PO <N>{PO.number}</N>&apos;s list</span>}
+          {refusedPay && <span className={s.line}><Dot tone="alert" />Refused: a payment to <span className="es-num" data-abbr title={refusedPay}>{short(refusedPay)}</span>, not on PO <N>{PO.number}</N>&apos;s list</span>}
         </div>
         {stages}
         <Life e={e} />
@@ -183,9 +197,12 @@ export function MoneyPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }
     body = (
       <div className={s.pad} style={{ gap: 12 }}>
         <div className={s.well} style={{ padding: 16, gap: 10 }}>
-          <div className={s.headRow}><span className="es-micro">Wallet</span><span className={s.push}><Badge tone="success">Connected</Badge></span></div>
+          <div className={s.headRow}><span className="es-micro">Wallet</span><span className={s.push}>{live?.on && live.connected === null
+            ? <Badge tone="active">Connecting</Badge>
+            : live?.on && live.connected === false ? <Badge tone="attention">Replay</Badge> : <Badge tone="success">Connected</Badge>}</span></div>
           <p className={s.big} style={{ fontSize: 26 }}>Astro&apos;s wallet</p>
           <p className={s.sub} style={{ fontSize: 14 }}>Keys on your devices. Evernear holds a capped key only.</p>
+          {live?.note && <p className={s.note} style={{ fontSize: 13 }}><Dot tone="success" /> {live.note}</p>}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, paddingTop: 10, borderTop: "1px solid var(--line-hairline)" }}>
             <div className={s.field}><span className="es-micro">Balance</span><N><span style={{ fontSize: 22, fontWeight: 500 }}>{formatUsd(wallet.balanceCents)}</span></N></div>
             <div className={s.field}><span className="es-micro">Address</span><N className={s.muted}>{owner}</N></div>
@@ -198,8 +215,9 @@ export function MoneyPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }
       </div>
     );
   } else {
-    body = <p className={`${s.pad} ${s.note}`}>Connecting Astro&apos;s wallet.</p>;
+    // The wallet is there from the first frame (scenes.ts puts it at 0 ms); this only shows mid-load.
+    body = <p className={`${s.pad} ${s.note}`}>Astro&apos;s wallet</p>;
   }
 
-  return <Panel id="money" title="Money" pulse={pulse} meta={meta}>{body}</Panel>;
+  return <Panel id="money" title="Money" pulse={pulse} meta={meta}>{live?.running && <Running text={live.running} />}{body}</Panel>;
 }

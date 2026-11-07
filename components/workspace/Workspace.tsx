@@ -5,6 +5,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { stateAt, sceneStartMs } from "@/scenario/runner";
 import { ADJUSTMENT_SCENE, amounts, HOLD_UNIT, SCENARIOS, type ScenarioId } from "@/scenario/scenes";
 import { PO, story, suppliers } from "@/seed/astro";
+import { formatUsd, scaleTestnet } from "@/engine/money";
+import type { LiveStep } from "@/scenario/gates";
 import type { Beat, PanelId, WorkspaceState } from "@/scenario/types";
 import { Drawer } from "./Drawer";
 import { Phone } from "./Phone";
@@ -52,6 +54,18 @@ const AFTER: Record<ScenarioId, { label: string; to: ScenarioId | null }> = {
   standoff: { label: "Try the bad path, adjusted", to: "adjusted" },
   adjusted: { label: "Back to the happy path", to: "happy" },
 };
+
+/** What a live money step is doing, said plainly, with the testnet amount (1:1,000). */
+export function runningText(step: LiveStep, unitCents: number): string {
+  const x = amounts(unitCents), usd = (c: number) => formatUsd(scaleTestnet(c));
+  switch (step) {
+    case "commit": return `Committing ${usd(x.lockedCents)} on Tidepool testnet`;
+    case "advance": return `Releasing the ${usd(x.advanceCents)} advance to Haoyun on Base Sepolia`;
+    case "pay": return `Paying Haoyun the ${usd(x.balanceCents)} balance on Base Sepolia`;
+    case "refuse": return "Trying a payment to a lookalike address on Tidepool testnet";
+    case "reclaim": return `Returning ${usd(x.holdCents)} to Astro on Tidepool testnet`;
+  }
+}
 
 export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: number; autoplay?: boolean }) {
   const [t, setT] = useState(initialMs);
@@ -191,7 +205,13 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
   /** Next: play the next step (or answer the moment). A live step finishes first. */
   const proceed = () => {
     if (finished) { const to = AFTER[scenarioId].to; if (to) pickScenario(to); return; }
-    if (upcoming && !liveBusy) { setT(upcoming.atMs); setPlaying(true); return; }
+    if (upcoming && !liveBusy) {
+      // A live money step not yet run is never skipped: the press brings the clock to it, the step
+      // runs on testnet, and the next press only works once it is confirmed.
+      const step = haltedAt !== null && upcoming.atMs >= haltedAt ? null : liveStepOf(upcoming, HAOYUN);
+      const unrun = live.on && !live.error && !!step && !live.done.includes(step);
+      setT(unrun ? upcoming.atMs - 1 : upcoming.atMs); setPlaying(true); return;
+    }
     if (!present && t < TOTAL) setPlaying(true);
   };
   const proceedRef = useRef(proceed);
@@ -251,6 +271,8 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
     setFullSeq((n) => n + 1);
   };
 
+  // Live: a money step under way opens the drawer, so its entry shows "Confirming", then its explorer button.
+  useEffect(() => { if (live.on && liveBusy) queueMicrotask(() => setDrawerOpen(true)); }, [live.on, liveBusy]);
   // Fire the live step the clock is holding at.
   const liveRun = live.run;
   const liveScenario = scenarioId === "adjusted" ? "adjusted" : "happy";
@@ -347,6 +369,11 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
     openPhoto: (checkpointId, index) => { setPlaying(false); setViewer({ checkpointId, index }); },
     openProof: (id) => { setPinnedProof(id); },
     waiting, answer: () => proceedRef.current(),
+    live: {
+      on: live.on, connected: live.on ? (live.preflight ? live.preflight.ok : null) : null,
+      note: live.on && live.preflight?.ok ? `Tidepool testnet · treasury ${formatUsd(Math.round(live.preflight.treasuryUsd * 100))}` : null,
+      running: live.on && liveBusy && heldStep ? runningText(heldStep, st.limitApprovals.length > 0 ? HOLD_UNIT : PO.revisedUnitCents) : null,
+    },
   };
 
   // The phone: on in scenes with a conversation, and whenever a human moment waits on Telegram.

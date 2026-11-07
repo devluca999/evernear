@@ -27,6 +27,8 @@ export interface Message {
   time?: string;
   /** Short subject line for an email row. */
   kind?: string;
+  /** When it arrived in the story (ms from the start), set by the replay. */
+  atMs?: number;
 }
 
 export interface Proof {
@@ -109,7 +111,14 @@ export interface Gate {
  * Where the presenter camera looks when a step runs: an element by its `data-focus` id, how far to
  * zoom (1.0 to 2.5), how long to hold, and whether to dim everything else for the hold.
  */
-export interface Focus { id: string; zoom: number; holdMs?: number; spotlight?: boolean }
+export interface Focus {
+  id: string; zoom: number; holdMs?: number; spotlight?: boolean;
+  /**
+   * What the frame must show, in full, when the camera arrives: text that has to be on the focused
+   * element (the camera waits for it before it zooms, and the frame test checks none of it is cut).
+   */
+  shows: string[];
+}
 
 export interface Beat {
   atMs: number;
@@ -124,6 +133,11 @@ export interface Beat {
    * when the step is a click in the app: a tab, a button, a tap on the phone. Unset: no click.
    */
   clickTarget?: string;
+  /**
+   * A step close behind its chapter's start: it plays with the press that enters the chapter, so
+   * that press never lands on a card with nothing new on it.
+   */
+  rides?: boolean;
 }
 
 export interface WorkspaceState {

@@ -35,6 +35,16 @@ export function findFocus(root: ParentNode | null, id: string): HTMLElement | nu
   return all.find((el) => { const r = el.getBoundingClientRect(); return r.width > 0 || r.height > 0; }) ?? all[0] ?? null;
 }
 
+/** How long the camera waits for a step's element to show what it declares, then zooms anyway. */
+const MAX_TRIES = 40;
+/** A short move when the frame corrects after the content grew. */
+const REFIT_MS = 240;
+/** The element holds every text the step says it shows. */
+export const showsAll = (el: HTMLElement, shows: string[]) => {
+  const text = (el.textContent ?? "").replace(/\s+/g, " ");
+  return shows.every((x) => text.includes(x));
+};
+
 /** What the presenter cursor asks of the camera: where an element sits on the stage, in layout pixels. */
 export interface CameraApi { locate: (id: string) => Rect | null }
 
@@ -89,29 +99,44 @@ export function Camera({ on, follow, request, fullSeq, holdNext, onChange, apiRe
     setSpot(null); setFocusId(null); setDur(ms); setView(FULL);
   }, []);
 
-  // A step with a focus: find its element, move there, hold, come back.
+  // A step with a focus: wait until its element shows what the step declares (scenes.ts `shows`),
+  // move there so the whole element fits with room around it, hold, come back. Once the move lands
+  // the element is measured again, and the frame corrects if the content grew on the way.
   useEffect(() => {
     if (!request || !on) return;
     clear();
-    let tries = 0;
+    let tries = 0, alive = true;
+    const measure = (el: HTMLElement) => toLayout(el.getBoundingClientRect(), stage.current!.getBoundingClientRect(), liveZoom());
+    const target = (rect: Rect) => { const vp = viewport(); return vp.w ? cameraTarget(rect, vp, request.focus.zoom) : { ...FULL, k: request.focus.zoom }; };
     const attempt = () => {
+      if (!alive) return;
       const el = findFocus(stage.current, request.focus.id);
-      if (!el) { if (tries++ < 20) later(attempt, 50); return; }
-      const rect = toLayout(el.getBoundingClientRect(), stage.current!.getBoundingClientRect(), liveZoom());
-      const vp = viewport();
+      const ready = !!el && showsAll(el, request.focus.shows);
+      if (!ready && tries++ < MAX_TRIES) { later(attempt, 50); return; }
+      if (!el) return;
+      const rect = measure(el);
       mode.current = "step";
       setFocusId(request.focus.id);
       setDur(m.inMs);
-      setView(vp.w ? cameraTarget(rect, vp, request.focus.zoom) : { ...FULL, k: request.focus.zoom });
+      setView(target(rect));
       setSpot(request.focus.spotlight ? rect : null);
+      later(() => {
+        const again = findFocus(stage.current, request.focus.id);
+        if (!again || mode.current !== "step") return;
+        const r2 = measure(again);
+        if (Math.abs(r2.w - rect.w) > 2 || Math.abs(r2.h - rect.h) > 2 || Math.abs(r2.x - rect.x) > 2 || Math.abs(r2.y - rect.y) > 2) {
+          setDur(REFIT_MS); setView(target(r2)); if (request.focus.spotlight) setSpot(r2);
+        }
+      }, m.inMs + 30);
       later(() => {
         setSpot(null);
         if (holdNextRef.current) mode.current = "held";
         else goFull(m.outMs);
       }, m.inMs + (request.focus.holdMs ?? DEFAULT_HOLD_MS));
     };
-    attempt();
-    return clear;
+    // Two frames first, so a card that just changed has laid out.
+    requestAnimationFrame(() => requestAnimationFrame(attempt));
+    return () => { alive = false; clear(); };
     // A new step is a new seq (turning the camera back on does not replay the last one).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [request?.seq]);
@@ -137,7 +162,8 @@ export function Camera({ on, follow, request, fullSeq, holdNext, onChange, apiRe
   };
 
   return (
-    <div ref={frame} className={s.camFrame} onClick={onClick} data-camera={on ? "on" : "off"} data-follow={follow} data-zoom={+view.k.toFixed(3)} data-focus-on={focusId ?? undefined}>
+    <div ref={frame} className={s.camFrame} onClick={onClick} data-camera={on ? "on" : "off"} data-follow={follow} data-zoom={+view.k.toFixed(3)} data-focus-on={focusId ?? undefined}
+      data-shows={focusId && request?.focus.id === focusId ? JSON.stringify(request.focus.shows) : undefined}>
       <div ref={stage} className={s.camStage} style={{ transform: transformOf(view), transition: dur ? `transform ${dur}ms ${m.easing}` : "none",
           ["--cam-k" as string]: view.k, ["--cam-move" as string]: dur ? `transform ${dur}ms ${m.easing}` : "none" }}>
         {children}

@@ -37,3 +37,23 @@ export function matchReason(f: { pass: boolean; mismatches: { spec: string; offe
   if (f.mismatches.length === 0) return `Fits every spec, but ${rules}`;
   return f.mismatches.map(mismatchText).join("; ");
 }
+
+/** A pin's state on the search map: green fits, orange late, crimson fails. */
+export type PinTag = "fits" | "late" | "missing parts" | "fails policy";
+
+/** The one line under a supplier's pin while Stockbot compares (shorter than `matchReason`). */
+export function pinReason(f: Parameters<typeof matchReason>[0], bomLines: number): { tag: PinTag; tone: "success" | "attention" | "alert"; text: string } {
+  if (f.pass) return { tag: "fits", tone: "success", text: "Fits, on time by Dec 14" };
+  if (matchKind(f) === "partial") return { tag: "late", tone: "attention", text: "Late, delivers after Dec 14" };
+  if (f.mismatches.length > 0) {
+    return { tag: "missing parts", tone: "alert", text: f.linesOffered > 1 ? `Missing parts: ${f.mismatches.length} of ${bomLines} BOM lines fail` : `Missing parts: ${f.mismatches.map(mismatchText).join("; ")}` };
+  }
+  const why = [f.policyFailures.includes("not_approved") && "not approved", f.policyFailures.includes("over_price_cap") && `${f.priceCapMultiple}x the price cap`].filter(Boolean).join(", ");
+  return { tag: "fails policy", tone: "alert", text: `Fails policy: ${why || "outside your rules"}` };
+}
+
+/** "2 fit, 1 late, 2 fail" once every supplier is checked. */
+export function searchSummary(fs: Parameters<typeof matchReason>[0][]): string {
+  const fit = fs.filter((f) => f.pass).length, late = fs.filter((f) => matchKind(f) === "partial").length;
+  return `${fit} fit, ${late} late, ${fs.length - fit - late} fail`;
+}

@@ -63,11 +63,12 @@ describe("workspace", () => {
     fireEvent.keyDown(window, { key: "k", metaKey: true });
     expect(within(rail()).getByText("Happy path · Chapter 3")).toBeTruthy();
     expect(within(rail()).getByRole("heading", { name: "Ultra's reply" })).toBeTruthy();
+    // The press that enters the chapter also delivers Ultra's reply: no press lands on an empty inbox.
+    expect(nextButton().textContent).toContain("Stockbot: Ultra Motion is out for 6 weeks");
     // ArrowRight plays the next step too, inside the chapter, not a jump to the next chapter.
-    expect(nextButton().textContent).toContain("Deliver Ultra Motion's reply");
     fireEvent.keyDown(window, { key: "ArrowRight" });
     expect(within(rail()).getByText("Happy path · Chapter 3")).toBeTruthy();
-    expect(nextButton().textContent).toContain("Stockbot: Ultra Motion is out for 6 weeks");
+    expect(rail().textContent).toContain("Start sourcing");
     // ArrowLeft goes back one chapter.
     fireEvent.keyDown(window, { key: "ArrowLeft" });
     expect(within(rail()).getByText("Happy path · Chapter 2")).toBeTruthy();
@@ -198,7 +199,7 @@ describe("workspace", () => {
   });
   it("a card you open from the sidebar stays across chapters until you close it; unlocking never removes it", () => {
     at(sceneStartMs(4) + 2000);
-    expect(panels()).toEqual(["inbox", "rules"]);
+    expect(panels()).toEqual(["inbox"]);
     fireEvent.click(within(nav()).getByRole("button", { name: "Stock" }));
     expect(panels()).toContain("stock");
     expect(within(nav()).getByRole("button", { name: "Stock" }).getAttribute("aria-pressed")).toBe("true");
@@ -259,14 +260,28 @@ describe("workspace", () => {
       unmount();
     }
   });
-  it("names the exact failing spec in fitment", () => {
+  it("names each supplier's result on the map pin, the exact failing specs on the pin itself", () => {
     at(sceneStartMs(4) - 100); // the end of Search
-    const fit = within(screen.getByRole("list", { name: "Fitment" }));
-    expect(fit.getByText("Fits every spec, but delivers after Dec 14")).toBeTruthy();
-    expect(fit.getByText("Not approved, 2.4x price cap")).toBeTruthy();
-    expect(fit.getByText("Flange NEMA 23, needs NEMA 17")).toBeTruthy();
-    expect(fit.getByText("Connector JST-GH, needs Molex")).toBeTruthy();
-    expect(fit.getByText("Battery 36 V, needs 48 V")).toBeTruthy();
+    const map = within(screen.getByRole("region", { name: "Map" }));
+    expect(map.getByRole("status").textContent).toBe("2 fit, 1 late, 2 fail");
+    const pin = (name: string) => map.getByLabelText(new RegExp(`^${name}: `));
+    expect(within(pin("Haoyun Precision")).getByText("Fits, on time by Dec 14")).toBeTruthy();
+    expect(within(pin("Kansai Servo Works")).getByText("Late, delivers after Dec 14")).toBeTruthy();
+    expect(within(pin("Rheinwerk Antriebstechnik")).getByText("Fails policy: not approved, 2.4x the price cap")).toBeTruthy();
+    expect(within(pin("Huaxin Robotics Components")).getByText(/^Missing parts: 3 of \d+ BOM lines fail$/)).toBeTruthy();
+    const huaxin = pin("Huaxin Robotics Components").getAttribute("title")!;
+    for (const spec of ["Flange NEMA 23, needs NEMA 17", "Connector JST-GH, needs Molex", "Battery 36 V, needs 48 V"]) expect(huaxin).toContain(spec);
+  });
+  it("pops each supplier's pin in as Stockbot checks it, counting up, with none before the search", () => {
+    const fits = timeline.filter((b) => b.ev.type === "fitment");
+    const { unmount } = at(fits[0].atMs - 1);
+    const map = () => within(screen.getByRole("region", { name: "Map" }));
+    expect(map().getByRole("status").textContent).toBe("Comparing suppliers: 0 of 5");
+    expect(map().queryAllByRole("button", { name: /Precision|Motion|Works|Antriebstechnik/ })).toHaveLength(0);
+    unmount();
+    at(fits[2].atMs);
+    expect(map().getByRole("status").textContent).toBe("Comparing suppliers: 3 of 5");
+    expect(map().queryAllByLabelText(/^[A-Z][\w ]+: /)).toHaveLength(3);
   });
   it("pays the balance at the dock on its signals, with no YES to tap, and holds the rest", () => {
     const pay = timeline.find((b) => b.ev.type === "release" && b.ev.stage === "balance" && b.ev.to === HAOYUN)!;

@@ -141,7 +141,7 @@ function Dock({ st }: { st: WorkspaceState }) {
       </div>
       <div className={s.cells} data-focus="dock.count" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
         <div className={s.cell} style={{ padding: "10px 12px" }}><span className="es-micro">Ordered</span><N><span style={{ fontSize: 20, fontWeight: 500 }}>{formatInt(PO.quantity)}</span></N></div>
-        <div className={s.cell} data-tone={missing ? "attention" : undefined} style={{ padding: "10px 12px" }}><span className="es-micro">Arrived</span><N className={counted ? undefined : s.faint}><span style={{ fontSize: 20, fontWeight: 500 }}>{counted ? formatInt(d.receivedQty) : "..."}</span></N></div>
+        <div className={s.cell} data-tone={missing ? "attention" : undefined} style={{ padding: "10px 12px" }}><span className="es-micro">Arrived</span><N className={counted ? undefined : s.faint}><span style={{ fontSize: 20, fontWeight: 500 }}>{counted ? formatInt(d.receivedQty) : "Counting"}</span></N></div>
         <div className={s.cell} style={{ padding: "10px 12px" }}><span className="es-micro">Billed</span><N><span style={{ fontSize: 20, fontWeight: 500 }}>{formatInt(PO.quantity)}</span></N></div>
       </div>
       <div className={s.rows}>

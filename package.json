@@ -11,6 +11,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "check:ip": "node scripts/check-ip.mjs",
+    "check:frames": "node scripts/check-frames.mjs",
     "demo": "node scripts/demo.mjs",
     "rehearse": "tsx scripts/rehearse.ts"
   },

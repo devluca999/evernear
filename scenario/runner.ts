@@ -73,7 +73,7 @@ function apply(s: WorkspaceState, b: Beat): WorkspaceState {
       return { ...s, routine: { ...s.routine, stage: ev.to } };
     }
     case "message": return {
-      ...s, messages: [...s.messages, ev.message],
+      ...s, messages: [...s.messages, { ...ev.message, atMs: at }],
       pulse: ev.message.refersTo ?? s.pulse,
     };
     case "proof": {

@@ -14,7 +14,7 @@ Evernear is an agent that sources a scarce part, checks it fits, negotiates, com
 | Live | Testnet setup above, `LIVE_ENABLED=1` in the Convex env | `npm run dev`, then press "Replay" to switch it to "Live": when the story reaches each money step (commit, the wrong address, the payout, the reclaim) the clock holds while it runs for real on Tidepool testnet, and the drawer shows the real tx ([live.ts](convex/live.ts), [useLive.ts](components/workspace/useLive.ts), [test](tests/live.test.ts)). Amounts and addresses are fixed on the server; one run at a time, 6 an hour; an abandoned run is refunded by its 30 minute deadline |
 | Rehearsal | Testnet keys plus the `REHEARSE_*` accounts in [steps.ts](scripts/rehearse/steps.ts) | `RECORD=1 npm run rehearse` runs the scenes on testnet and writes real proofs to `fixtures/recorded/`; refuses missing keys and any mainnet host, and commits nothing before both approvals ([test](tests/record.test.ts) "rehearsal") |
 
-Checks: `npm run typecheck && npm run lint && npm test && npm run check:ip`.
+Checks: `npm run typecheck && npm run lint && npm test && npm run check:ip`. With the app running, `npm run check:frames -- --url http://localhost:3000/` walks all three scenarios in Chrome at 1920x1080 pressing Cmd+K and checks every zoom (below).
 
 ## The story
 
@@ -43,13 +43,14 @@ Record with any screen recorder and the zooms are already in the video. Each nam
 | 1 | Motor highlight | `products.motor` | 2.2x |
 | 2 | The gap | `stock.shortfall` | 1.8x |
 | 3 | Ultra's reply | `inbox.reply` | 1.7x |
-| 4 | Search typed | `map.search` | 1.8x |
+| 4 | Search typed (the query and "Comparing suppliers: 0 of 5") | `map.search` | 1.8x |
 | 4 | Private inference (explainer) | `developer.attestation` | 1.5x |
 | 4 | Attestation (explainer) | `developer.attestation` | 1.8x |
-| 4 | Pins resolve | `map.results` | 1.4x |
-| 4 | Orange reasons (spotlight) | `map.results.partial` | 2.0x |
+| 4 | Pins resolve (the map fills its card, so this frames the whole map) | `map.results` | 1.4x asked, about 1.0x fitted |
+| 4 | Orange reasons (spotlight on Kansai's pin) | `map.results.partial` | 2.0x |
 | 5 | Offers side by side | `negotiation.threads` | 1.3x |
-| 5 | Haoyun's offer | `negotiation.haoyun` | 1.9x |
+| 5 | Haoyun's offer | `negotiation.haoyun` | 1.9x asked, fitted to the thread |
+| 5 | Recommendation | `negotiation.compare` | 1.6x asked, fitted to the card |
 | 6 | Approvals | `rules.approvals` | 1.8x |
 | 6 | Funds move | `money.escrow` | 2.0x |
 | 6 | Order wallet (explainer) | `developer.policy` | 1.6x |
@@ -57,6 +58,39 @@ Record with any screen recorder and the zooms are already in the video. Each nam
 | 7 | Signed result (explainer) | `developer.signed` | 1.7x |
 | 8 | Paid and refused | `money.payout` | 1.8x |
 | 8 | Wallet lifecycle (explainer) | `money.lifecycle` | 1.6x |
+
+### Every zoom shows its card in full
+
+Each step with a focus declares what its frame must show (`shows` in [scenes.ts](scenario/scenes.ts): text such as "Committed for PO 1042"). The camera waits until the focused element holds all of it, measures two frames later so the card has laid out, zooms so the whole element fits with 48 px around it, and measures again when the move lands, correcting the frame if the content grew ([Camera.tsx](components/workspace/Camera.tsx)). Nothing in a focused element is cut with an ellipsis; hashes and addresses shortened on purpose carry `data-abbr` and their full value on hover. Tests: [frames.test.tsx](components/__tests__/frames.test.tsx) (in all three scenarios every zoom declares what it shows, the element holds all of it at its step, no cut text; and over 2,000 random elements the camera's frame keeps each one inside the viewport with padding), [camera.test.tsx](components/__tests__/camera.test.tsx) (it waits for the declared text). In a real browser, [check-frames.mjs](scripts/check-frames.mjs) checks with layout that each zoomed element is inside the 1920x1080 viewport, that no box inside it cuts its text, that every declared text is on screen and not scrolled away, and lists cut text on the other cards; the last run passed all 22 zooms of the happy path, 11 of the bad path and 21 of the adjusted path, with no cut text on any card.
+
+What changed so no step talks over an empty card:
+
+- Chapter 1: Astro's wallet is on the Money card from the first frame. In Live the wallet says Connecting until the Tidepool key answers, then Connected with the treasury's balance.
+- The steps in a chapter's first 1.6 s play with the press that enters the chapter (`rides`, [scenes.ts](scenario/scenes.ts) `buildTimeline`): entering chapter 2 shows the gap, chapter 3 delivers Ultra's reply, chapter 4 runs the search, chapter 5 lands both quotes in their threads, chapter 6 sends the approval card, chapter 8 tries the lookalike payment. A human moment always waits for its own press.
+- Chapter 2: the gap's zoom frames the headline and the chart together.
+- Chapter 4: the map has the card to itself and fills it. While the search runs, "Comparing suppliers: 0 of 5" counts up; each supplier's pin appears as it is checked, with its name and one line of why in green, orange or crimson (fits, late, missing parts, fails policy; the exact failing specs on hover); "2 fit, 1 late, 2 fail" when it is done. No supplier pins before the search.
+- Chapter 5: the Inbox has the room beside the phone. Every email in both threads shows in full; the threads are as tall as their emails and scroll on their own only if they outgrow the card; a new email scrolls its thread to it and is lit for 4.5 s; Stockbot's comparison is a full-width card under both threads.
+- The drawer's explainer column grows to fit and wraps long values instead of cutting them.
+- Live (chapters 6 to 8): while a money step runs, the Money card says what is happening ("Committing $63.00 on Tidepool testnet") and the drawer opens on the entry, which shows Confirming, then its View on NearBlocks or View on Basescan button. Cmd+K does nothing until the step is confirmed, and a press while the clock is still on its way stops at the step instead of passing it. Tests: [liveStatus.test.tsx](components/__tests__/liveStatus.test.tsx), [liveGate.test.tsx](components/__tests__/liveGate.test.tsx).
+
+Cmd+K presses per chapter, from the browser run (the page opens on chapter 1):
+
+| Scenario | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | Total |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Happy path | 2 | 1 | 3 | 5 | 11 | 6 | 8 | 5 | | 41 (was 49) |
+| Bad path | 2 | 1 | 3 | 5 | 9 | 2 | | | | 22 |
+| Bad path, adjusted | 2 | 1 | 3 | 5 | 9 | 7 | 6 | 8 | 5 | 46 |
+
+![Chapter 1 on first load: the wallet already there](docs/screens/fix-1-wallet.png)
+![Chapter 2: the gap, headline and chart](docs/screens/fix-2-gap.png)
+![Chapter 3: the press that enters the chapter delivers Ultra's reply](docs/screens/fix-3-reply.png)
+![Chapter 4: the search, counting](docs/screens/fix-4-search.png)
+![Chapter 4: pins appearing as each supplier is checked](docs/screens/fix-4-pins.png)
+![Chapter 4: done, 2 fit, 1 late, 2 fail](docs/screens/fix-4-done.png)
+![Chapter 5: both threads in full, the newest lit](docs/screens/fix-5-threads.png)
+![Chapter 5: Haoyun's final offer](docs/screens/fix-5-haoyun.png)
+![Chapter 5: Stockbot's comparison under both threads](docs/screens/fix-5-compare.png)
+![Chapter 7: the signed result, the explainer column in full](docs/screens/fix-7-signed.png)
 
 ### Presenter cursor
 
@@ -92,7 +126,7 @@ Each order wallet serves one order and is never reused: once settled it is froze
 ![E. Paid, then the wallet lifecycle](docs/screens/explainer-e-wallet-lifecycle.png)
 
 ![Chapter 1, motor highlight at 2.2x](docs/screens/camera-1-motor.png)
-![Chapter 4, orange reasons with the spotlight](docs/screens/camera-4-partial.png)
+![Chapter 4, orange reasons: the spotlight on Kansai's pin](docs/screens/camera-4-partial.png)
 ![Chapter 6, funds move at 2.0x](docs/screens/camera-6-escrow.png)
 
 ## Acceptance checks

@@ -107,5 +107,7 @@ describe("the gate run signed with a NEAR key", () => {
     expect(text).toContain("request_execution");
     expect(text).toContain('"input_data":"{\\"agent_id\\":\\"agent_x\\",\\"mode\\":\\"enroll\\"}"');
     expect(text).toContain(`"hash":"${SHA}"`);
+    // The run names the signer's secrets row, or the gate never sees the Tidepool API key.
+    expect(text).toContain('"secrets_ref":{"account_id":"evernear-luca.testnet","profile":"default"}');
   });
 });

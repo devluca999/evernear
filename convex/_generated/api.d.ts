@@ -26,6 +26,7 @@ import type * as near_escrowState from "../near/escrowState.js";
 import type * as near_gmail from "../near/gmail.js";
 import type * as near_http from "../near/http.js";
 import type * as near_inference from "../near/inference.js";
+import type * as near_nearTx from "../near/nearTx.js";
 import type * as near_releaseGate from "../near/releaseGate.js";
 import type * as proofs from "../proofs.js";
 
@@ -54,6 +55,7 @@ declare const fullApi: ApiFromModules<{
   "near/gmail": typeof near_gmail;
   "near/http": typeof near_http;
   "near/inference": typeof near_inference;
+  "near/nearTx": typeof near_nearTx;
   "near/releaseGate": typeof near_releaseGate;
   proofs: typeof proofs;
 }>;

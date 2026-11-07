@@ -110,13 +110,15 @@ export function answerFromRun(value: string | null, logs: string[]): Record<stri
  * That account is the caller the gate's keys are bound to.
  */
 export class NearKeyReleaseGate implements ReleaseGate {
-  constructor(private o: { fetch: Fetch; account: string; key: string; wasmUrl: string; wasmSha256: string; rpcUrl?: string }) {}
+  constructor(private o: { fetch: Fetch; account: string; key: string; wasmUrl: string; wasmSha256: string; rpcUrl?: string; secretsProfile?: string }) {}
   get wasmUrl() { return this.o.wasmUrl; }
   get wasmSha256() { return this.o.wasmSha256; }
 
   private async run(input: Record<string, unknown>): Promise<{ output: Record<string, unknown>; run: GateRun }> {
     const args = {
-      input_data: canonical(input), params: null, payer_account_id: null, resource_limits: CLI_LIMITS, response_format: "Json", secrets_ref: null,
+      input_data: canonical(input), params: null, payer_account_id: null, resource_limits: CLI_LIMITS, response_format: "Json",
+      // The Tidepool API key lives in the signer's secrets row for this wasm hash; a direct run reads it only when named.
+      secrets_ref: { account_id: this.o.account, profile: this.o.secretsProfile ?? "default" },
       source: { WasmUrl: { build_target: "wasm32-wasip2", hash: this.o.wasmSha256, url: this.o.wasmUrl } },
     };
     const r = await callFunction({
@@ -151,7 +153,7 @@ export function releaseGateFromEnv(env: Record<string, string | undefined>, fetc
   if (nearAccount || nearKey) {
     if (!nearAccount || !nearKey) throw new GateConfigError("release gate needs both RELEASE_GATE_NEAR_ACCOUNT and RELEASE_GATE_NEAR_KEY");
     if (!nearAccount.endsWith(".testnet")) throw new GateConfigError("release gate runs on testnet only");
-    return new NearKeyReleaseGate({ fetch, account: nearAccount, key: nearKey, wasmUrl: url, wasmSha256: sha });
+    return new NearKeyReleaseGate({ fetch, account: nearAccount, key: nearKey, wasmUrl: url, wasmSha256: sha, secretsProfile: env.RELEASE_GATE_SECRETS_PROFILE?.trim() || undefined });
   }
   if (!key) throw new GateConfigError("release gate configured without RELEASE_GATE_NEAR_ACCOUNT and RELEASE_GATE_NEAR_KEY, or RELEASE_GATE_WALLET_KEY");
   return new OutlayerReleaseGate({ fetch, walletKey: key, wasmUrl: url, wasmSha256: sha, depositYocto: env.RELEASE_GATE_DEPOSIT_YOCTO?.trim() || undefined });

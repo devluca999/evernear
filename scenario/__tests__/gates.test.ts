@@ -85,3 +85,18 @@ describe("present mode stops", () => {
     expect(timeline.filter((b) => b.ev.type === "shipment" || b.ev.type === "checkpoint").some(isStop)).toBe(false);
   });
 });
+
+describe("explainers stay up while you talk", () => {
+  it("an explainer closes only with the step the next press plays, never while the clock runs between stops", async () => {
+    const { isStop } = await import("../gates");
+    const { SCENARIOS } = await import("../scenes");
+    for (const sc of Object.values(SCENARIOS)) {
+      const closes = sc.timeline.filter((b) => b.ev.type === "explain" && b.ev.id === null);
+      expect(closes.length).toBeGreaterThan(0);
+      for (const c of closes) {
+        const press = sc.timeline.find((b) => b.atMs === c.atMs && isStop(b));
+        expect(press, `${sc.id}: explainer closes at ${c.atMs} ms with no press there`).toBeTruthy();
+      }
+    }
+  });
+});

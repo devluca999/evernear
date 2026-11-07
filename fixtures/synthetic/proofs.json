@@ -76,12 +76,12 @@
   },
   "approval_jordy": {
     "kind": "approval",
-    "label": "Approval 2 of 2: Jordy",
+    "label": "Approval 2 of 2: Jordan Bennett",
     "call": "POST /approvals/sign (agent custody)",
     "codePath": "convex/near/approval.ts#sign",
     "network": "testnet",
     "response": {
-      "approver": "Jordy",
+      "approver": "Jordan Bennett",
       "request": "PO 1042"
     }
   },

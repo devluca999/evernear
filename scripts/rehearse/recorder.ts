@@ -30,7 +30,7 @@ export function keyFor(p: ProofInput): ProofKey | null {
     case "inference.ts#read": return "inference_attestation";
     case "approval.ts#submit":
       if (/luca/i.test(p.label)) return "approval_luca";
-      if (/jordy/i.test(p.label)) return "approval_jordy";
+      if (/jordan/i.test(p.label)) return "approval_jordy";
       return null;
     case "gmail.ts#send": return p.kind === "refusal" ? "refused_email" : p.kind === "connector_receipt" ? "connector_receipt" : null;
     case "escrow.ts#lock": return p.kind === "escrow" ? "escrow_wallet" : null;

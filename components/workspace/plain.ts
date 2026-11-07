@@ -5,7 +5,7 @@ export const PLAIN: Record<string, string> = {
   payment_receipt: "A routine reorder under the cap paid itself. No person had to step in.",
   inference_attestation: "The supplier offers were read inside an attested enclave, so the BOM stayed on private hardware.",
   approval_luca: "Luca signed PO 1042 on his own phone. Orders over $10,000 need two signatures.",
-  approval_jordy: "Jordy added the second signature. Only now can money be committed.",
+  approval_jordy: "Jordan added the second signature. Only now can money be committed.",
   refused_email: "The agent tried to email an address outside the allowlist. The connector blocked it, as designed.",
   connector_receipt: "The counter offer went to Haoyun through the Gmail connector, and only to Haoyun's address.",
   escrow_wallet: "$63,000 (shown at 1:1,000) moved into this PO's own account. From there it can only pay Haoyun or go back to Astro.",

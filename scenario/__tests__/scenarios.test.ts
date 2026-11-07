@@ -38,7 +38,7 @@ describe("three scenarios", () => {
     expect(s.escrow).toMatchObject({ lockedCents: adj.lockedCents, releasedCents: adj.releaseCents, reclaimedCents: adj.holdCents, closed: true });
     expect(gates("adjusted")).toEqual(["start_sourcing", "raise_limit", "approve_raise", "approve_luca", "approve_jordy", "packing_slip"]);
     expect(SCENARIOS.adjusted.scenes.map((x) => x.title)).toEqual(["The 10MA", "The gap", "Ultra's reply", "Search", "Negotiation", "Adjustment", "Approve and commit", "Shenzhen to the Chicago dock", "Paid"]);
-    expect(s.limitApprovals.map((a) => a.by)).toEqual(["Luca", "Jordy"]);
+    expect(s.limitApprovals.map((a) => a.by)).toEqual(["Luca", "Jordan"]);
     expect(s.dock).toMatchObject({ releaseCents: adj.balanceCents, holdCents: adj.holdCents });
     const labels = s.proofs.map((p) => p.label).join("\n");
     expect(labels).toContain("Committed for PO 1042: $66.00 (1:1,000 of $66,000.00)");

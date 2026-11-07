@@ -119,7 +119,7 @@ function PoDetail({ st }: { st: WorkspaceState }) {
         ) : (
           st.approvals.map((a) => <span key={a.by} className={s.line}><Dot tone="success" />Signed by {a.by} <N className={s.muted}>{a.time}</N></span>)
         )}
-        {!repriced && !done && <span className={s.line}><Dot tone="attention" />{signed === 0 ? "Luca to sign" : "Jordy to sign"}</span>}
+        {!repriced && !done && <span className={s.line}><Dot tone="attention" />{signed === 0 ? "Luca to sign" : "Jordan to sign"}</span>}
       </div>
     </div>
   );

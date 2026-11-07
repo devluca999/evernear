@@ -159,7 +159,7 @@ Source: [gmail-connector](https://skills.outlayer.ai/gmail-connector/SKILL.md), 
 
 - Register Astro's wallet with `POST https://testnet-api.outlayer.ai/register`; claim the trial key in the same step (the 7 days run from registration, and 50 calls must cover all Gmail `status` and `send` calls in rehearsal).
 - Astro's owner (a NEAR testnet account held by Luca) must sign `store_wallet_policy`; until then the wallet is unrestricted. Scene 0 must show a policy actually stored, not just a wallet.
-- Approvers (Luca, Jordy) need NEAR testnet accounts with full-access keys in a wallet that can sign NEP-413 on a phone. Approval happens on the OutLayer dashboard or via `POST /wallet/v1/approve/{id}`.
+- Approvers (Luca, Jordan) need NEAR testnet accounts with full-access keys in a wallet that can sign NEP-413 on a phone. Approval happens on the OutLayer dashboard or via `POST /wallet/v1/approve/{id}`.
 - FT movement on testnet is `POST /wallet/v1/call` with `ft_transfer` on `usdc.fakes.testnet` (deposit 1 yocto, storage registered for each recipient, gas paid in testnet NEAR by the sending wallet). Each escrow wallet needs a little testnet NEAR for gas.
 - How to obtain `usdc.fakes.testnet` tokens is not documented in the pages read (unverified).
 - Store per proof: `request_id`, `tx_hash` (testnet), `call_id` and `attestation_url` (connector and worker runs), `approval_id` and vote count.
@@ -332,7 +332,7 @@ Checked against [BUILD.md](BUILD.md) section 5 (architecture) and section 8 (acc
 
 - BUILD.md: auto-approve under $10K; new supplier needs 2 approvers; $38K cannot lock funds before 2 approvals.
 - Sources: multisig approvals exist and work on testnet ([full docs](https://app.outlayer.ai/llms-full.txt)); the `ApprovalConfig` schema has a vote count, approvers and `excluded_types`, and **no amount threshold** ([openapi.json](https://testnet-api.outlayer.ai/openapi.json)). Whether approval can be limited to amounts above $10K is unverified. "New supplier" is not a policy concept at all.
-- Safest build option: two wallets. Astro's main wallet carries `approval.threshold: 2` (Luca and Jordy as approvers), so the $38K move into escrow returns `pending_approval` and executes only after both votes (the TEE enforces this). A small operating wallet with `per_transaction` at $10K and no approval pays routine reorders. The $10K and new-supplier routing rule is computed in code (deterministic spine) and tested; the TEE-enforced part is "the main wallet cannot move money without 2 votes". Approvers need NEAR testnet accounts with full-access keys.
+- Safest build option: two wallets. Astro's main wallet carries `approval.threshold: 2` (Luca and Jordan as approvers), so the $38K move into escrow returns `pending_approval` and executes only after both votes (the TEE enforces this). A small operating wallet with `per_transaction` at $10K and no approval pays routine reorders. The $10K and new-supplier routing rule is computed in code (deterministic spine) and tested; the TEE-enforced part is "the main wallet cannot move money without 2 votes". Approvers need NEAR testnet accounts with full-access keys.
 
 ### 10.3 Payment checks for the final payout
 

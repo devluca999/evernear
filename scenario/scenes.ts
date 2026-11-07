@@ -16,7 +16,7 @@ import { formatInt, formatUsd, formatUsdShort, scaleTestnet, TESTNET_SCALE } fro
 export interface SceneGrid { cols: string; rows?: string; areas?: string[] }
 
 /** What a beat can carry besides its event: a human moment, a named step, a camera focus. */
-export interface Extra { gate?: Gate; step?: string; focus?: Focus }
+export interface Extra { gate?: Gate; step?: string; focus?: Focus; clickTarget?: string }
 type Entry = [number, Event] | [number, Event, Gate] | [number, Event, Extra];
 
 export interface Scene {
@@ -39,14 +39,18 @@ const isGate = (x: Gate | Extra | undefined): x is Gate => !!x && "who" in x;
 /** The human moment a beat waits for, if any. */
 export const gateOf = (e: Entry): Gate | undefined => (isGate(e[2]) ? e[2] : e[2]?.gate);
 /** A named step with a camera focus: `step("Pins resolve", "map.results", 1.4)`. */
-const step = (name: string, id: string, zoom: number, more: Omit<Focus, "id" | "zoom"> & { gate?: Gate } = {}): Extra => {
-  const { gate, ...rest } = more;
-  return { step: name, focus: { id, zoom, ...rest }, ...(gate ? { gate } : {}) };
+const step = (name: string, id: string, zoom: number, more: Omit<Focus, "id" | "zoom"> & { gate?: Gate; clickTarget?: string } = {}): Extra => {
+  const { gate, clickTarget, ...rest } = more;
+  return { step: name, focus: { id, zoom, ...rest }, ...(gate ? { gate } : {}), ...(clickTarget ? { clickTarget } : {}) };
 };
+/** The products card's tab for a product: the presenter cursor clicks it before the switch. */
+const tab = (id: string) => `products.tab.${id}`;
+/** The phone's live answer button (a YES, a chip, or the button under the chat). */
+export const PHONE_TAP = "phone.tap";
 
 let n = 0;
 const msg = (m: Omit<Message, "id">): Event => ({ type: "message", message: { id: `m${++n}`, ...m } });
-const bot = (text: string, opts: { refersTo?: PanelId; card?: Message["card"]; chips?: string[]; to?: "Luca" | "Jordy" } = {}): Event =>
+const bot = (text: string, opts: { refersTo?: PanelId; card?: Message["card"]; chips?: string[]; to?: "Luca" | "Jordan" } = {}): Event =>
   msg({ channel: "telegram", direction: "out", from: "Stockbot", to: opts.to ?? "Luca", text, refersTo: opts.refersTo, card: opts.card, chips: opts.chips });
 const buyer = (text: string, photo?: string): Event => msg({ channel: "telegram", direction: "in", from: "Luca", text, photo });
 const stage = (to: Stage): Event => ({ type: "stage", to });
@@ -95,9 +99,9 @@ export const scenes: Scene[] = [
     [600, { type: "wallet" }],
     [1000, proof("wallet_created")],
     [2200, proof("policy_set")],
-    [3400, { type: "product", id: "kip" }],
-    [4200, { type: "product", id: "porter" }],
-    [5200, { type: "product", id: "10ma" }, step("Product switch", "products.figure", 1.5)],
+    [3400, { type: "product", id: "kip" }, { clickTarget: tab("kip") }],
+    [4200, { type: "product", id: "porter" }, { clickTarget: tab("porter") }],
+    [5200, { type: "product", id: "10ma" }, step("Product switch", "products.figure", 1.5, { clickTarget: tab("10ma") })],
     [8000, { type: "highlight", part: MOTOR_PART }, step("Motor highlight", "products.motor", 2.2)],
   ] },
   { id: 1, title: "The gap", durationMs: 10000, layout: ["stock", "orders"], grid: { cols: "560fr 440fr" },
@@ -121,7 +125,7 @@ export const scenes: Scene[] = [
       text: "We are out of the AM-17 for 6 weeks. Our next build ships 15 Dec.",
       reading: `No AM-17 before 15 Dec, a day after the ${needBy} ship date. ${PO.quantity} robots would miss it. Stockbot can source a replacement.` }), step("Ultra's reply", "inbox.reply", 1.7)],
     [3500, bot(`Ultra Motion is out for 6 weeks. ${formatInt(demand.robotsOrdered)} robots ordered, motors for ${formatInt(demand.motorsOnHand)}. Start sourcing ${PO.quantity} AM-17s?`, { refersTo: "inbox" })],
-    [6000, buyer("Start sourcing"), { id: "start_sourcing", who: "Luca", panels: ["inbox"], status: "Stockbot needs you", prompt: "Tap Start sourcing in the Inbox panel.", action: "Start sourcing" }],
+    [6000, buyer("Start sourcing"), { id: "start_sourcing", who: "Luca", panels: ["inbox"], status: "Stockbot needs you", prompt: "Tap Start sourcing in the Inbox panel.", action: "Start sourcing", tap: "inbox.start" }],
   ] },
   { id: 3, title: "Search", durationMs: 16000, layout: ["map", "products"], grid: { cols: "620fr 400fr" },
     line: `Stockbot searches for an AM-17 that fits the 10MA and arrives by ${needBy}. Two fit.`, status: "Searching 5 suppliers", enter: "Search for a replacement motor", beats: [
@@ -175,8 +179,8 @@ export const scenes: Scene[] = [
       step("Approvals", "rules.approvals", 1.8, { holdMs: 2400 })],
     [2800, { type: "approval", by: "Luca", time: "14:56" }, { id: "approve_luca", who: "Luca", panels: ["rules"], status: "Waiting on Luca", prompt: `Reply YES on Telegram to sign PO ${PO.number}.`, action: "YES, approve as Luca" }],
     [2900, proof("approval_luca")],
-    [4400, bot(`Jordy, PO ${PO.number} needs your signature. Luca signed at 14:56.`, { refersTo: "rules", card: "sign", to: "Jordy" })],
-    [6200, { type: "approval", by: "Jordy", time: "14:58" }, { id: "approve_jordy", who: "Jordy", panels: ["rules"], status: "Waiting on Jordy", prompt: `Reply YES on Telegram to sign PO ${PO.number}.`, action: "YES, approve as Jordy" }],
+    [4400, bot(`Jordan, PO ${PO.number} needs your signature. Luca signed at 14:56.`, { refersTo: "rules", card: "sign", to: "Jordan" })],
+    [6200, { type: "approval", by: "Jordan", time: "14:58" }, { id: "approve_jordy", who: "Jordan", panels: ["rules"], status: "Waiting on Jordan", prompt: `Reply YES on Telegram to sign PO ${PO.number}.`, action: "YES, approve as Jordan" }],
     [6300, proof("approval_jordy")],
     [6600, stage("confirmed")],
     [8000, { type: "lock_funds" }, step("Funds move", "money.escrow", 2.0)],
@@ -247,7 +251,9 @@ export function buildTimeline(list: Scene[]): Beat[] {
       if (at >= sc.durationMs) throw new Error(`beat past end of scene ${sc.id}`);
       const gate = gateOf(e);
       const extra = x && !isGate(x) ? x : undefined;
-      out.push({ atMs: start + at, scene: sc.id, ev, ...(gate ? { gate } : {}), ...(extra?.step ? { step: extra.step } : {}), ...(extra?.focus ? { focus: extra.focus } : {}) });
+      // A human moment is a tap: on its own button, else on the phone's.
+      const clickTarget = extra?.clickTarget ?? (gate ? gate.tap ?? PHONE_TAP : undefined);
+      out.push({ atMs: start + at, scene: sc.id, ev, ...(gate ? { gate } : {}), ...(extra?.step ? { step: extra.step } : {}), ...(extra?.focus ? { focus: extra.focus } : {}), ...(clickTarget ? { clickTarget } : {}) });
     }
     start += sc.durationMs;
   }
@@ -291,10 +297,10 @@ const adjustment: Scene = {
     [600, bot(`Raise the ceiling to 10% for PO ${PO.number}? Haoyun holds at ${formatUsd(HOLD_UNIT)} for all ${PO.quantity} on time. Two approvals.`, { refersTo: "rules" })],
     [2000, buyer("Raise ceiling to 10%")],
     [2500, { type: "approval", by: "Luca", time: "15:12", scope: "limit" }, { id: "raise_limit", who: "Luca", panels: ["rules"], status: "Waiting on Luca", prompt: `Raise the ceiling to 10% for PO ${PO.number}? Haoyun holds at ${formatUsd(HOLD_UNIT)}.`, action: "Raise to 10%" }],
-    [4500, bot("Jordy, please approve the higher ceiling.", { refersTo: "rules", to: "Jordy" })],
-    [6500, { type: "approval", by: "Jordy", time: "15:13", scope: "limit" }, { id: "approve_raise", who: "Jordy", panels: ["rules"], status: "Waiting on Jordy", prompt: `Approve the 10% ceiling for PO ${PO.number}.`, action: "YES, approve as Jordy" }],
+    [4500, bot("Jordan, please approve the higher ceiling.", { refersTo: "rules", to: "Jordan" })],
+    [6500, { type: "approval", by: "Jordan", time: "15:13", scope: "limit" }, { id: "approve_raise", who: "Jordan", panels: ["rules"], status: "Waiting on Jordan", prompt: `Approve the 10% ceiling for PO ${PO.number}.`, action: "YES, approve as Jordan" }],
     [6600, { type: "rules", patch: { priceChangeLimitBps: 1000, motorCapCents: HOLD_UNIT } }],
-    [7500, bot(`Ceiling raised to 10% for PO ${PO.number}. Luca and Jordy signed.`, { refersTo: "rules", card: "commit" })],
+    [7500, bot(`Ceiling raised to 10% for PO ${PO.number}. Luca and Jordan signed.`, { refersTo: "rules", card: "commit" })],
   ],
 };
 

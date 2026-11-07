@@ -159,7 +159,7 @@ export const steps: Step[] = [
         "Astro (the owner) sets the policy, not Evernear. On a device you control:",
         `  open ${policyHandoffUrl("<OUTLAYER_API_KEY from .env.local>")} with the testnet toggle on`,
         `  whitelist ${c.env.REHEARSE_ULTRA_ACCOUNT}, ${c.env.REHEARSE_HAOYUN_ACCOUNT} and ${c.env.OUTLAYER_NEAR_ACCOUNT}; token usdc.fakes.testnet;`,
-        "  per transaction limit 10000 USDC; approvals: 2 signers (Luca, Jordy); sign and store the policy.",
+        "  per transaction limit 10000 USDC; approvals: 2 signers (Luca, Jordan); sign and store the policy.",
       ]);
       if (!ok) return skipped("owner policy not confirmed");
       await custody(c).policy();
@@ -205,7 +205,7 @@ export const steps: Step[] = [
       const pending = (await approvals.pending())[0];
       if (!pending) return skipped("no pending approval found for the request");
       const pub = c.env.OUTLAYER_WALLET_PUBKEY ?? "<wallet public key from GET /wallet/v1/address>";
-      for (const who of ["Luca", "Jordy"]) {
+      for (const who of ["Luca", "Jordan"]) {
         c.log(`${who}: on your own phone, sign this NEP-413 message with your approver full access key (recipient: the wallet contract id):`);
         c.log(`  ${approvalMessage(pending.approval_id, pub, pending.request_hash)}`);
         const a = await c.ask(`Paste ${who}'s {"signature","public_key","account_id","nonce"} JSON, or Enter to skip: `);

@@ -41,7 +41,7 @@ describe("record mode: keys", () => {
       [{ codePath: "convex/near/escrow.ts#lock", kind: "escrow" }, "escrow_wallet"],
       [{ codePath: "convex/near/inference.ts#read" }, "inference_attestation"],
       [{ codePath: "convex/near/approval.ts#submit", label: "Approval 1 of 2: Luca" }, "approval_luca"],
-      [{ codePath: "convex/near/approval.ts#submit", label: "Approval 2 of 2: Jordy" }, "approval_jordy"],
+      [{ codePath: "convex/near/approval.ts#submit", label: "Approval 2 of 2: Jordan Bennett" }, "approval_jordy"],
       [{ codePath: "convex/near/gmail.ts#send", kind: "connector_receipt" }, "connector_receipt"],
       [{ codePath: "convex/near/gmail.ts#send", kind: "refusal" }, "refused_email"],
       [{ codePath: "convex/near/escrow.ts#policyRefusal", kind: "refusal" }, "refused_release"],

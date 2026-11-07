@@ -1,5 +1,5 @@
-// One faucet drip into Astro's Tidepool treasury (testnet only): 100 test NEAR USDC, at most one
-// drip per agent per hour. The commit swaps it into Base Sepolia USDC when it needs to. Reads AGENT_*
+// One faucet drip into Astro's Tidepool treasury (testnet only): 100 test NEAR USDC, at most one claim
+// per address every 24 hours. The commit swaps it into Base Sepolia USDC when it needs to. Reads AGENT_*
 // from .env.local, prints the treasury's balance before and after, never prints a key.
 // Run with main(false) to only read the balance, main(true) to claim the drip (through Vitest, which
 // loads the ESM-only SDK). Faucet tokens are testnet tokens with no value.
@@ -33,6 +33,6 @@ export async function main(drip = false): Promise<void> {
   if (!drip) { console.log("read only: pass true to claim one faucet drip"); return; }
   const r = await client.act(t, null, "deposit", { origin_asset: NEAR_USDC, testnet_faucet: true },
     { kind: "faucet", label: "Treasury funded from the testnet faucet", codePath: "scripts/faucet-treasury.mts" });
-  console.log(r.ok ? "faucet drip: done" : `faucet drip refused: ${r.code} (one drip per agent per hour)`);
+  console.log(r.ok ? "faucet drip: done" : `faucet drip refused: ${r.code} (one claim per address every 24 hours)`);
   await show("treasury after");
 }

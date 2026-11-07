@@ -16,7 +16,7 @@ export interface RemoteState {
   upcoming: { step: string; id: string; zoom: number; skipped: boolean } | null;
 }
 
-export type RemoteCommand = { type: "cmd"; cmd: "next" | "preview" | "skip" | "full" | "camera" | "follow" | "hello" };
+export type RemoteCommand = { type: "cmd"; cmd: "next" | "preview" | "skip" | "full" | "camera" | "follow" | "cursor" | "hello" };
 
 export function openChannel(): BroadcastChannel | null {
   return typeof BroadcastChannel === "undefined" ? null : new BroadcastChannel(PRESENT_CHANNEL);

@@ -96,11 +96,13 @@ export type Event =
 
 /** A beat that waits for the viewer: the clock stops just before it until they click. */
 export interface Gate {
-  id: string; who: "Luca" | "Jordy"; prompt: string; action: string;
+  id: string; who: "Luca" | "Jordan"; prompt: string; action: string;
   /** The cards that show a "needs you" count while this gate waits. */
   panels?: PanelId[];
   /** The sidebar status line while it waits. */
   status?: string;
+  /** The button the presenter cursor taps to answer it (a data-focus id); the phone's button when unset. */
+  tap?: string;
 }
 
 /**
@@ -117,6 +119,11 @@ export interface Beat {
   /** The step's name in the focus plan, e.g. "Pins resolve". */
   step?: string;
   focus?: Focus;
+  /**
+   * The element the presenter cursor clicks before this step's change happens (a data-focus id),
+   * when the step is a click in the app: a tab, a button, a tap on the phone. Unset: no click.
+   */
+  clickTarget?: string;
 }
 
 export interface WorkspaceState {

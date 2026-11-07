@@ -22,17 +22,18 @@ function Field({ k, v }: { k: string; v: string }) {
   return <><span className="es-micro">{k}</span><span className="es-num">{v}</span></>;
 }
 
-function YesNo({ live, onYes, label }: { live: boolean; onYes?: () => void; label: string }) {
+// `tap`: this YES answers the human moment, so the presenter cursor taps it.
+function YesNo({ live, onYes, label, tap = true }: { live: boolean; onYes?: () => void; label: string; tap?: boolean }) {
   return (
     <div className={s.yesNo}>
-      <button type="button" className="es-btn es-btn-primary es-btn-sm" disabled={!live} onClick={onYes} aria-label={label}>YES</button>
+      <button type="button" className="es-btn es-btn-primary es-btn-sm" disabled={!live} onClick={onYes} aria-label={label} data-focus={live && tap ? "phone.tap" : undefined}>YES</button>
       <button type="button" className="es-btn es-btn-secondary es-btn-sm" disabled>NO</button>
     </div>
   );
 }
 
 export function Phone({ messages, to, clock, waiting, onAnswer, onNext, onChoice, facts, trailing }: {
-  messages: Message[]; to: "Luca" | "Jordy"; clock: string; waiting: Gate | null;
+  messages: Message[]; to: "Luca" | "Jordan"; clock: string; waiting: Gate | null;
   onAnswer: () => void; onNext: () => void; onChoice: (chip: string) => void;
   facts: PhoneFacts; trailing?: { tone: "active" | "attention"; text: string; note?: string } | null;
 }) {
@@ -70,7 +71,7 @@ export function Phone({ messages, to, clock, waiting, onAnswer, onNext, onChoice
           {head("Commit PO")}
           <div className={s.chatFields}><Field k="PO" v={`${PO.number} · Haoyun Precision`} /><Field k="Qty" v={`${formatInt(PO.quantity)} AM17`} /><Field k="Total" v={formatUsdShort(facts.totalCents)} /></div>
           <p className={s.note}>YES commits <N>{formatUsdShort(facts.totalCents)}</N> to PO <N>{PO.number}</N>&apos;s own account. It can pay Haoyun or go back to Astro.</p>
-          <YesNo live={!waiting} onYes={onNext} label={`YES, commit ${formatUsdShort(facts.totalCents)}`} />
+          <YesNo live={!waiting} onYes={onNext} label={`YES, commit ${formatUsdShort(facts.totalCents)}`} tap={false} />
         </div>
       );
       default: return null;
@@ -106,7 +107,7 @@ export function Phone({ messages, to, clock, waiting, onAnswer, onNext, onChoice
                         {m.chips.map((c) => {
                           const live = waiting && (c === waiting.action || (waiting.id === "on_hold" && c !== "Keep waiting"));
                           return live
-                            ? <button key={c} type="button" className={s.chip} onClick={() => (c === waiting!.action ? onAnswer() : onChoice(c))}>{c}</button>
+                            ? <button key={c} type="button" className={s.chip} onClick={() => (c === waiting!.action ? onAnswer() : onChoice(c))} data-focus={c === waiting!.action ? "phone.tap" : undefined}>{c}</button>
                             : <span key={c} className={s.chip}>{c}</span>;
                         })}
                       </span>
@@ -126,7 +127,7 @@ export function Phone({ messages, to, clock, waiting, onAnswer, onNext, onChoice
           </ol>
           <div className={s.phoneFoot}>
             {waiting && !inChat && (
-              <button type="button" className="es-btn es-btn-primary es-btn-sm" style={{ width: "100%" }} onClick={onAnswer}>{waiting.action}</button>
+              <button type="button" className="es-btn es-btn-primary es-btn-sm" style={{ width: "100%" }} onClick={onAnswer} data-focus="phone.tap">{waiting.action}</button>
             )}
             <div className={s.compose} aria-hidden="true">Message<span className={s.send}><ChevronUp size={13} strokeWidth={2} /></span></div>
           </div>

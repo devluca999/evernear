@@ -29,7 +29,9 @@ import type { Policy } from "@/engine/types";
 import { BoardContext, N } from "./Panel";
 import { Sidebar, type StatusTone } from "./Sidebar";
 import { StatsBar } from "./StatsBar";
-import { Camera, type CameraState } from "./Camera";
+import { Camera, useReducedMotion, type CameraApi, type CameraState } from "./Camera";
+import { GhostCursor, useGhost } from "./Cursor";
+import { clickTargetOf, LOOKAHEAD_MS } from "@/scenario/cursor";
 import { openChannel, type RemoteCommand, type RemoteState } from "./presentChannel";
 import type { Focus } from "@/scenario/types";
 import { EXPLAINERS } from "@/scenario/explain";
@@ -88,6 +90,13 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
   const [fullSeq, setFullSeq] = useState(0);
   const [camState, setCamState] = useState<CameraState>({ mode: "full", focusId: null, zoom: 1 });
   const [skipped, setSkipped] = useState<string[]>([]);
+  // The presenter cursor: C turns it on or off; on by default in Present, off in Autoplay.
+  const [cursorPref, setCursorPref] = useState<boolean | null>(null);
+  const cursorOn = cursorPref ?? present;
+  const camApi = useRef<CameraApi | null>(null);
+  const reduced = useReducedMotion();
+  const locate = useMemo(() => (id: string) => camApi.current?.locate(id) ?? null, []);
+  const ghost = useGhost({ on: cursorOn, locate, reduced });
   const jumped = useRef(true);
   const prevT = useRef(initialMs);
 
@@ -161,10 +170,10 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
   // Autoplay: a human moment waits a beat, then answers itself.
   useEffect(() => {
     if (present || !held?.gate || !playing) return;
-    const at = held.atMs;
-    const id = setTimeout(() => setT(at), 1400);
+    const at = held.atMs, target = clickTargetOf(held);
+    const id = setTimeout(() => { if (cursorOn && target) ghost.tap(target, () => setT(at)); else setT(at); }, 1400);
     return () => clearTimeout(id);
-  }, [present, held, playing]);
+  }, [present, held, playing, cursorOn, ghost]);
   const liveBusy = !!heldStep && live.on && !live.error && !live.done.includes(heldStep);
   // In Present the next step is always named and one press away, whether the clock is held there or on its way.
   const upcoming = held ?? (present ? nextBlock(t, blocked, TL) : null);
@@ -187,6 +196,36 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
   };
   const proceedRef = useRef(proceed);
   useEffect(() => { proceedRef.current = proceed; });
+  /**
+   * Next from the keyboard, the rail or the remote: with the presenter cursor on, a step that is a
+   * click in the app (a tab, a button, a tap on the phone) is clicked first, then happens. A step
+   * that only animates gets no click; the cursor rests beside its content.
+   */
+  const advance = () => {
+    const b = !finished && upcoming && !liveBusy ? upcoming : null;
+    const target = b ? clickTargetOf(b) : null;
+    if (cursorOn && target) { ghost.tap(target, () => proceedRef.current()); return; }
+    proceedRef.current();
+    if (cursorOn && b?.focus) ghost.rest(b.focus.id);
+  };
+  const advanceRef = useRef(advance);
+  useEffect(() => { advanceRef.current = advance; });
+  // A click the running clock reaches by itself (a product tab between stops): the cursor sets off
+  // early, so the press lands just before the change.
+  const tapped = useRef<Set<string>>(new Set());
+  const lastTapT = useRef(t);
+  useEffect(() => {
+    if (t < lastTapT.current) tapped.current.clear();
+    lastTapT.current = t;
+    if (!cursorOn || !playing) return;
+    for (const b of TL) {
+      if (b.atMs <= t || b.atMs > t + LOOKAHEAD_MS) continue;
+      const target = clickTargetOf(b), key = `${scenarioId}:${b.atMs}`;
+      if (!target || tapped.current.has(key) || blockedRef.current(b)) continue;
+      tapped.current.add(key);
+      ghost.tapBy(target, b.atMs - t);
+    }
+  }, [t, TL, cursorOn, playing, scenarioId, ghost]);
 
   // The camera: a step whose beat the clock just crossed brings its focus. Jumps (a chapter, a
   // scenario, a restart) cross many beats at once and zoom nowhere.
@@ -227,21 +266,22 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || viewer || e.altKey) return;
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); proceedRef.current(); return; }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); advanceRef.current(); return; }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "b") { e.preventDefault(); pickRef.current(scenarioId === "standoff" ? "adjusted" : "standoff"); return; }
       if (e.key === " ") { e.preventDefault(); setPlaying((p) => !p); }
       if (e.metaKey || e.ctrlKey) return;
       const key = e.key.toLowerCase();
       if (key === "f") { setCameraOn((c) => !c); return; }
       if (key === "z") { setFollow((f) => !f); return; }
+      if (key === "c") { setCursorPref(!cursorOn); return; }
       if (key === "0") { setFullSeq((n) => n + 1); return; }
       // The right arrow plays the next step (and its zoom); the left arrow goes back a chapter.
-      if (e.key === "ArrowRight") { e.preventDefault(); proceedRef.current(); }
+      if (e.key === "ArrowRight") { e.preventDefault(); advanceRef.current(); }
       if (e.key === "ArrowLeft") { jumped.current = true; setT(sceneStartMs(Math.max(0, stateAt(t, TL).scene - 1), LIST)); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [t, viewer, TL, LIST, scenarioId]);
+  }, [t, viewer, TL, LIST, scenarioId, cursorOn]);
 
   // The drawer's history as a transaction log. Live: every real row of this run as it lands, plus a
   // "Confirming" entry for a money step under way. Replay of the happy path: the recorded live run
@@ -313,7 +353,7 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
   const chat = st.messages.slice(sceneMsgStart);
   const phoneOn = !!scene.phone;
   const lastBot = [...chat].reverse().find((m) => m.channel === "telegram" && m.direction === "out");
-  const phoneTo = waiting?.who ?? (lastBot?.to as "Luca" | "Jordy" | undefined) ?? "Luca";
+  const phoneTo = waiting?.who ?? (lastBot?.to as "Luca" | "Jordan" | undefined) ?? "Luca";
   const lastPrice = st.price.history.at(-1);
   const adjustedUnit = st.limitApprovals.length > 0 ? HOLD_UNIT : PO.revisedUnitCents;
   const trailing = waiting?.id === "on_hold" || (scene.title === "On hold" && !st.endCard)
@@ -350,12 +390,13 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
   const cmdRef = useRef<(c: RemoteCommand["cmd"]) => void>(() => {});
   useEffect(() => {
     cmdRef.current = (c) => {
-      if (c === "next") proceedRef.current();
+      if (c === "next") advanceRef.current();
       else if (c === "preview") previewFocus();
       else if (c === "skip") skipFocus();
       else if (c === "full") setFullSeq((n) => n + 1);
       else if (c === "camera") setCameraOn((x) => !x);
       else if (c === "follow") setFollow((x) => !x);
+      else if (c === "cursor") setCursorPref(!cursorOn);
       else if (c === "hello" && lastSent.current) channel.current?.postMessage(JSON.parse(lastSent.current));
     };
   });
@@ -385,8 +426,9 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
     <PolicyContext.Provider value={policyCtx}>
     <ActionsContext.Provider value={actions}>
     <BoardContext.Provider value={boardCtx}>
-    <div className={s.root} data-theme="clean" data-mode={mode} data-nav={navOpen ? "open" : "closed"} data-rail={railHidden ? "hidden" : "shown"} data-working={playing && st.stage !== "closed"}>
-      <Camera on={cameraOn} follow={follow} request={camRequest} fullSeq={fullSeq} holdNext={holdNext} onChange={setCamState}>
+    <div className={s.root} data-theme="clean" data-mode={mode} data-nav={navOpen ? "open" : "closed"} data-rail={railHidden ? "hidden" : "shown"} data-working={playing && st.stage !== "closed"} data-ghost={ghost.shown}>
+      <Camera on={cameraOn} follow={follow} request={camRequest} fullSeq={fullSeq} holdNext={holdNext} onChange={setCamState}
+        apiRef={camApi} overlay={cursorOn ? <GhostCursor g={ghost.g} shown={ghost.shown} reduced={reduced} /> : null}>
       <Sidebar open={navOpen} onToggle={() => setNavChoice(!navOpen)} onScreen={placed.map((p) => p.id)} pinned={board.filter((x): x is PanelId => !!x)}
         needs={needs} status={status}
         onPick={(id) => {
@@ -448,14 +490,15 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
 
       <DemoRail scenario={SC} scenarios={Object.values(SCENARIOS)} scene={st.scene} title={scene.title} line={scene.line}
         waiting={waiting} onHold={waiting?.id === "on_hold"} halted={waiting ? null : st.halted?.reason ?? null} rulesChanged={policyCtx.changed} onResetRules={policyCtx.reset}
-        next={finished ? { label: AFTER[scenarioId].label, key: "⌘B" } : nextLabel ? { label: nextLabel, key: "⌘K" } : null} onNext={proceed}
-        present={present} setPresent={(p) => { setPlayMode(p ? "present" : "autoplay"); if (!p) setPlaying(true); }}
+        next={finished ? { label: AFTER[scenarioId].label, key: "⌘B" } : nextLabel ? { label: nextLabel, key: "⌘K" } : null} onNext={() => advanceRef.current()}
+        present={present} setPresent={(p) => { setPlayMode(p ? "present" : "autoplay"); setCursorPref(null); if (!p) setPlaying(true); }}
         playing={playing && !finished} finished={finished} onPlayPause={() => { if (finished) { setT(0); setPlaying(true); } else setPlaying((x) => !x); }}
         pick={(id) => pickScenario(id)} jump={jump} restart={restart}
         live={{ available: live.available, on: live.on, toggle: () => live.setOn(!live.on), status: liveStatus }}
         mode={mode} toggleMode={() => setMode((m) => (m === "dark" ? "light" : "dark"))}
         synthetic={synthetic} proofsReal={proofsReal} hide={() => setRailHidden(true)}
-        camera={{ on: cameraOn, follow, toggle: () => setCameraOn((c) => !c), toggleFollow: () => setFollow((f) => !f), focus: camState.focusId, next: nextFocus?.step ?? null }} />
+        camera={{ on: cameraOn, follow, toggle: () => setCameraOn((c) => !c), toggleFollow: () => setFollow((f) => !f), focus: camState.focusId, next: nextFocus?.step ?? null,
+          cursor: cursorOn, toggleCursor: () => setCursorPref(!cursorOn) }} />
       {railHidden && <RailShow onClick={() => setRailHidden(false)} />}
     </div>
     </BoardContext.Provider>

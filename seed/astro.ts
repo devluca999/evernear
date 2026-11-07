@@ -11,7 +11,9 @@ export const astro = {
   city: "Chicago",
   country: "USA",
   buyer: "Luca",
-  secondApprover: "Jordy",
+  secondApprover: "Jordan",
+  /** Full names where the screen shows one. */
+  fullNames: { Jordan: "Jordan Bennett" } as Record<string, string>,
 };
 
 export const products = [
@@ -177,7 +179,7 @@ export const wallet = {
   balanceCents: 41_260_000,
   keys: [
     { name: "Luca's laptop", role: "Owner key" },
-    { name: "Jordy's phone", role: "Owner key" },
+    { name: "Jordan's phone", role: "Owner key" },
     { name: "Hardware key, finance safe", role: "Recovery" },
   ],
   /** Spend per month before November, in cents. November adds this story's payments. */

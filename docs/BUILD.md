@@ -53,7 +53,7 @@ These numbers supersede the earlier ones (Luca, Nov 6 2026). Rules live in `poli
 - Bad path: Haoyun also holds at +10%; both over the ceiling; nothing moves. Adjusted: Luca raises the ceiling to 10% with two approvals; Haoyun's all-50 offer goes through at $1,320 ($66,000) with the same two-stage release ($19,800 advance, $38,280 balance, $7,920 held).
 - Testnet runs at 1:1,000 and the screen labels it: $63.00 committed, $18.90 advance, $36.54 balance, $7.56 back to Astro. The faucet drips 100 test USDC an hour, so full amounts cannot be funded (decided with Luca, Nov 5 2026).
 
-**People.** Buyer (Luca) texts Stockbot, picks the supplier, photographs the packing slip. Second approver (Jordy) signs on his phone.
+**People.** Buyer (Luca) texts Stockbot, picks the supplier, photographs the packing slip. Second approver (Jordan Bennett, finance lead) signs on their phone.
 
 ## 3. The workspace (the whole demo happens here)
 

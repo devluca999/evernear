@@ -35,7 +35,7 @@ Astro Robotics, a robot maker in Chicago, has 500 orders for its 10MA robot, all
 
 ## Presenter camera
 
-Record with any screen recorder and the zooms are already in the video. Each named step in the story can carry a focus (an element's `data-focus` id, a zoom from 1.0 to 2.5, a hold, an optional spotlight that dims the rest to 40%). When the step runs, everything but the demo rail pans and scales in one CSS transform so the element sits in the middle, holds, then eases back to the full view unless the next step has its own focus: 700 ms in, 500 ms out, a spring with no more than 2% overshoot. The layout is scaled, not a bitmap, so text stays crisp. **F** turns the camera on or off, **Z** follows your clicks (1.4x toward each click, back after 2 s without one), **0** returns to the full view, and the right arrow plays the next step and its zoom. With the reduced motion setting the moves are cuts. Open `/present` in a second window of the same browser for a remote that shows the current focus and can preview or skip the next zoom. Focus plan and maths: [scenes.ts](scenario/scenes.ts), [camera.ts](scenario/camera.ts), [Camera.tsx](components/workspace/Camera.tsx), [Remote.tsx](components/workspace/Remote.tsx). Tests: [camera.test.ts](scenario/__tests__/camera.test.ts) (targeting, spring, the 18-step plan), [camera.test.tsx](components/__tests__/camera.test.tsx) (hold, return, reduced motion), [focus.test.tsx](components/__tests__/focus.test.tsx) (every focus id exists in the DOM for its chapter, in all three scenarios).
+Record with any screen recorder and the zooms are already in the video. Each named step in the story can carry a focus (an element's `data-focus` id, a zoom from 1.0 to 2.5, a hold, an optional spotlight that dims the rest to 40%). When the step runs, everything but the demo rail pans and scales in one CSS transform so the element sits in the middle, holds, then eases back to the full view unless the next step has its own focus: 700 ms in, 500 ms out, a spring with no more than 2% overshoot. The layout is scaled, not a bitmap, so text stays crisp. **F** turns the camera on or off, **Z** follows your clicks (1.4x toward each click, back after 2 s without one), **0** returns to the full view, **C** turns the presenter cursor on or off, and the right arrow plays the next step and its zoom. With the reduced motion setting the moves are cuts. Open `/present` in a second window of the same browser for a remote that shows the current focus and can preview or skip the next zoom. Focus plan and maths: [scenes.ts](scenario/scenes.ts), [camera.ts](scenario/camera.ts), [Camera.tsx](components/workspace/Camera.tsx), [Remote.tsx](components/workspace/Remote.tsx). Tests: [camera.test.ts](scenario/__tests__/camera.test.ts) (targeting, spring, the 18-step plan), [camera.test.tsx](components/__tests__/camera.test.tsx) (hold, return, reduced motion), [focus.test.tsx](components/__tests__/focus.test.tsx) (every focus id exists in the DOM for its chapter, in all three scenarios).
 
 | Chapter | Step | Focus | Zoom |
 | --- | --- | --- | --- |
@@ -57,6 +57,19 @@ Record with any screen recorder and the zooms are already in the video. Each nam
 | 7 | Signed result (explainer) | `developer.signed` | 1.7x |
 | 8 | Paid and refused | `money.payout` | 1.8x |
 | 8 | Wallet lifecycle (explainer) | `money.lifecycle` | 1.6x |
+
+### Presenter cursor
+
+So the video shows a cursor at work while you only press **Cmd+K** or the right arrow, Present mode draws its own cursor (a macOS arrow with a soft shadow). On a step that is a click in the app, it glides there in 450 to 700 ms, presses (a small press plus a ring), and only then does the change happen. On a step that only animates (a chart, the ship, a payment, a message) it never clicks; it rests beside the step's content. It moves inside the camera's transform, so it lands on the right spot at every zoom and keeps its size on screen. It only clicks elements inside the workspace, never the demo rail (Live, Restart, the scenario picker). While it is on, the system cursor is hidden over the workspace and comes back once the mouse moves more than 40 px; your next step from the keyboard hands control back to the cursor. Clicking a phone button yourself still works at once. **C** turns it on or off (on in Present, off in Autoplay; the demo rail shows it beside Camera). With reduced motion it jumps and still shows the ring. Rules: [cursor.ts](scenario/cursor.ts), drawing and timers: [Cursor.tsx](components/workspace/Cursor.tsx). Tests: [cursor.test.ts](scenario/__tests__/cursor.test.ts) (glide times, which steps click, nothing forbidden), [cursor.test.tsx](components/__tests__/cursor.test.tsx) (every click target exists in the DOM inside the camera just before its step, in all three scenarios; the waits are answered from Cmd+K with the press first; never the Live button).
+
+| Chapter | Step | The cursor clicks |
+| --- | --- | --- |
+| 1 | Kip, Porter, then the 10MA | The product's tab (`products.tab.*`) |
+| 3 | Start sourcing | The Inbox's Start sourcing button (`inbox.start`) |
+| 5 | Choose Haoyun | The chip on the phone (`phone.tap`) |
+| 6 | YES, approve as Luca; YES, approve as Jordan | YES on the phone's approval cards |
+| 7 | Send packing slip photo | The button under the phone's chat |
+| Bad paths | End the order; Raise to 10%; YES, approve as Jordan | The phone's chip or button |
 
 ## Evernear explains itself
 

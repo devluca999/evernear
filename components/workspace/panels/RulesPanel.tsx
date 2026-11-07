@@ -49,7 +49,7 @@ function Slot({ n, name, signed, waiting }: { n: number; name: string; signed?: 
   return (
     <div className={s.slotCard} data-tone={signed ? undefined : waiting ? "attention" : "idle"}>
       <div className={s.headRow}><Dot tone={signed ? "success" : waiting ? "attention" : undefined} /><span className="es-micro">Slot {n}</span></div>
-      <div className={s.field} style={{ gap: 2 }}><span className={s.slotName}>{name}</span><span className={s.note} style={{ fontSize: 12 }}>{ROLE[name]}</span></div>
+      <div className={s.field} style={{ gap: 2 }}><span className={s.slotName}>{astro.fullNames[name] ?? name}</span><span className={s.note} style={{ fontSize: 12 }}>{ROLE[name]}</span></div>
       {signed ? <Stamp word="Signed" time={signed} /> : waiting ? <span className={s.attnInk} style={{ fontSize: 12 }}>{name === astro.secondApprover ? "Signing on phone" : "Waiting to sign"}</span> : null}
     </div>
   );
@@ -196,7 +196,7 @@ export function RulesPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }
           {[astro.buyer, astro.secondApprover].map((name, i) => (
             <div key={name} className={s.slotCard} data-tone="idle" style={{ gap: 5 }}>
               <span className="es-micro">Approver {i + 1}</span>
-              <span className={s.slotName} style={{ fontSize: 14 }}>{name}</span>
+              <span className={s.slotName} style={{ fontSize: 14 }}>{astro.fullNames[name] ?? name}</span>
               <span className={s.note} style={{ fontSize: 12 }}>{ROLE[name]}</span>
             </div>
           ))}

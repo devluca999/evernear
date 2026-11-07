@@ -121,7 +121,7 @@ export function InboxPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }
                   <p className={s.botText} style={{ maxWidth: "none" }}><Figures text={m.reading ?? ""} /></p>
                   {asking && last && m.from.includes("ultra") && (
                     <div className={s.btnRow}>
-                      <button type="button" className="es-btn es-btn-primary es-btn-sm" onClick={answer}>Start sourcing</button>
+                      <button type="button" className="es-btn es-btn-primary es-btn-sm" onClick={answer} data-focus="inbox.start">Start sourcing</button>
                       <button type="button" className="es-btn es-btn-secondary es-btn-sm" disabled title="The story only plays the path where you start sourcing">Wait</button>
                     </div>
                   )}

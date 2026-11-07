@@ -17,7 +17,7 @@ export interface RailProps {
   synthetic: boolean; hide: () => void;
   /** Which proofs are real: all of them, the money steps (a live or recorded testnet run), or none yet. */
   proofsReal?: "all" | "money" | "none";
-  camera?: { on: boolean; follow: boolean; toggle: () => void; toggleFollow: () => void; focus: string | null; next: string | null };
+  camera?: { on: boolean; follow: boolean; toggle: () => void; toggleFollow: () => void; focus: string | null; next: string | null; cursor?: boolean; toggleCursor?: () => void };
 }
 
 export function DemoRail(p: RailProps) {
@@ -93,6 +93,12 @@ export function DemoRail(p: RailProps) {
           <button type="button" className={`es-btn es-btn-secondary es-btn-sm ${s.railBtn}`} aria-pressed={p.camera.follow} onClick={p.camera.toggleFollow} disabled={!p.camera.on} title="Zoom gently toward each click (Z)">
             Follow clicks<span className={s.kbd}>Z</span>
           </button>
+          {p.camera.toggleCursor && (
+            <button type="button" className={`es-btn es-btn-secondary es-btn-sm ${s.railBtn}`} aria-pressed={!!p.camera.cursor} onClick={p.camera.toggleCursor}
+              title="An on-screen cursor clicks each step's tab, button or phone tap (C)">
+              <Dot tone={p.camera.cursor ? "active" : undefined} />{p.camera.cursor ? "Cursor on" : "Cursor off"}<span className={s.kbd}>C</span>
+            </button>
+          )}
           {p.camera.on && (p.camera.focus || p.camera.next) && (
             <span className={s.camNote}>{p.camera.focus ? <>On <span className="es-num">{p.camera.focus}</span></> : <>Next zoom: {p.camera.next}</>}</span>
           )}

@@ -65,7 +65,7 @@ describe("present mode stops", () => {
     expect(stops.length).toBeGreaterThan(25);
     expect(stops.map(say)).toEqual(expect.arrayContaining([
       "Switch to the 10MA", "Highlight the actuator motor", "Search for a replacement motor", "Check every match against the 10MA BOM",
-      "Lay the offers side by side", "Deliver Haoyun's reply", "Choose Haoyun", "Send PO 1042 for approval", "YES, approve as Luca", "YES, approve as Jordy",
+      "Lay the offers side by side", "Deliver Haoyun's reply", "Choose Haoyun", "Send PO 1042 for approval", "YES, approve as Luca", "YES, approve as Jordan",
       "Commit the PO total", "Explain what just happened", "Ship from Shenzhen", "Release the advance as the motors leave", "Send packing slip photo",
       "Count the delivery at the dock", "Pay Haoyun the balance for what arrived", "Try a payment to a wrong address", "Show what this protected",
       "At the deadline, return the rest to Astro",

@@ -42,7 +42,7 @@ export function ProductsPanel({ st, pulse }: { st: WorkspaceState; pulse: boolea
         <div className={s.headRow}>
           <span role="tablist" aria-label="Products" className={s.seg}>
             {products.map((p) => (
-              <button key={p.id} type="button" role="tab" aria-selected={p.id === productId} data-on={p.id === productId} title={p.kind}
+              <button key={p.id} type="button" role="tab" aria-selected={p.id === productId} data-on={p.id === productId} title={p.kind} data-focus={`products.tab.${p.id}`}
                 onClick={() => { setProductId(p.id); setOpenLine(null); setExploded(false); }}>{p.name}</button>
             ))}
           </span>

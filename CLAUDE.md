@@ -48,7 +48,7 @@ Before building against any service, read its llms.txt (or the skill that replac
 **Tidepool (escrow and payout, testnet)**
 - https://www.usetidepool.tech · guide https://www.usetidepool.tech/docs/guides/agent-api · spec https://www.usetidepool.tech/v1/openapi.json · notes in `docs/NOTES.md` section 14
 - A community-run testnet of the Agent API (`/v1`) and 1Click (`/v0`), not affiliated with NEAR; it runs NEAR's Intents verifier on testnet. The SDK points at it with `baseUrl` from `AGENT_API_BASE_URL`.
-- Limits: 25 agents per key, never deleted; 5 keys per IP per day; one faucet drip per agent per hour. Each order gets a fresh account, never reused: once settled it is frozen, its grant revoked, and kept as the order's receipt (Luca, Nov 6). A full key refuses with `accounts_full`. Unit tests use `tests/near/fakeTidepool.ts` and never create agents.
+- Limits: 25 agents per key, never deleted; 5 keys per IP per day; one faucet claim per address every 24 hours. Each order gets a fresh account, never reused: once settled it is frozen, its grant revoked, and kept as the order's receipt (Luca, Nov 6). A full key refuses with `accounts_full`. Unit tests use `tests/near/fakeTidepool.ts` and never create agents.
 - Trezu multisig (optional): https://trezu.org
 
 **Design:** Anatomy https://github.com/wheresryan22/anatomy (MIT, credit in README) · design rules in `docs/BUILD.md` section 10

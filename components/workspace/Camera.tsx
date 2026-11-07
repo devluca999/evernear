@@ -35,7 +35,10 @@ export function findFocus(root: ParentNode | null, id: string): HTMLElement | nu
   return all.find((el) => { const r = el.getBoundingClientRect(); return r.width > 0 || r.height > 0; }) ?? all[0] ?? null;
 }
 
-export function Camera({ on, follow, request, fullSeq, holdNext, onChange, children }: {
+/** What the presenter cursor asks of the camera: where an element sits on the stage, in layout pixels. */
+export interface CameraApi { locate: (id: string) => Rect | null }
+
+export function Camera({ on, follow, request, fullSeq, holdNext, onChange, apiRef, overlay, children }: {
   on: boolean; follow: boolean;
   /** A step that just ran with a focus; `seq` changes for every new step. */
   request: { seq: number; focus: Focus } | null;
@@ -44,6 +47,9 @@ export function Camera({ on, follow, request, fullSeq, holdNext, onChange, child
   /** The next step has its own focus: after the hold, stay put and move straight there. */
   holdNext: boolean;
   onChange?: (c: CameraState) => void;
+  apiRef?: React.RefObject<CameraApi | null>;
+  /** Drawn on the stage above everything, moving with it (the presenter cursor). */
+  overlay?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const frame = useRef<HTMLDivElement>(null);
@@ -65,6 +71,16 @@ export function Camera({ on, follow, request, fullSeq, holdNext, onChange, child
   const later = (fn: () => void, ms: number) => { timers.current.push(window.setTimeout(fn, ms)); };
   /** The stage's zoom as drawn right now (mid-move too); 1 where layout is not measured. */
   const liveZoom = () => { const el = stage.current; if (!el || !el.offsetWidth) return 1; return el.getBoundingClientRect().width / el.offsetWidth; };
+  useEffect(() => {
+    if (!apiRef) return;
+    apiRef.current = {
+      locate: (id) => {
+        const el = findFocus(stage.current, id);
+        if (!el || !stage.current) return null;
+        return toLayout(el.getBoundingClientRect(), stage.current.getBoundingClientRect(), liveZoom());
+      },
+    };
+  });
   const viewport = () => { const r = frame.current?.getBoundingClientRect(); return { w: r?.width ?? 0, h: r?.height ?? 0 }; };
 
   const goFull = useCallback((ms: number) => {
@@ -122,8 +138,10 @@ export function Camera({ on, follow, request, fullSeq, holdNext, onChange, child
 
   return (
     <div ref={frame} className={s.camFrame} onClick={onClick} data-camera={on ? "on" : "off"} data-follow={follow} data-zoom={+view.k.toFixed(3)} data-focus-on={focusId ?? undefined}>
-      <div ref={stage} className={s.camStage} style={{ transform: transformOf(view), transition: dur ? `transform ${dur}ms ${m.easing}` : "none" }}>
+      <div ref={stage} className={s.camStage} style={{ transform: transformOf(view), transition: dur ? `transform ${dur}ms ${m.easing}` : "none",
+          ["--cam-k" as string]: view.k, ["--cam-move" as string]: dur ? `transform ${dur}ms ${m.easing}` : "none" }}>
         {children}
+        {overlay}
         {spot && <div className={s.spotlight} data-reduced={reduced} style={{ left: spot.x - 8, top: spot.y - 8, width: spot.w + 16, height: spot.h + 16 }} aria-hidden="true" />}
       </div>
     </div>

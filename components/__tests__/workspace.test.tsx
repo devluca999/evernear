@@ -118,7 +118,7 @@ describe("workspace", () => {
     expect(list[6].getAttribute("aria-current")).toBe("step");
     expect(list[0].getAttribute("data-state")).toBe("done");
   });
-  it("in Present mode shows the next approval as waiting; YES on the phone approves as Luca and asks Jordy", () => {
+  it("in Present mode shows the next approval as waiting; YES on the phone approves as Luca and asks Jordan", () => {
     const g = timeline.find((b) => b.gate?.id === "approve_luca")!;
     at(g.atMs - 600); // the clock is not yet at the gate, but it comes next
     const ask = screen.getByRole("group", { name: "Waiting for you" });
@@ -130,7 +130,7 @@ describe("workspace", () => {
     expect(screen.queryByRole("group", { name: "Waiting for you" })).toBeNull();
     const rules = screen.getByRole("region", { name: "Rules" });
     expect(within(rules).getByRole("status").textContent).toBe("Signed14:56");
-    expect(nextButton().textContent).toContain("Jordy, PO 1042 needs your signature");
+    expect(nextButton().textContent).toContain("Jordan, PO 1042 needs your signature");
   });
   it("blocks at a gate in Autoplay too, answers it by itself after a beat, and the scenario picker switches the story", () => {
     vi.useFakeTimers();

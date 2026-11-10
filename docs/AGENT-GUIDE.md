@@ -17,7 +17,7 @@ All of the code was written during NEAR HACKATHON (Nov 1 to Nov 14, 2026); the f
 | Scenario | [`scenario/`](../scenario), [`scenarios/`](../scenarios), [`seed/`](../seed) | The story as a timeline of steps: scenes, camera, cursor, explainers, Short mode. The simulated people around Astro (customers, suppliers, tracking feed). | Yes |
 | Backend | [`convex/`](../convex) | Convex functions: NEAR adapters in [`convex/near/`](../convex/near), inbound email and Telegram in [`convex/channels/`](../convex/channels), Live runs in [`convex/live.ts`](../convex/live.ts), the proofs table. | Calls real services |
 | Workers | [`worker/release-gate`](../worker/release-gate/README.md), [`worker/dock-check`](../worker/dock-check/README.md) | Rust WASI modules for OutLayer. The release gate is the only thing holding the grant that can pay the supplier. | Yes, shares test vectors with the engine |
-| UI | [`app/`](../app), [`components/workspace/`](../components/workspace) | The Next.js workspace, the developer drawer, the virtual phone, the `/present` remote. | Display only |
+| UI | [`app/`](../app), [`components/workspace/`](../components/workspace) | The Next.js workspace, the developer drawer, the virtual phone, the `/present` remote. Recording tools are described in [PRESENTER.md](PRESENTER.md). | Display only |
 | Proofs | [`fixtures/recorded/`](../fixtures/recorded), [`fixtures/synthetic/`](../fixtures/synthetic) | Recorded real testnet calls, replayed in demo mode, and the placeholders still labelled "synthetic". | Data |
 
 The rule throughout: models only read documents and draft messages. Amounts, thresholds and releases are computed in code. If you are checking a money figure, look in `engine/` and its tests, not in a prompt.

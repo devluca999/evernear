@@ -39,7 +39,7 @@ import type { Focus } from "@/scenario/types";
 import { EXPLAINERS } from "@/scenario/explain";
 import { liveEntries, mergeHistory, pendingEntry, type LiveRow } from "@/scenario/liveLog";
 import recordedRun from "@/fixtures/recorded/live-run.json";
-import { SHORT, SHORT_ASK_MS } from "@/scenario/short";
+import { buildShort, sectionAt, SHORT_ASK_MS, shortOptions, type ShortOptions } from "@/scenario/short";
 import s from "./shell.module.css";
 
 const PANELS: Record<PanelId, (p: { st: WorkspaceState; pulse: boolean }) => React.ReactNode> = {
@@ -74,14 +74,17 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
   const [t, setT] = useState(initialMs);
   const [playing, setPlaying] = useState(autoplay);
   // Present: nothing moves until you act, one narratable step at a time. Autoplay: the scenario plays itself.
-  // Short: the happy path as 9 sections for a short video; each press plays one whole section, then holds.
+  // Short: the happy path as 9 sections for a short video; one press starts it and it plays by itself.
   const [playMode, setPlayMode] = useState<PlayMode>("present");
   const present = playMode === "present";
   const short = playMode === "short";
   const [scenarioId, setScenarioId] = useState<ScenarioId>("happy");
   // Short mode always plays the happy path.
   const variant: ScenarioId = short ? "happy" : scenarioId;
-  const SC = short ? SHORT : SCENARIOS[scenarioId];
+  // ?pace= and ?gap= time the run (scenario/short.ts TIMING).
+  const [shortOpts, setShortOpts] = useState<ShortOptions>({});
+  const run = useMemo(() => buildShort(shortOpts), [shortOpts]);
+  const SC = short ? run.scenario : SCENARIOS[scenarioId];
   const TL = SC.timeline, TOTAL = SC.totalMs, LIST = SC.scenes;
   const live = useLive();
   const [policy, setPolicyState] = useState<Policy>(defaultPolicy);
@@ -134,11 +137,13 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
       if (q.get("paused") === "1") setPlaying(false);
       if (q.get("autoplay") === "1" || q.get("play") === "autoplay") setPlayMode("autoplay");
       if (q.get("mode") === "light") setMode("light");
-      // ?mode=short: Short mode, armed on section 1 (or on ?scene=N); nothing plays until a press.
+      // ?mode=short: Short mode on the starting view (or at section ?scene=N); nothing plays until Play.
       if (q.get("mode") === "short") {
+        const o = shortOptions(q);
         setPlayMode("short");
+        setShortOpts(o);
         setPlaying(false);
-        if (id !== null) setT(Number(id) > 1 ? sceneStartMs(Number(id) - 1, SHORT.scenes) - 1 : 0);
+        if (id !== null) setT(Number(id) > 1 ? buildShort(o).plan[Math.min(8, Number(id) - 1)].playMs : 0);
       }
       if (q.get("drawer") === "1") setDrawerOpen(true);
       if (q.get("rail") === "0") setRailHidden(true);
@@ -160,8 +165,8 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
   const haltedAt = useMemo(() => stateAt(TOTAL, TL, policy).halted?.atMs ?? null, [policy, TL, TOTAL]);
   // What holds the clock: a human moment, the end of a scene (narrate, then Cmd+K), or a live step still running.
   const blocked = (b: Beat) => {
-    // Short: the clock only stops before each section. Taps and waits inside it play by themselves.
-    if (short) return b.ev.type === "scene" && b.scene > 0;
+    // Short: the run never stops by itself. Taps and waits play through, done by the cursor.
+    if (short) return false;
     const afterHalt = haltedAt !== null && b.atMs >= haltedAt;
     // A live money step holds the clock until the real call finished, in both modes. Nothing runs past a halt.
     const step = afterHalt ? null : liveStepOf(b, HAOYUN);
@@ -211,37 +216,32 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
   const shortAsk = short && !finished ? TL.find((b) => b.gate && b.atMs > t && b.atMs - t <= SHORT_ASK_MS)?.gate ?? null : null;
   // In Present, a human moment that comes next is already shown as waiting: the next press answers it.
   const waiting = short ? shortAsk : heldGate ?? (present && upcoming?.gate ? upcoming.gate : null);
-  // Short: a section is playing from the press until the clock holds before the next one.
-  const sectionPlaying = short && playing && !held && !finished;
+  // Short: where the run is (index -1 is the hook before section 1) and whether it has begun.
+  const at = sectionAt(run.plan, t);
   const started = t > 0 || playing;
   const sceneTitle = (id: number) => LIST[id]?.enter ?? `Go to ${LIST[id]?.title ?? "the next scene"}`;
   const nextLabel = upcoming && !liveBusy ? describeStop(upcoming, sceneTitle, HAOYUN) : null;
-  /** Short: hold just before section `id` (on the previous section's final frame); the next press plays it. */
-  const armSection = (id: number, list = LIST) => {
+  /** Short: go to section `id`'s animation (-1: the starting view), keeping the run playing or paused. */
+  const toSection = (id: number) => {
     jumped.current = true;
-    setT(id <= 0 ? 0 : sceneStartMs(id, list) - 1);
-    setPlaying(false);
+    setT(id < 0 ? 0 : run.plan[Math.min(id, run.plan.length - 1)].playMs);
     setPinnedProof(null); setViewer(null);
     setFullSeq((n) => n + 1);
   };
-  const jump = (id: number) => { if (short) { armSection(id); return; } jumped.current = true; setT(sceneStartMs(id, LIST)); setPinnedProof(null); setViewer(null); };
+  const jump = (id: number) => { if (short) { toSection(id); return; } jumped.current = true; setT(sceneStartMs(id, LIST)); setPinnedProof(null); setViewer(null); };
   const reset = () => { setPinnedProof(null); setViewer(null); live.reset(); };
-  const restart = () => { if (short) { reset(); armSection(0); return; } jumped.current = true; setT(0); reset(); setPlaying(true); };
+  const restart = () => { if (short) { reset(); toSection(-1); setPlaying(false); return; } jumped.current = true; setT(0); reset(); setPlaying(true); };
   const choosePlayMode = (m: PlayMode) => {
     setPlayMode(m); setCursorPref(null); setSkipped([]);
-    if (m === "short") { reset(); armSection(0, SHORT.scenes); return; }
+    if (m === "short") { reset(); toSection(-1); setPlaying(false); return; }
     // Leaving Short: back to the start of the scenario, whose timing differs.
     if (short) { jumped.current = true; setT(0); reset(); setFullSeq((n) => n + 1); }
     if (m === "autoplay" || short) setPlaying(true);
   };
-  /**
-   * Short: a press plays the next whole section. While one is playing a press does nothing, so a
-   * section is never skipped by accident; after the last one nothing is left to play.
-   */
+  /** Short: Cmd+K starts (or resumes) the run; while it plays, it skips to the next section. */
   const shortPress = () => {
-    if (finished || sectionPlaying) return;
-    if (held) { setT(held.atMs); setFullSeq((n) => n + 1); }
-    setPlaying(true);
+    if (!playing) { if (!finished) setPlaying(true); return; }
+    if (at.index < run.plan.length - 1) toSection(at.index + 1);
   };
   const pickScenario = (id: ScenarioId, sceneId = 0) => { jumped.current = true; setScenarioId(id); setT(sceneStartMs(sceneId, SCENARIOS[id].scenes)); reset(); setPlaying(true); };
   const pickRef = useRef(pickScenario);
@@ -275,8 +275,8 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
   };
   const advanceRef = useRef(advance);
   useEffect(() => { advanceRef.current = advance; });
-  const armRef = useRef(armSection);
-  useEffect(() => { armRef.current = armSection; });
+  const toSectionRef = useRef(toSection);
+  useEffect(() => { toSectionRef.current = toSection; });
   // A click the running clock reaches by itself (a product tab between stops): the cursor sets off
   // early, so the press lands just before the change.
   const tapped = useRef<Set<string>>(new Set());
@@ -310,7 +310,7 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
   }, [t, TL, skipped]);
   const nextStop = TL.find((b) => b.atMs > t && isStop(b)) ?? null;
   const nextFocus = TL.find((b) => b.atMs > t && b.focus) ?? null;
-  // Short sets each zoom's hold itself: a section's last zoom stays until the next press.
+  // Short sets each zoom's hold itself: a section's last zoom stays until the next section starts.
   const holdNext = !short && !!nextStop?.focus && !skipped.includes(focusKey(nextStop));
   const previewFocus = () => { if (nextFocus) setCamRequest((r) => ({ seq: (r?.seq ?? 0) + 1, focus: nextFocus.focus! })); };
   const skipFocus = () => {
@@ -334,6 +334,12 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
   // In live mode the real proofs replace the placeholders as they arrive.
   const st = useMemo(() => ({ ...base, proofs: base.proofs.map((p) => (live.byKey[p.id] ? { ...live.byKey[p.id], scene: p.scene, atMs: p.atMs } : p)) }), [base, live.byKey]);
   const scene = LIST.find((x) => x.id === st.scene) ?? LIST[0];
+  // Short: a section starting on its own begins from the full view (the last one's zoom held until now).
+  const lastScene = useRef(st.scene);
+  useEffect(() => {
+    if (short && st.scene !== lastScene.current) queueMicrotask(() => setFullSeq((n) => n + 1));
+    lastScene.current = st.scene;
+  }, [short, st.scene]);
   // The phone shows this scene's conversation only.
   const sceneMsgStart = useMemo(() => stateAt(sceneStartMs(st.scene, LIST), TL, policy).messages.length, [st.scene, LIST, TL, policy]);
 
@@ -351,13 +357,13 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
       if (key === "0") { setFullSeq((n) => n + 1); return; }
       // The right arrow plays the next step (and its zoom); the left arrow goes back a chapter.
       if (e.key === "ArrowRight") { e.preventDefault(); advanceRef.current(); }
-      // Short: the left arrow arms the current section again, for another take.
-      if (e.key === "ArrowLeft" && short) { armRef.current(stateAt(t, TL).scene); return; }
+      // Short: the left arrow plays the current section again from its start.
+      if (e.key === "ArrowLeft" && short) { toSectionRef.current(sectionAt(run.plan, t).index); return; }
       if (e.key === "ArrowLeft") { jumped.current = true; setT(sceneStartMs(Math.max(0, stateAt(t, TL).scene - 1), LIST)); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [t, viewer, TL, LIST, scenarioId, cursorOn, short]);
+  }, [t, viewer, TL, LIST, scenarioId, cursorOn, short, run.plan]);
 
   // The drawer's history as a transaction log. Live: every real row of this run as it lands, plus a
   // "Confirming" entry for a money step under way. Replay of the happy path: the recorded live run
@@ -425,6 +431,8 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
     openPhoto: (checkpointId, index) => { setPlaying(false); setViewer({ checkpointId, index }); },
     openProof: (id) => { setPinnedProof(id); },
     waiting, answer: () => proceedRef.current(),
+    // Short: the money badges show the story's own dates (the drawer keeps the real timestamps).
+    storyDates: short,
     live: {
       on: liveOn, connected: liveOn ? (live.preflight ? live.preflight.ok : null) : null,
       note: liveOn && live.preflight?.ok ? `Tidepool testnet · treasury ${formatUsd(Math.round(live.preflight.treasuryUsd * 100))}` : null,
@@ -483,9 +491,13 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
       else if (c === "hello" && lastSent.current) channel.current?.postMessage(JSON.parse(lastSent.current));
     };
   });
-  // Short: which section is on screen and which one the next press plays.
-  const nextSection = !started ? LIST[0] : finished ? null : LIST[st.scene + 1] ?? null;
-  const shortInfo = { section: started ? st.scene + 1 : 0, sections: LIST.length, title: started ? scene.title : null, next: nextSection?.title ?? null, playing: sectionPlaying };
+  // Short: the section on screen (0 for the hook), the time left in it (whole seconds, for the remote
+  // only: nothing on the recorded screen counts down), and the next section's name.
+  const shortInfo = {
+    section: at.index + 1, sections: run.plan.length, title: at.index >= 0 ? run.plan[at.index].title : null,
+    next: run.plan[at.index + 1]?.title ?? null, playing: playing && !finished, started, finished,
+    leftSec: Math.ceil(at.leftMs / 1000),
+  };
   const remoteState: RemoteState = {
     type: "state", scenario: SC.title, chapter: st.scene + 1, chapterTitle: scene.title, chapters: LIST.length,
     next: short ? null : finished ? AFTER[scenarioId].label : nextLabel,

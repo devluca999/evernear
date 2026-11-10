@@ -476,6 +476,14 @@ button.chip:hover { color: var(--text-primary); border-color: var(--line-focus);
 /* In an explainer moment the Explained column gets more room. */
 .drawer[data-explain="true"] .drawerGrid { grid-template-columns: 240px minmax(0, 1fr) 460px; }
 .drawer[data-explain="true"][data-narrow="true"] .drawerGrid { grid-template-columns: 200px minmax(0, 1fr) 420px; }
+/* An explainer whose proof is a placeholder: the Explained column alone, its lines beside its diagram. */
+.drawer .drawerGrid[data-only="explain"] { grid-template-columns: minmax(0, 1fr); justify-items: center; }
+.exOnlyCol { width: min(100%, 1100px); }
+.drawerCol.exOnlyCol { border-left: none; overflow: visible; }
+.exOnly { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 440px); gap: 32px; align-items: start; }
+.exOnlyText { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.exOnlyDiagram { min-width: 0; }
+.exOnlyDiagram svg { display: block; width: 100%; height: auto; }
 .exFacts [data-tone="success"] { color: var(--state-success); }
 
 /* Diagrams */

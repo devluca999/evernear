@@ -33,12 +33,20 @@ export function Remote() {
           {state.short ? (
             <section className={s.remoteCard} aria-label="Section">
               <span className="es-micro">{state.short.section > 0
-                ? <>Section <span className="es-num">{state.short.section}</span> of <span className="es-num">{state.short.sections}</span>{state.short.playing ? " · playing" : ""}</>
-                : <>Short · <span className="es-num">{state.short.sections}</span> sections</>}</span>
-              <h1 className={s.remoteTitle}>{state.short.title ?? "Ready"}</h1>
-              <span className={s.note}>{state.short.next ? <>Next: {state.short.next}</> : "Last section played"}</span>
-              <button type="button" className={`es-btn es-btn-primary ${s.remoteNext}`} onClick={() => send("next")} disabled={!state.short.next || state.short.playing}>
-                {state.short.playing ? "Playing" : state.short.next ? `Play ${state.short.next}` : "Done"}<span className={s.kbd}>→</span>
+                ? <>Section <span className="es-num">{state.short.section}</span> of <span className="es-num">{state.short.sections}</span></>
+                : state.short.started ? "Opening" : <>Short · <span className="es-num">{state.short.sections}</span> sections</>}
+                {state.short.started && !state.short.playing && !state.short.finished ? " · paused" : ""}</span>
+              <h1 className={s.remoteTitle}>{state.short.title ?? (state.short.started ? "The hook" : "Ready")}</h1>
+              <div className={s.remoteRow}>
+                <span className="es-micro">Time left</span>
+                <span className="es-num" aria-label="Time left in the section">{state.short.finished ? "Done" : `${state.short.leftSec} s`}</span>
+              </div>
+              <div className={s.remoteRow}>
+                <span className="es-micro">Next</span>
+                <span>{state.short.next ?? (state.short.finished ? "Finished" : "The run stops after this")}</span>
+              </div>
+              <button type="button" className={`es-btn es-btn-primary ${s.remoteNext}`} onClick={() => send("next")} disabled={state.short.finished || (state.short.playing && !state.short.next)}>
+                {!state.short.playing ? (state.short.finished ? "Finished" : state.short.started ? "Resume" : "Play") : state.short.next ? `Skip to ${state.short.next}` : "Last section"}<span className={s.kbd}>→</span>
               </button>
             </section>
           ) : (

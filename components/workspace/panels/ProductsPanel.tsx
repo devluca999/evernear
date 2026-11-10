@@ -38,7 +38,7 @@ export function ProductsPanel({ st, pulse }: { st: WorkspaceState; pulse: boolea
   return (
     <Panel id="products" title="Products" pulse={pulse}
       meta={attested && productId === "10ma" ? <Badge tone="success">Read privately in an attested enclave</Badge> : !product.playable ? <span className="es-tag">sample data</span> : null}>
-      <div className={s.pad} style={{ padding: "14px 16px", gap: 12 }}>
+      <div className={s.pad} style={{ padding: "14px 16px", gap: 12, ...(story ? { height: "100%", minHeight: 0, boxSizing: "border-box" } : {}) }}>
         <div className={s.headRow}>
           <span role="tablist" aria-label="Products" className={s.seg}>
             {products.map((p) => (
@@ -94,7 +94,7 @@ export function ProductsPanel({ st, pulse }: { st: WorkspaceState; pulse: boolea
                 title={productId === "10ma" ? "Show the exploded drawing" : "No drawing for sample products yet"}>{exploded ? "Close drawing" : "Explode"}</button>
             </div>
             {story ? (
-              <figure style={{ margin: 0 }} data-focus="products.figure" aria-label={`${product.name} drawing`}>
+              <figure style={{ margin: 0, flex: "none" }} data-focus="products.figure" aria-label={`${product.name} drawing`}>
                 {productId === "10ma" ? (
                   <div className={`${s.figPair} ${s.figStory}`} data-one={!st.highlight}>
                     <ExplodedView highlight={st.highlight ?? ""} />
@@ -107,7 +107,9 @@ export function ProductsPanel({ st, pulse }: { st: WorkspaceState; pulse: boolea
             ) : exploded && productId === "10ma" && (
               <figure style={{ margin: 0 }}><ExplodedView highlight={openLine ? bom.find((l) => l.id === openLine)?.part ?? MOTOR_PART : MOTOR_PART} /></figure>
             )}
-            <ul className={s.rows} aria-label={`${product.name} BOM`} data-focus="products.bom" style={{ listStyle: "none", margin: 0, padding: 0 }}>
+            <ul className={s.rows} aria-label={`${product.name} BOM`} data-focus="products.bom"
+              // Beside the story's drawing the list scrolls inside the card on a short screen.
+              style={{ listStyle: "none", margin: 0, padding: 0, ...(story ? { flex: "1 1 auto", minHeight: 0, overflowY: "auto" } : {}) }}>
               {bom.map((l) => {
                 const short = productId === "10ma" && l.part === MOTOR_PART && st.demand.ordered * demand.motorsPerRobot > motorsOnHand;
                 const open = openLine === l.id;

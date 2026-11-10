@@ -120,6 +120,22 @@ export function Drawer({ proof, open, onToggle, lastProof, history = [], narrow 
   const ex = (explain && !chosen ? EXPLAINERS[explain] : p ? EXPLAINERS[EXPLAINER_OF[keyOf(p)]] : undefined) ?? null;
   const lit = p ? highlightFor(keyOf(p)) : [];
   const facts = ex?.facts && st ? ex.facts(st, p).filter((f) => f.v) : [];
+  // An explainer moment whose proof is a synthetic placeholder: the drawer shows only the Explained
+  // column and its diagram, never the placeholder beside it.
+  const only = !!explain && !chosen && !!p?.synthetic && !!ex && !!st;
+  const lines = ex && st ? (
+    <dl className={s.exLines}>
+      <div><dt>What happened</dt><dd>{ex.happened(st)}</dd></div>
+      <div><dt>Why it matters for Astro</dt><dd>{ex.matters(st)}</dd></div>
+      <div><dt>Why NEAR</dt><dd>{ex.whyNear}</dd></div>
+      {facts.length > 0 && (
+        <div className={s.exFacts}>
+          {facts.map((f) => <span key={f.k}><span className="es-micro">{f.k}</span><span className="es-num" data-tone={f.tone} data-abbr={f.v.includes("…") || undefined} title={f.v}>{f.v}</span></span>)}
+        </div>
+      )}
+      {ex.id === "signed" && <p className={s.note}><FileCheck2 size={13} strokeWidth={2} aria-hidden="true" style={{ verticalAlign: "-2px", marginRight: 4 }} />{SIGNED_NOTE}</p>}
+    </dl>
+  ) : null;
 
   return (
     <section className={s.drawer} data-open={open} data-narrow={narrow} data-explain={!!explain} aria-label="Developer drawer" style={open ? { height: explain ? Math.max(height, EXPLAIN_H) : height } : undefined}>
@@ -149,7 +165,21 @@ export function Drawer({ proof, open, onToggle, lastProof, history = [], narrow 
         <span className={s.drawerToggle}>{open ? <>Collapse<ChevronDown size={12} strokeWidth={2} aria-hidden="true" /></> : <>Open<ChevronUp size={12} strokeWidth={2} aria-hidden="true" /></>}</span>
       </button>
       {open && !p && <p className={`${s.note} ${s.pad}`}>No calls yet. Each step the agent takes shows here with its proof.</p>}
-      {open && p && (
+      {open && p && only && (
+        <div className={s.drawerGrid} data-only="explain">
+          <aside className={`${s.drawerCol} ${s.exOnlyCol}`} aria-label="Explained" data-focus={PROOF_FOCUS[keyOf(p)]}>
+            <span className="es-micro">Explained</span>
+            <div className={s.exOnly}>
+              <div className={s.exOnlyText}>
+                <p className={s.exTitle}>{ex!.title}</p>
+                {lines}
+              </div>
+              <div className={s.exOnlyDiagram}><Diagram id={ex!.diagram} lifecycle={st?.escrow?.lifecycle ?? null} /></div>
+            </div>
+          </aside>
+        </div>
+      )}
+      {open && p && !only && (
         <div className={s.drawerGrid}>
           <nav className={s.drawerCol} aria-label="Steps so far">
             <span className="es-micro">Steps · <span className="es-num">{history.length}</span></span>
@@ -216,19 +246,7 @@ export function Drawer({ proof, open, onToggle, lastProof, history = [], narrow 
             <p className={s.exTitle}>{ex?.title ?? p.label}</p>
             {ex && learn ? (
               <Diagram id={ex.diagram} lifecycle={st?.escrow?.lifecycle ?? null} />
-            ) : ex && st ? (
-              <dl className={s.exLines}>
-                <div><dt>What happened</dt><dd>{ex.happened(st)}</dd></div>
-                <div><dt>Why it matters for Astro</dt><dd>{ex.matters(st)}</dd></div>
-                <div><dt>Why NEAR</dt><dd>{ex.whyNear}</dd></div>
-                {facts.length > 0 && (
-                  <div className={s.exFacts}>
-                    {facts.map((f) => <span key={f.k}><span className="es-micro">{f.k}</span><span className="es-num" data-tone={f.tone} data-abbr={f.v.includes("…") || undefined} title={f.v}>{f.v}</span></span>)}
-                  </div>
-                )}
-                {ex.id === "signed" && <p className={s.note}><FileCheck2 size={13} strokeWidth={2} aria-hidden="true" style={{ verticalAlign: "-2px", marginRight: 4 }} />{SIGNED_NOTE}</p>}
-              </dl>
-            ) : (
+            ) : lines ?? (
               <dl className={s.exLines}><div><dt>What happened</dt><dd>{PLAIN[keyOf(p)] ?? p.label}</dd></div></dl>
             )}
           </aside>

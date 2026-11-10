@@ -3,6 +3,7 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { Gate } from "@/scenario/types";
 import type { Scenario, ScenarioId } from "@/scenario/scenes";
+import type { ShortInfo } from "./presentChannel";
 import { Badge, Dot } from "./Panel";
 import s from "./shell.module.css";
 
@@ -17,8 +18,8 @@ export interface RailProps {
   synthetic: boolean; hide: () => void;
   /** Which proofs are real: all of them, the money steps (a live or recorded testnet run), or none yet. */
   proofsReal?: "all" | "money" | "none";
-  /** Short mode: the section on screen (0 before the first press) and the one the next press plays. */
-  short?: { section: number; sections: number; title: string | null; next: string | null; playing: boolean } | null;
+  /** Short mode: where the run is. The rail is on the recorded screen, so it shows no countdown. */
+  short?: ShortInfo | null;
   setShort?: () => void;
   camera?: { on: boolean; follow: boolean; toggle: () => void; toggleFollow: () => void; focus: string | null; next: string | null; cursor?: boolean; toggleCursor?: () => void };
 }
@@ -34,18 +35,23 @@ export function DemoRail(p: RailProps) {
         <button type="button" className={s.railHide} onClick={p.hide}>Hide<ChevronRight size={13} strokeWidth={2} aria-hidden="true" /></button>
       </div>
       <div className={s.sceneHead}>
-        <span className={s.sceneLabel}>{sh ? (sh.section > 0 ? `Short · Section ${sh.section} of ${sh.sections}` : "Short · Ready") : `${p.scenario.title} · Chapter ${p.scene + 1}`}</span>
+        <span className={s.sceneLabel}>{sh ? (sh.section > 0 ? `Short · Section ${sh.section} of ${sh.sections}` : sh.started ? "Short · Opening" : "Short · Ready") : `${p.scenario.title} · Chapter ${p.scene + 1}`}</span>
         <h2 className={s.sceneTitle}>{p.title}</h2>
         {p.line && <p className={s.sceneLine}>{p.line}</p>}
       </div>
 
       {sh ? (
         <div className={s.nextBox} role="group" aria-label="Next step">
-          <span className="es-micro">{sh.playing ? "Playing" : sh.next ? "Next section" : "Finished"}</span>
-          <button type="button" className={`es-btn es-btn-primary es-btn-sm ${s.nextBtn}`} onClick={p.onNext} disabled={sh.playing || !sh.next}
-            title={sh.playing ? "A press does nothing while a section plays" : undefined}>
-            <span className={s.nextLabel}>{sh.playing ? `Section ${sh.section} playing` : sh.next ? `Play ${sh.next}` : "All sections played"}</span><span className={s.kbd}>⌘K</span>
-          </button>
+          <span className="es-micro">{sh.finished ? "Finished" : sh.playing ? "Playing · Space pauses" : sh.started ? "Paused" : "Ready"}</span>
+          {sh.playing ? (
+            <button type="button" className={`es-btn es-btn-primary es-btn-sm ${s.nextBtn}`} onClick={p.onNext} disabled={!sh.next} title="Skip to the next section">
+              <span className={s.nextLabel}>{sh.next ? `Skip to ${sh.next}` : "Last section"}</span><span className={s.kbd}>⌘K</span>
+            </button>
+          ) : (
+            <button type="button" className={`es-btn es-btn-primary es-btn-sm ${s.nextBtn}`} onClick={p.onNext} disabled={sh.finished}>
+              <span className={s.nextLabel}>{sh.finished ? "Run finished" : sh.started ? "Resume" : "Play"}</span><span className={s.kbd}>{sh.started ? "Space" : "⌘K"}</span>
+            </button>
+          )}
         </div>
       ) : p.waiting ? (
         <div className={s.waitBox} role="group" aria-label="Waiting for you">
@@ -76,7 +82,7 @@ export function DemoRail(p: RailProps) {
       <div className={s.modeSeg} role="group" aria-label="Mode">
         <button type="button" aria-pressed={p.present} onClick={() => p.setPresent(true)} title="Nothing moves until you act">Present</button>
         <button type="button" aria-pressed={!p.present && !sh} onClick={() => p.setPresent(false)} title="Plays the scenario start to finish">Autoplay</button>
-        {p.setShort && <button type="button" aria-pressed={!!sh} onClick={p.setShort} title="The happy path in 9 sections for a short video: each press plays one section">Short</button>}
+        {p.setShort && <button type="button" aria-pressed={!!sh} onClick={p.setShort} title="The happy path in 9 sections that play by themselves, with time to talk">Short</button>}
       </div>
 
       {!sh && <div className={s.scenarios} role="radiogroup" aria-label="Scenario">

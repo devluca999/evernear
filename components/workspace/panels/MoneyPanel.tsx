@@ -9,6 +9,7 @@ import { LifecycleStrip } from "../Diagrams";
 import { RELEASE_RULES } from "@/engine/escrow";
 import { Loader } from "lucide-react";
 import { useActions } from "../actions";
+import { STORY_STAMPS } from "@/scenario/storyDates";
 import s from "../shell.module.css";
 
 const haoyun = suppliers.find((x) => x.id === "haoyun")!;
@@ -105,7 +106,9 @@ function Running({ text }: { text: string }) {
 }
 
 export function MoneyPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }) {
-  const { live } = useActions();
+  const { live, storyDates } = useActions();
+  // Short mode shows the story's own dates; the other modes keep the seed's.
+  const when = storyDates ? STORY_STAMPS : { committed: story.committedAt, advance: story.departedAt, paid: story.paidAt };
   const e = st.escrow;
   const owner = st.wallet?.owner ?? "astro-robotics.testnet";
   const routine = st.routine.stage === "paid" || st.routine.stage === "closed" ? st.routine.totalCents : 0;
@@ -130,7 +133,7 @@ export function MoneyPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }
     body = (
       <div className={s.pad} style={{ gap: 11 }}>
         <div className={s.lines} data-focus="money.payout" style={{ gap: 8 }}>
-          <div className={s.headRow} style={{ gap: 12 }}><N className={s.big} >{<span style={{ fontSize: 32, fontWeight: 500 }}>{formatUsdShort(e.releasedCents)}</span>}</N><Stamp word="Paid" time={story.paidAt} /></div>
+          <div className={s.headRow} style={{ gap: 12 }}><N className={s.big} >{<span style={{ fontSize: 32, fontWeight: 500 }}>{formatUsdShort(e.releasedCents)}</span>}</N><Stamp word="Paid" time={when.paid} /></div>
           <p className={s.sub}>Paid to Haoyun Precision on its own chain: <N className={s.hi}>{formatUsdShort(advanceCents)}</N> on departure, <N className={s.hi}>{formatUsdShort(balanceCents)}</N> for what arrived. <N className={s.hi}>{formatUsdShort(held || e.reclaimedCents)}</N> {e.reclaimedCents ? "went back to Astro at the deadline." : "held until the deadline."}</p>
           {refusedPay && <span className={s.line}><Dot tone="alert" />Refused: a payment to <span className="es-num" data-abbr title={refusedPay}>{short(refusedPay)}</span>, not on PO <N>{PO.number}</N>&apos;s list</span>}
         </div>
@@ -162,7 +165,7 @@ export function MoneyPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }
     body = (
       <div className={s.pad} style={{ gap: 11 }}>
         <div className={s.lines} data-focus="money.advance" style={{ gap: 8 }}>
-          <div className={s.headRow} style={{ gap: 12 }}><N><span style={{ fontSize: 32, fontWeight: 500, lineHeight: 1 }}>{formatUsdShort(advanceCents)}</span></N><span className={s.push}><Stamp word="Advance paid" time={story.departedAt} /></span></div>
+          <div className={s.headRow} style={{ gap: 12 }}><N><span style={{ fontSize: 32, fontWeight: 500, lineHeight: 1 }}>{formatUsdShort(advanceCents)}</span></N><span className={s.push}><Stamp word="Advance paid" time={when.advance} /></span></div>
           <p className={s.sub}>{RELEASE_RULES.advancePercent}% to Haoyun as the motors leave Shenzhen: the bill of lading and the export clearance both came in. <N className={s.hi}>{formatUsdShort(e.lockedCents - e.releasedCents)}</N> stays locked for the dock.</p>
         </div>
         {stages}
@@ -174,7 +177,7 @@ export function MoneyPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }
     body = (
       <div className={s.pad}>
         <div className={s.lines} data-focus="money.escrow" style={{ gap: 8 }}>
-          <div className={s.headRow} style={{ gap: 10 }}><N><span style={{ fontSize: 32, fontWeight: 500, lineHeight: 1 }}>{formatUsdShort(e.lockedCents)}</span></N><span className={s.push}><Stamp word="Committed" time={story.committedAt} /></span></div>
+          <div className={s.headRow} style={{ gap: 10 }}><N><span style={{ fontSize: 32, fontWeight: 500, lineHeight: 1 }}>{formatUsdShort(e.lockedCents)}</span></N><span className={s.push}><Stamp word="Committed" time={when.committed} /></span></div>
           <p className={s.sub}>Committed for PO <N>{PO.number}</N>. Visible to Haoyun. Pays Haoyun or Astro only: {RELEASE_RULES.advancePercent}% when the goods leave, the rest for what arrives.</p>
         </div>
         {stages}

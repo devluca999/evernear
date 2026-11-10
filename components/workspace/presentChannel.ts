@@ -12,10 +12,21 @@ export interface RemoteState {
   next: string | null;
   /** Where the camera is now. */
   camera: { on: boolean; follow: boolean; mode: string; focusId: string | null; zoom: number };
-  /** Short mode: the section on screen (0 before the first press), and the one the next press plays. */
-  short?: { section: number; sections: number; title: string | null; next: string | null; playing: boolean } | null;
+  /** Short mode: where the run is. */
+  short?: ShortInfo | null;
   /** The next step with a focus, and whether it was skipped. */
   upcoming: { step: string; id: string; zoom: number; skipped: boolean } | null;
+}
+
+/** Short mode's run: the section on screen (0 for the hook), its time left, and the next section. */
+export interface ShortInfo {
+  section: number; sections: number;
+  /** The section's name; null on the starting view. */
+  title: string | null;
+  next: string | null;
+  playing: boolean; started: boolean; finished: boolean;
+  /** Seconds left in the section (or the hook). The remote shows it; the recorded screen never does. */
+  leftSec: number;
 }
 
 export type RemoteCommand = { type: "cmd"; cmd: "next" | "preview" | "skip" | "full" | "camera" | "follow" | "cursor" | "hello" };

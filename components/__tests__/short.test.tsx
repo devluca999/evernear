@@ -1,16 +1,18 @@
 // @vitest-environment jsdom
-// Short mode in the workspace: nothing plays until a press; each press plays one whole section and
-// holds; a press while a section plays does nothing; the taps inside a section happen by themselves
-// with the presenter cursor; every zoom target exists and shows what it declares; the remote names
-// the section and the next one.
+// Short mode in the workspace: nothing plays until Play; then the whole run plays by itself to the
+// end with no presses, at the table's length, its taps done by the presenter cursor; Space pauses and
+// resumes; Cmd+K skips ahead; the recorded screen shows no countdown while the /present remote shows
+// the section, the time left and the next section; every zoom target exists; and the three fixes
+// (the explainer alone in the drawer, the map's labels, the badges' story dates) hold.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { Workspace } from "../workspace/Workspace";
 import { Remote } from "../workspace/Remote";
 import { showsAll } from "../workspace/Camera";
-import { SHORT } from "@/scenario/short";
-import { sceneStartMs } from "@/scenario/runner";
+import { SHORT, SHORT_PLAN, TIMING } from "@/scenario/short";
 import { clickTargetOf } from "@/scenario/cursor";
+import { STORY_STAMPS } from "@/scenario/storyDates";
+import { story } from "@/seed/astro";
 
 afterEach(() => { cleanup(); localStorage.clear(); vi.useRealTimers(); window.history.replaceState(null, "", "/"); });
 
@@ -19,11 +21,11 @@ const rail = () => screen.getByRole("complementary", { name: "Demo mode" });
 const label = () => within(rail()).getByText(/^Short · /).textContent;
 const nextBtn = () => within(within(rail()).getByRole("group", { name: "Next step" })).getByRole("button");
 const press = () => act(() => { fireEvent.keyDown(window, { key: "k", metaKey: true }); });
-const wait = (ms: number) => act(() => { vi.advanceTimersByTime(ms); });
-/** Real-time-like: the clock in 100 ms slices, each rendered, as frames would be in a browser. */
-const play = (ms: number) => { for (let x = 0; x < ms; x += 100) wait(100); };
+const space = () => act(() => { fireEvent.keyDown(window, { key: " " }); });
+/** The clock in 100 ms slices, each rendered, as browser frames would be. */
+const play = (ms: number) => { for (let x = 0; x < ms; x += 100) act(() => { vi.advanceTimersByTime(100); }); };
 const ghostPresses = () => Number(document.querySelector<HTMLElement>("[data-camera] [data-press]")?.dataset.press ?? 0);
-/** Opens the workspace in Short mode with a fake clock, the way the page loads it. */
+const shown = (sel: string) => document.querySelector(`[data-camera] ${sel}`) !== null;
 async function openShort(query = "") {
   vi.useFakeTimers();
   window.history.replaceState(null, "", `/?mode=short${query}`);
@@ -31,91 +33,86 @@ async function openShort(query = "") {
   await act(async () => { await vi.advanceTimersByTimeAsync(0); });
 }
 
-describe("Short mode: one press, one section", () => {
-  it("opens on the clean starting view and plays nothing until a press", async () => {
+describe("Short mode plays by itself", () => {
+  it("waits on the starting view until Play: nothing moves before it", async () => {
     await openShort();
     expect(label()).toBe("Short · Ready");
-    expect(nextBtn().textContent).toContain("Play The company");
-    wait(20_000);
+    expect(nextBtn().textContent).toContain("Play");
+    play(20_000);
     expect(label()).toBe("Short · Ready");
-    // Astro Robotics with the 10MA on screen; no step has run (the drawer has no entry yet).
     expect(within(screen.getByRole("tablist", { name: "Products" })).getByRole("tab", { selected: true }).textContent).toBe("10MA");
-    expect(screen.getByText("Astro's wallet")).toBeTruthy();
-    expect(document.querySelector('[data-focus="products.motor"]')).toBeNull();
-    expect(document.querySelector('[data-focus="developer.hash"]')).toBeNull();
+    expect(shown('[data-focus="developer.hash"]')).toBe(false);
   });
 
-  it("plays a whole section on a press, holds on its final frame, and never starts the next by itself", async () => {
+  it("plays the whole run with one press and no other: hook, 9 sections with their taps, end frame, stop, at the table's length", async () => {
     await openShort();
     press();
-    wait(SHORT.scenes[0].durationMs + 200);
-    expect(label()).toBe("Short · Section 1 of 9");
-    expect(document.querySelector('[data-focus="products.motor"]')).not.toBeNull();
-    expect(nextBtn().textContent).toContain("Play The gap");
-    wait(30_000);
-    expect(label()).toBe("Short · Section 1 of 9");
-    press();
-    wait(200);
-    expect(label()).toBe("Short · Section 2 of 9");
-  });
-
-  it("ignores Cmd+K and the right arrow while a section is still playing", async () => {
-    await openShort();
-    press();
-    wait(2000);
-    expect(nextBtn().textContent).toContain("Section 1 playing");
-    expect((nextBtn() as HTMLButtonElement).disabled).toBe(true);
-    press();
-    act(() => { fireEvent.keyDown(window, { key: "ArrowRight" }); });
-    wait(SHORT.scenes[0].durationMs);
-    // Still on section 1, held at its end: the extra presses did not skip ahead.
-    expect(label()).toBe("Short · Section 1 of 9");
-    expect(nextBtn().textContent).toContain("Play The gap");
-  });
-
-  it("does the taps inside each section with the presenter cursor: the 10MA tab, Start sourcing, Choose Haoyun, both YES, the packing slip", async () => {
-    await openShort();
-    for (let i = 0; i < 6; i++) {
-      press();
-      play(SHORT.scenes[i].durationMs + 300);
-      expect(label()).toBe(`Short · Section ${i + 1} of 9`);
+    // The hook holds the starting view.
+    play(TIMING.hookMs - 500);
+    expect(label()).toBe("Short · Opening");
+    expect(shown('[data-focus="products.motor"]')).toBe(false);
+    // Each section starts on its own when the one before has had its time.
+    for (let i = 0; i < SHORT_PLAN.length; i++) {
+      play(SHORT_PLAN[i].endMs - (i === 0 ? TIMING.hookMs - 500 : SHORT_PLAN[i].startMs) - 200);
+      expect(label(), `during ${SHORT_PLAN[i].title}`).toBe(`Short · Section ${i + 1} of 9`);
+      play(200);
     }
+    // At the table's total the run has stopped on the end frame (a moment's slack: the fake frames
+    // trail the clock by a few ms each).
+    play(1000);
+    expect(screen.getByRole("region", { name: "End card" }).textContent).toContain("0 wires. 0 days waiting. 1 human decision.");
+    expect(nextBtn().textContent).toContain("Run finished");
     expect(ghostPresses()).toBe(6);
-    // The money moved through every step on the way: the balance went to Haoyun.
-    expect(document.querySelector('[data-focus="money.payout"]')?.textContent).toContain("Paid to Haoyun Precision");
-  });
+    play(10_000);
+    expect(label()).toBe("Short · Section 9 of 9");
+  }, 60_000); // two minutes of story, rendered frame by frame
 
-  it("the left arrow arms the current section again for another take", async () => {
+  it("Space pauses and resumes the run", async () => {
     await openShort();
-    press(); wait(SHORT.scenes[0].durationMs + 200);
-    press(); wait(SHORT.scenes[1].durationMs + 200);
+    press();
+    play(TIMING.hookMs + 2000);
+    space();
+    const paused = label();
+    play(30_000);
+    expect(label()).toBe(paused);
+    expect(within(rail()).getByText("Paused")).toBeTruthy();
+    space();
+    play(SHORT_PLAN[0].endMs - TIMING.hookMs);
     expect(label()).toBe("Short · Section 2 of 9");
-    act(() => { fireEvent.keyDown(window, { key: "ArrowLeft" }); });
-    expect(label()).toBe("Short · Section 1 of 9");
-    expect(nextBtn().textContent).toContain("Play The gap");
-    wait(10_000);
-    expect(label()).toBe("Short · Section 1 of 9");
   });
 
-  it("turns on from the demo panel's Short toggle", () => {
-    render(<Workspace initialMs={0} autoplay={false} />);
-    fireEvent.click(within(screen.getByRole("group", { name: "Mode" })).getByRole("button", { name: "Short" }));
-    expect(label()).toBe("Short · Ready");
-    expect(within(rail()).getByRole("list", { name: "Sections" })).toBeTruthy();
-    expect(within(rail()).queryByRole("radiogroup", { name: "Scenario" })).toBeNull();
+  it("Cmd+K skips ahead to the next section while the run plays", async () => {
+    await openShort();
+    press();
+    play(1000);
+    press();
+    play(100);
+    expect(label()).toBe("Short · Section 1 of 9");
+    press();
+    play(100);
+    expect(label()).toBe("Short · Section 2 of 9");
   });
 
-  it("On chain opens the drawer on the Commit entry, with its real hash and its View on NearBlocks button", async () => {
-    window.history.replaceState(null, "", "/?mode=short");
-    render(<Workspace initialMs={sceneStartMs(7, SHORT.scenes) + 1500} autoplay={false} />);
-    const drawer = screen.getByLabelText("Developer drawer");
-    await waitFor(() => expect(drawer.getAttribute("data-open")).toBe("true"));
-    const chain = drawer.querySelector<HTMLElement>('[data-focus="developer.chain"]')!;
-    expect(chain.textContent).toContain("366nhBeJvx6Ch7kpx2ZR8ZchQvBDrxVhtPFe8J62ynC1");
-    const link = within(chain).getByRole("link", { name: /View on NearBlocks/ });
-    expect(link.getAttribute("href")).toBe("https://testnet.nearblocks.io/txns/366nhBeJvx6Ch7kpx2ZR8ZchQvBDrxVhtPFe8J62ynC1");
-    const current = within(screen.getByRole("navigation", { name: "Steps so far" })).getAllByRole("button").find((b) => b.getAttribute("aria-current") === "step");
-    expect(current?.textContent).toContain("Committed for PO 1042");
+  it("shows no countdown on the recorded screen", async () => {
+    await openShort();
+    press();
+    play(TIMING.hookMs + 3000);
+    const stage = document.querySelector("[data-camera]")!.textContent!;
+    expect(rail().textContent).not.toMatch(/\d+ ?s left|left in/i);
+    expect(stage).not.toMatch(/\d+ ?s left|left in/i);
+  });
+});
+
+describe("Short mode on the /present remote", () => {
+  it("shows the section number, the time left in it and the next section's name", async () => {
+    window.history.replaceState(null, "", "/?mode=short&scene=3");
+    render(<><Workspace /><Remote /></>);
+    await waitFor(() => expect(screen.getByRole("region", { name: "Section" }).textContent).toContain("Section 3 of 9"), { timeout: 3000 });
+    const card = screen.getByRole("region", { name: "Section" });
+    expect(within(card).getByRole("heading").textContent).toBe("Search");
+    const left = Math.ceil((SHORT_PLAN[2].endMs - SHORT_PLAN[2].playMs) / 1000);
+    expect(within(card).getByLabelText("Time left in the section").textContent).toBe(`${left} s`);
+    expect(card.textContent).toContain("Negotiation");
   });
 });
 
@@ -150,14 +147,43 @@ describe("Short mode: every zoom target exists", () => {
   });
 });
 
-describe("Short mode on the /present remote", () => {
-  it("shows the section number and the next section's name", async () => {
-    window.history.replaceState(null, "", "/?mode=short&scene=3");
-    render(<><Workspace /><Remote /></>);
-    await waitFor(() => expect(screen.getByRole("region", { name: "Section" }).textContent).toContain("Section 2 of 9"), { timeout: 3000 });
-    const card = screen.getByRole("region", { name: "Section" });
-    expect(within(card).getByRole("heading").textContent).toBe("The gap");
-    expect(card.textContent).toContain("Next: Search");
-    expect(within(card).getByRole("button").textContent).toContain("Play Search");
+describe("Short mode fixes", () => {
+  const at = async (ms: number) => {
+    window.history.replaceState(null, "", "/?mode=short");
+    render(<Workspace initialMs={ms} autoplay={false} />);
+    await tick();
+  };
+
+  it("the TEE explainer shows the Explained column and its diagram only, no synthetic proof beside it", async () => {
+    const tee = SHORT.timeline.find((b) => b.ev.type === "explain" && b.ev.id === "enclave")!;
+    await at(tee.atMs + 500);
+    const drawer = screen.getByLabelText("Developer drawer");
+    await waitFor(() => expect(drawer.getAttribute("data-open")).toBe("true"));
+    const explained = within(drawer).getByLabelText("Explained");
+    expect(explained.getAttribute("data-focus")).toBe("developer.attestation");
+    expect(explained.textContent).toContain("Private inference in an enclave");
+    expect(within(explained).getByRole("img", { name: /sealed enclave/ })).toBeTruthy();
+    expect(within(drawer).queryByLabelText("Proof")).toBeNull();
+    expect(within(drawer).queryByText("synthetic")).toBeNull();
+    expect(within(drawer).queryByRole("navigation", { name: "Steps so far" })).toBeNull();
+  });
+
+  it("the money badges show the story's dates: committed after the approvals, advance at departure, paid at the dock", async () => {
+    expect(STORY_STAMPS).toEqual({ committed: "3 Nov 14:58", advance: "7 Nov 01:40", paid: "11 Nov 08:42" });
+    // The paid date is the seed story's own, so the story's clock and the seed agree on day 9.
+    expect(STORY_STAMPS.paid).toBe(story.paidAt);
+    const stamps = () => document.querySelector('[data-panel="money"]')!.textContent!;
+    await at(SHORT_PLAN[4].playMs + 9000);
+    expect(stamps()).toContain(STORY_STAMPS.committed);
+    cleanup();
+    await at(SHORT_PLAN[5].playMs + 2000);
+    expect(stamps()).toContain(STORY_STAMPS.advance);
+    cleanup();
+    await at(SHORT_PLAN[5].playMs + 8800);
+    expect(stamps()).toContain(STORY_STAMPS.paid);
+    // The drawer keeps the recorded run's real timestamps.
+    fireEvent.click(screen.getByRole("button", { name: "Open developer drawer" }));
+    const commit = within(screen.getByRole("navigation", { name: "Steps so far" })).getAllByRole("button").find((b) => b.textContent!.includes("Committed for PO 1042"))!;
+    expect(commit.querySelector("time")!.textContent).toMatch(/^\d\d:\d\d:\d\d$/);
   });
 });

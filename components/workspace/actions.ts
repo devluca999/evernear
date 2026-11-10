@@ -10,6 +10,8 @@ export interface WorkspaceActions {
   answer: () => void;
   /** Live on Tidepool testnet: whether the key answered, and the money step running right now. */
   live?: LiveView;
+  /** Short mode: the Money card's badges show the story's own dates (scenario/storyDates.ts). */
+  storyDates?: boolean;
 }
 
 export interface LiveView {

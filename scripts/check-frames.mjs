@@ -6,10 +6,11 @@
 // (scenes.ts `shows`) is on screen. At every press it also lists any cut text on the cards.
 // Prints the presses each chapter takes. Replay only: it never turns Live on.
 //
-//   node scripts/check-frames.mjs [--url http://localhost:3000/] [--scenario happy|standoff|adjusted|all|short] [--shots dir]
+//   node scripts/check-frames.mjs [--url http://localhost:3000/] [--scenario happy|standoff|adjusted|all|short] [--shots dir] [--size WxH] [--pace n]
 //
-// --scenario short walks Short mode (?mode=short): one press per section, every zoom in the section
-// checked as it lands, and each section timed from its press until the camera last moved.
+// --scenario short plays Short mode (?mode=short) from one press to its stop, checking every zoom as
+// it lands and the search map's labels for overlaps, and times the run. --size 1440x900 picks the
+// window; --pace passes ?pace= through.
 //
 // Uses the installed Google Chrome through the DevTools protocol (Node 24 has WebSocket built in).
 import { spawn } from "node:child_process";
@@ -21,6 +22,8 @@ const arg = (k, d) => { const i = process.argv.indexOf(`--${k}`); return i > 0 ?
 const BASE = arg("url", "http://localhost:3000/");
 const WHICH = arg("scenario", "all");
 const SHOTS = arg("shots", null);
+const [VW, VH] = arg("size", "1920x1080").split("x").map(Number);
+const PACE = arg("pace", null);
 const CHROME = process.env.CHROME ?? ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "/usr/bin/google-chrome", "/usr/bin/chromium"].find((p) => existsSync(p));
 if (!CHROME) { console.error("No Chrome found; set CHROME to its path."); process.exit(2); }
 if (SHOTS) mkdirSync(SHOTS, { recursive: true });
@@ -28,7 +31,7 @@ if (SHOTS) mkdirSync(SHOTS, { recursive: true });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const port = 9300 + Math.floor(Math.random() * 500);
 const profile = mkdtempSync(join(tmpdir(), "frames-"));
-const chrome = spawn(CHROME, ["--headless=new", `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, "--hide-scrollbars", "--window-size=1920,1080", "--force-device-scale-factor=1", "about:blank"], { stdio: "ignore" });
+const chrome = spawn(CHROME, ["--headless=new", `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, "--hide-scrollbars", `--window-size=${VW},${VH}`, "--force-device-scale-factor=1", "about:blank"], { stdio: "ignore" });
 
 let ws, seq = 0;
 const waiting = new Map();
@@ -40,7 +43,7 @@ await new Promise((r) => ws.addEventListener("open", r));
 ws.addEventListener("message", (e) => { const m = JSON.parse(e.data); if (m.id && waiting.has(m.id)) { waiting.get(m.id)(m); waiting.delete(m.id); } });
 const cdp = (method, params = {}) => new Promise((r) => { const id = ++seq; waiting.set(id, r); ws.send(JSON.stringify({ id, method, params })); });
 const run = async (expr) => (await cdp("Runtime.evaluate", { expression: expr, returnByValue: true, awaitPromise: true })).result?.result?.value;
-await cdp("Emulation.setDeviceMetricsOverride", { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
+await cdp("Emulation.setDeviceMetricsOverride", { width: VW, height: VH, deviceScaleFactor: 1, mobile: false });
 
 // In the page: what is on screen right now, and what is cut.
 const PROBE = `(() => {
@@ -136,38 +139,40 @@ for (const sc of scenarios) {
 }
 
 if (WHICH === "short") {
-  await cdp("Page.navigate", { url: `${BASE}?mode=short` });
+  // One press starts the run; it then plays by itself. Every zoom is checked once it has settled,
+  // the map's labels are checked for overlaps, and the run is timed from the press to its stop.
+  await cdp("Page.navigate", { url: `${BASE}?mode=short${PACE ? `&pace=${PACE}` : ""}` });
   await sleep(3500);
-  const sectionLabel = `[...document.querySelectorAll("span")].map((e) => e.textContent).find((x) => /^Short · /.test(x || "")) || ""`;
-  const lengths = [];
-  for (let n = 1; n <= 9; n++) {
-    const t0 = Date.now();
-    await press();
-    // Watch the section: each zoom is checked once it has settled; the section is done when the
-    // rail says it holds (the next press would play the next one) and the camera has stopped.
-    let lastMove = t0, prev = null, seen = new Set(), stable = 0;
-    for (let i = 0; i < 300; i++) {
-      await sleep(100);
-      const m = await run(PROBE);
-      // Zoom and pan both settled: the element's box on screen has stopped moving.
-      const key = `${m.focus}@${m.zoom}@${JSON.stringify(m.rect ?? null)}`;
-      if (key !== prev) { lastMove = Date.now(); prev = key; stable = 0; } else stable++;
-      if (m.focus && stable === 4 && !seen.has(m.focus)) {
-        seen.add(m.focus);
-        const ok = m.problems.length === 0;
-        if (!ok) failed++;
-        console.log(`${ok ? "ok  " : "FAIL"} short s${n} ${m.focus} x${m.zoom}${ok ? "" : "  " + m.problems.join("; ")}`);
-        if (SHOTS) { const shot = await cdp("Page.captureScreenshot", { format: "png" }); writeFileSync(join(SHOTS, `short-s${n}-${m.focus.replace(/\W+/g, "-")}.png`), Buffer.from(shot.result.data, "base64")); }
-      }
-      const playing = await run(`!!document.querySelector('[aria-label="Next step"] button[disabled]') && /playing/.test(document.querySelector('[aria-label="Next step"]').textContent)`);
-      if (!playing && stable >= 8) break;
+  const LABELS = `(() => { const ls = [...document.querySelectorAll("[data-camera] [data-label]")].map((e) => ({ id: e.dataset.label, r: e.getBoundingClientRect() }));
+    const out = []; for (let i = 0; i < ls.length; i++) for (let j = i + 1; j < ls.length; j++) { const a = ls[i].r, b = ls[j].r;
+      if (Math.min(a.right, b.right) > Math.max(a.left, b.left) && Math.min(a.bottom, b.bottom) > Math.max(a.top, b.top)) out.push(ls[i].id + " over " + ls[j].id); }
+    return { n: ls.length, out }; })()`;
+  const label = `[...document.querySelectorAll("span")].map((e) => e.textContent).find((x) => /^Short · /.test(x || "")) || ""`;
+  const t0 = Date.now();
+  await press();
+  let prev = null, stable = 0, lastLabel = "", worstLabels = null;
+  const seen = new Set(), sections = [];
+  for (let i = 0; i < 4000; i++) {
+    await sleep(100);
+    const m = await run(PROBE);
+    const key = `${m.focus}@${m.zoom}@${JSON.stringify(m.rect ?? null)}`;
+    if (key !== prev) { prev = key; stable = 0; } else stable++;
+    const l = await run(label);
+    if (l !== lastLabel) { sections.push({ label: l, atS: +((Date.now() - t0) / 1000).toFixed(1) }); console.log(`${((Date.now() - t0) / 1000).toFixed(1).padStart(6)} s  ${l}`); lastLabel = l; }
+    const lab = await run(LABELS);
+    if (lab.n === 5 && !worstLabels) { worstLabels = lab; console.log(lab.out.length ? `FAIL map labels: ${lab.out.join("; ")}` : "ok   map labels: 5 placed, none overlap"); if (lab.out.length) failed++; if (SHOTS) { const shot = await cdp("Page.captureScreenshot", { format: "png" }); writeFileSync(join(SHOTS, "short-map-labels.png"), Buffer.from(shot.result.data, "base64")); } }
+    const tag = `${l}|${m.focus}`;
+    if (m.focus && stable === 4 && !seen.has(tag)) {
+      seen.add(tag);
+      const ok = m.problems.length === 0;
+      if (!ok) failed++;
+      console.log(`${ok ? "ok  " : "FAIL"} ${l} ${m.focus} x${m.zoom}${ok ? "" : "  " + m.problems.join("; ")}`);
+      if (SHOTS) { const shot = await cdp("Page.captureScreenshot", { format: "png" }); writeFileSync(join(SHOTS, `short-${seen.size}-${m.focus.replace(/\W+/g, "-")}.png`), Buffer.from(shot.result.data, "base64")); }
     }
-    const label = await run(sectionLabel);
-    lengths.push({ section: n, label, movingMs: lastMove - t0 });
-    console.log(`short s${n}: ${label}, last camera move ${((lastMove - t0) / 1000).toFixed(1)} s after the press`);
-    if (SHOTS) { const shot = await cdp("Page.captureScreenshot", { format: "png" }); writeFileSync(join(SHOTS, `short-s${n}-hold.png`), Buffer.from(shot.result.data, "base64")); }
+    const done = await run(`/Run finished/.test(document.querySelector('[aria-label="Next step"]')?.textContent || "")`);
+    if (done) { console.log(`run finished ${((Date.now() - t0) / 1000).toFixed(1)} s after the press`); report.shortRunS = (Date.now() - t0) / 1000; break; }
   }
-  report.short = lengths;
+  report.short = sections;
 }
 
 writeFileSync(join(SHOTS ?? profile, "frames-report.json"), JSON.stringify(report, null, 1));

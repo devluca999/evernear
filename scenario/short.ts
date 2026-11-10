@@ -1,16 +1,18 @@
-// Short mode: the happy path as 9 sections for a 60-second video. Each press plays one whole section
-// by itself (its taps and waits included, done by the presenter cursor), condensed to the section's
-// target length, then holds on its final frame until the next press. The messages, gates and proofs
-// are the happy path's own (scenes.ts), looked up by chapter and time, so their words live in one
-// place; only the timing and the camera holds are new here. Live is always off in Short mode; the
-// replay uses the recorded testnet run (fixtures/recorded/live-run.json).
+// Short mode: the happy path as 9 sections for a short video that plays by itself. One press starts
+// the run: the starting view holds for the hook, then each section plays its animation (its taps
+// done by the presenter cursor), holds on its final frame until its speaking time is up, pauses, and
+// the next one starts on its own. The end frame holds for the outro, then the run stops. The times
+// are in one table (TIMING); ?pace= scales the talking times and ?gap= sets the pause.
+// The messages, gates and proofs are the happy path's own (scenes.ts), looked up by chapter and time,
+// so their words live in one place. Live is always off in Short mode; the replay uses the recorded
+// testnet run (fixtures/recorded/live-run.json).
 import type { Event, Focus, Gate } from "./types";
 import { gateOf, scenario, scenes, step, tab, type Entry, type Extra, type Scene } from "./scenes";
 import { MOTOR_PART } from "../seed/astro";
 import { IN_MS } from "./camera";
 
-/** A zoom that stays until the next press (the section's last one). */
-export const HOLD_TO_PRESS = 10 * 60_000;
+/** A zoom that stays until the next section starts (the section's last one). */
+export const HOLD_TO_NEXT = 10 * 60_000;
 /** How far ahead of a tap its button shows as waiting, so the cursor can glide to it. */
 export const SHORT_ASK_MS = 1600;
 
@@ -37,17 +39,17 @@ function zoom(chapter: number, atMs: number, holdMs: number, type?: Event["type"
 }
 const fitment = (supplierId: string): Event => ({ type: "fitment", supplierId });
 
-/** The 9 sections. `durationMs` is the target length: every step lands inside it. */
+/** The 9 sections' animations. Their `durationMs` is set by buildShort from TIMING. */
 export const SECTIONS: Scene[] = [
-  { id: 0, title: "The company", durationMs: 8000, layout: scenes[0].layout, grid: scenes[0].grid, status: "Stockbot ready",
+  { id: 0, title: "The company", durationMs: 0, layout: scenes[0].layout, grid: scenes[0].grid, status: "Stockbot ready",
     line: "Astro Robotics and its 10MA: the bill of materials, and the actuator motor in it.", enter: "Play the company", beats: [
     [0, ev(0, 0)],
     [1000, ev(0, 5200), step("Switch to the 10MA", "products.figure", 1.4, ["10MA"], { clickTarget: tab("10ma"), holdMs: 2000 })],
     [1300, ev(0, 1000)],
     [3400, ev(0, 2200), step("Bill of materials", "products.bom", 1.6, [MOTOR_PART], { holdMs: 2200 })],
-    [6300, ev(0, 8000), step("Actuator motor", "products.motor", 2.2, ["48 V"], { holdMs: HOLD_TO_PRESS })],
+    [6300, ev(0, 8000), step("Actuator motor", "products.motor", 2.2, ["48 V"], { holdMs: HOLD_TO_NEXT })],
   ] },
-  { id: 1, title: "The gap", durationMs: 9000, layout: scenes[1].layout, grid: scenes[1].grid, status: "Checking stock",
+  { id: 1, title: "The gap", durationMs: 0, layout: scenes[1].layout, grid: scenes[1].grid, status: "Checking stock",
     line: "Orders climb to 500 robots against motors for 450. Ultra Motion is out for 6 weeks.", enter: "Play the gap", beats: [
     [300, ev(1, 300)],
     [700, ev(1, 900)],
@@ -57,21 +59,23 @@ export const SECTIONS: Scene[] = [
     [5800, ev(2, 3500)],
     [7600, ev(2, 6000), gate(2, 6000)],
   ] },
-  { id: 2, title: "Search", durationMs: 13000, layout: scenes[3].layout, grid: scenes[3].grid, status: scenes[3].status,
+  { id: 2, title: "Search", durationMs: 0, layout: scenes[3].layout, grid: scenes[3].grid, status: scenes[3].status,
     line: "Stockbot compares 5 suppliers in a private enclave. 2 fit, 1 is late, 2 fail.", enter: "Play the search", beats: [
     [200, ev(3, 300)],
     [500, ev(3, 700), zoom(3, 700, 1900)],
     [1000, ev(3, 1200)],
-    [2900, ev(3, 2800), zoom(3, 2800, 2300)],
+    // The explainer: the camera frames the whole Explained column (the drawer shows only that column
+    // and its diagram while the proof beside it would be a synthetic placeholder).
+    [2900, ev(3, 2800), step("Private inference", "developer.attestation", 1.3, ["Private inference in an enclave", "What happened"], { holdMs: 2300 })],
     [5600, { type: "explain", id: null }],
-    [6000, fitment("haoyun"), step("Pins resolve", "map.results", 1.3, ["Comparing suppliers", "Haoyun Precision"], { holdMs: HOLD_TO_PRESS })],
+    [6000, fitment("haoyun"), step("Pins resolve", "map.results", 1.3, ["Comparing suppliers", "Haoyun Precision"], { holdMs: HOLD_TO_NEXT })],
     [7000, fitment("quickship")],
     [8000, fitment("kansai")],
     [9000, fitment("rheinwerk")],
     [10000, fitment("huaxin")],
     [10600, ev(3, 11000)],
   ] },
-  { id: 3, title: "Negotiation", durationMs: 11000, layout: ["inbox", "rules"], grid: { cols: "640fr 360fr" }, phone: true, clock: scenes[4].clock, status: scenes[4].status,
+  { id: 3, title: "Negotiation", durationMs: 0, layout: ["inbox", "rules"], grid: { cols: "640fr 360fr" }, phone: true, clock: scenes[4].clock, status: scenes[4].status,
     line: "Both ask +10% against a 5% ceiling. Stockbot counters; Haoyun agrees at $1,260.", enter: "Play the negotiation", beats: [
     [200, ev(4, 300)],
     [250, ev(4, 350)],
@@ -91,7 +95,7 @@ export const SECTIONS: Scene[] = [
     [9400, ev(4, 13500), gate(4, 13500)],
     [10000, ev(4, 14500)],
   ] },
-  { id: 4, title: "Approve and commit", durationMs: 12000, layout: scenes[5].layout, grid: scenes[5].grid, phone: true, clock: scenes[5].clock, status: scenes[5].status,
+  { id: 4, title: "Approve and commit", durationMs: 0, layout: scenes[5].layout, grid: scenes[5].grid, phone: true, clock: scenes[5].clock, status: scenes[5].status,
     line: scenes[5].line, enter: "Play approve and commit", beats: [
     [200, ev(5, 300)],
     [600, ev(5, 1000), step("Two approvals over $10K", "rules.order", 1.3, ["Auto approve under", "$10K", "Approval slots"], { holdMs: 1500 })],
@@ -103,9 +107,9 @@ export const SECTIONS: Scene[] = [
     [6900, ev(5, 6600)],
     [7600, ev(5, 8000), zoom(5, 8000, 1700)],
     [7700, ev(5, 8100)],
-    [9300, ev(5, 9500), step("Two exits", "money.exits", 1.8, ["Order wallet can pay", "Haoyun Precision", "Astro Robotics", "Refused"], { holdMs: HOLD_TO_PRESS })],
+    [9300, ev(5, 9500), step("Two exits", "money.exits", 1.8, ["Order wallet can pay", "Haoyun Precision", "Astro Robotics", "Refused"], { holdMs: HOLD_TO_NEXT })],
   ] },
-  { id: 5, title: "Ship and dock", durationMs: 10000, layout: scenes[6].layout, grid: scenes[6].grid, phone: true, clock: scenes[6].clock, status: scenes[6].status,
+  { id: 5, title: "Ship and dock", durationMs: 0, layout: scenes[6].layout, grid: scenes[6].grid, phone: true, clock: scenes[6].clock, status: scenes[6].status,
     line: scenes[6].line, enter: "Play ship and dock", beats: [
     [200, ev(6, 300)],
     [250, ev(6, 400)],
@@ -135,22 +139,22 @@ export const SECTIONS: Scene[] = [
     [6200, ev(6, 11000), zoom(6, 11000, 1500)],
     [6300, ev(6, 11100)],
     [6400, ev(6, 11200)],
-    [7800, ev(6, 14800, "release"), zoom(6, 14800, HOLD_TO_PRESS, "release")],
+    [7800, ev(6, 14800, "release"), zoom(6, 14800, HOLD_TO_NEXT, "release")],
     [7900, ev(6, 14900)],
     [8000, ev(6, 15000)],
     [8600, ev(6, 17000)],
   ] },
-  { id: 6, title: "Paid", durationMs: 7000, layout: scenes[7].layout, grid: scenes[7].grid, status: scenes[7].status,
+  { id: 6, title: "Paid", durationMs: 0, layout: scenes[7].layout, grid: scenes[7].grid, status: scenes[7].status,
     line: "A payment to a lookalike address is refused. What the two-stage escrow protected.", enter: "Play paid", beats: [
     [300, ev(7, 500), zoom(7, 500, 3800)],
     [400, ev(7, 600)],
-    [4800, ev(7, 3000), zoom(7, 3000, HOLD_TO_PRESS)],
+    [4800, ev(7, 3000), zoom(7, 3000, HOLD_TO_NEXT)],
   ] },
-  { id: 7, title: "On chain", durationMs: 5000, layout: scenes[7].layout, grid: scenes[7].grid, status: scenes[7].status,
+  { id: 7, title: "On chain", durationMs: 0, layout: scenes[7].layout, grid: scenes[7].grid, status: scenes[7].status,
     line: "The commit's real NEAR testnet transaction, one click from NearBlocks.", enter: "Play on chain", beats: [
-    [300, { type: "pin", key: "escrow_wallet" }, step("On chain", "developer.chain", 2.0, ["Hash", "View on NearBlocks"], { holdMs: HOLD_TO_PRESS })],
+    [300, { type: "pin", key: "escrow_wallet" }, step("On chain", "developer.chain", 2.0, ["Hash", "View on NearBlocks"], { holdMs: HOLD_TO_NEXT })],
   ] },
-  { id: 8, title: "End frame", durationMs: 4000, layout: scenes[7].layout, grid: scenes[7].grid, status: scenes[7].status,
+  { id: 8, title: "End frame", durationMs: 0, layout: scenes[7].layout, grid: scenes[7].grid, status: scenes[7].status,
     line: "0 wires. 0 days waiting. 1 human decision.", enter: "Play the end frame", beats: [
     [100, { type: "pin", key: null }],
     [200, ev(7, 8500, "end_card")],
@@ -162,14 +166,86 @@ export const SECTIONS: Scene[] = [
 ];
 
 /**
- * When a section has finished moving, ms after its press: its last step, plus the camera's move in
- * when that step zooms. The section then holds on this frame until the next press.
+ * When a section has finished moving, ms after it starts: its last step, plus the camera's move in
+ * when that step zooms. The section then holds on this frame.
  */
 export function settledMs(sc: Scene): number {
-  return Math.max(0, ...sc.beats.map(([at, , x]) => at + (x && "focus" in x && x.focus ? IN_MS : 0)));
+  return Math.max(0, ...sc.beats.map(([at, , x]) => at + (x && "focus" in x && x.focus ? IN_MS : 1)));
 }
 
-/** What each section is cut to, in ms, in order: the targets for the video. */
-export const TARGET_MS = [8000, 9000, 13000, 11000, 12000, 10000, 7000, 5000, 4000] as const;
+/**
+ * The run's timing, in one table. Each section's total is the larger of its animation and its
+ * speaking time, plus the pause; the last one holds for the outro instead of a pause.
+ */
+export const TIMING = {
+  /** The starting view, before section 1: the hook. */
+  hookMs: 8000,
+  /** Speaking time per section, in order. */
+  speakMs: [8000, 9000, 13000, 11000, 12000, 9000, 7000, 9000, 4000],
+  /** The pause after each section but the last. */
+  gapMs: 2500,
+  /** How long the end frame holds after its speaking time, for the outro. Then the run stops. */
+  outroMs: 14000,
+} as const;
 
-export const SHORT = scenario("short", "Short", "The happy path as 9 sections for a 60-second video. Each press plays one section.", SECTIONS);
+export interface ShortOptions {
+  /** Multiplies the talking times (hook, speaking, outro); default 1. */
+  pace?: number;
+  /** The pause between sections, ms; default TIMING.gapMs. */
+  gapMs?: number;
+}
+
+/** One section of the run, in ms from the start of the run. */
+export interface SectionPlan {
+  title: string;
+  /** When its scene begins (section 1: the start of the run, the hook included). */
+  startMs: number;
+  /** When its animation starts: where a skip lands. */
+  playMs: number;
+  animMs: number;
+  speakMs: number;
+  /** When it ends and the next one starts. */
+  endMs: number;
+}
+
+/** Reads ?pace= and ?gap= (seconds): out-of-range or missing values fall back to the defaults. */
+export function shortOptions(q: URLSearchParams): ShortOptions {
+  const pace = Number(q.get("pace")), gap = Number(q.get("gap"));
+  return {
+    pace: q.has("pace") && pace > 0 && pace <= 10 ? pace : 1,
+    gapMs: q.has("gap") && gap >= 0 && gap <= 60 ? Math.round(gap * 1000) : TIMING.gapMs,
+  };
+}
+
+/** The run: the 9 sections timed from TIMING, as a scenario, with each section's plan. */
+export function buildShort(o: ShortOptions = {}) {
+  const pace = o.pace ?? 1, gapMs = o.gapMs ?? TIMING.gapMs;
+  const hookMs = Math.round(TIMING.hookMs * pace);
+  const plan: SectionPlan[] = [];
+  let at = 0;
+  const list: Scene[] = SECTIONS.map((sc, i) => {
+    const last = i === SECTIONS.length - 1;
+    const animMs = settledMs(sc), speakMs = Math.round(TIMING.speakMs[i] * pace);
+    const lead = i === 0 ? hookMs : 0;
+    const durationMs = lead + Math.max(animMs, speakMs) + (last ? Math.round(TIMING.outroMs * pace) : gapMs);
+    plan.push({ title: sc.title, startMs: at, playMs: at + lead, animMs, speakMs, endMs: at + durationMs });
+    at += durationMs;
+    // Section 1 waits out the hook on the starting view: its steps move back by the hook (the
+    // opening frame at 0 stays where it is).
+    const beats = lead ? sc.beats.map((b) => (b[0] === 0 ? b : ([b[0] + lead, ...b.slice(1)] as typeof b))) : sc.beats;
+    return { ...sc, durationMs, beats };
+  });
+  return { scenario: scenario("short", "Short", "The happy path as 9 sections that play by themselves, with time to talk.", list), plan, totalMs: at, hookMs };
+}
+
+/** The run at the default pace and pause. */
+export const SHORT = buildShort().scenario;
+export const SHORT_PLAN = buildShort().plan;
+
+/** Where the run is at `t`: the section on screen (-1 during the hook), and the time left in it. */
+export function sectionAt(plan: SectionPlan[], t: number): { index: number; leftMs: number } {
+  if (t < plan[0].playMs) return { index: -1, leftMs: plan[0].playMs - t };
+  const i = plan.findIndex((p) => t < p.endMs);
+  const index = i < 0 ? plan.length - 1 : i;
+  return { index, leftMs: Math.max(0, plan[index].endMs - t) };
+}

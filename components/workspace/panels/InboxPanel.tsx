@@ -56,8 +56,9 @@ function Thread({ o, mail, newest }: { o: WorkspaceState["offers"][number]; mail
   const thread = mail.filter((m) => m.from.includes(o.supplierId) || m.to?.includes(o.supplierId));
   const box = useRef<HTMLElement>(null);
   const last = thread.at(-1)?.id;
-  // A new email scrolls its own thread to it (only the thread: the page and the camera stay put).
-  useEffect(() => { const el = box.current; if (el) el.scrollTop = el.scrollHeight; }, [last]);
+  // A new email, or a new offer on top (which can grow the header), scrolls its own thread to the
+  // newest email (only the thread: the page and the camera stay put).
+  useEffect(() => { const el = box.current; if (el) el.scrollTop = el.scrollHeight; }, [last, o.note, o.unitCents]);
   return (
     <section ref={box} className={s.thread} data-main={o.supplierId === "haoyun"} aria-label={`${sup.name} offer`} data-focus={o.supplierId === "haoyun" ? "negotiation.haoyun" : undefined}>
       <div className={s.threadHead}>

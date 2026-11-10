@@ -13,13 +13,13 @@ import { cumulative, pointAt, polyline, type Pt } from "../map/route";
 import { Dot, N, Panel } from "../Panel";
 import sh from "../shell.module.css";
 import { Tracking } from "../Tracking";
+import { estimateLabel, labelWhy, pinAt, pinFrac, placeLabels, SUPPLIER_CITY, type Box } from "../map/labels";
 import s from "../workspace.module.css";
 
 const ROUTE = MAP.route as readonly Pt[];
 const CUM = cumulative(ROUTE);
 const ROUTE_D = polyline(ROUTE);
 
-const SUPPLIER_CITY: Record<string, keyof typeof MAP.pins> = { kansai: "Osaka", rheinwerk: "Stuttgart", huaxin: "Dongguan", haoyun: "Shenzhen", quickship: "Busan", ultra: "Rockford" };
 // Where each supplier's icon sits next to its headquarters dot (Shenzhen and Dongguan are neighbours).
 const MARK_AT: Record<string, [number, number]> = { haoyun: [6, 4], huaxin: [-26, -18], kansai: [6, -4], quickship: [-26, -20], rheinwerk: [6, -16], ultra: [-28, -18] };
 type Lanes = Record<string, { place: string; segments: readonly (readonly Pt[])[]; km: number }>;
@@ -106,13 +106,6 @@ const MATCH_ORDER = ["haoyun", "quickship", "kansai", "rheinwerk", "huaxin"];
 
 const lanePath = (id: string) => LANE_GEO[id].segments.map((seg) => polyline(seg)).join(" ");
 
-/** Shenzhen and Dongguan are neighbours: in the search their pins sit a little apart so both show. */
-const NUDGE: Record<string, [number, number]> = { haoyun: [2.5, 2], huaxin: [-3.5, -3] };
-const pinAt = (id: string, bare: boolean): [number, number] => {
-  const [x, y] = MAP.pins[SUPPLIER_CITY[id]];
-  const [nx, ny] = bare ? NUDGE[id] ?? [0, 0] : [0, 0];
-  return [x + nx, y + ny];
-};
 
 /** Where each supplier's label sits beside its pin, in screen pixels, and which corner it hangs from. */
 const LABEL_AT: Record<string, { dx: number; dy: number; x: "left" | "right"; y: "top" | "middle" | "bottom" }> = {
@@ -123,22 +116,27 @@ const LABEL_AT: Record<string, { dx: number; dy: number; x: "left" | "right"; y:
   rheinwerk: { dx: 16, dy: 12, x: "left", y: "top" },
 };
 
-/** A checked supplier's label on the map: its name and one line of why, in its state colour. */
-function PinLabel({ f, view }: { f: WorkspaceState["fitment"][number]; view: View }) {
+
+/**
+ * A checked supplier's label on the map: its name and one line of why, in its state colour. `pos` is
+ * where map/labels.ts placed it (px in the map box); before the box is measured it hangs from a fixed
+ * corner of its pin.
+ */
+function PinLabel({ f, view, pos, measure, mapW = Infinity }: { f: WorkspaceState["fitment"][number]; view: View; pos?: { x: number; y: number }; measure?: (el: HTMLDivElement | null) => void; mapW?: number }) {
   const sup = suppliers.find((v) => v.id === f.supplierId)!;
-  const [x, y] = pinAt(f.supplierId, true);
   const at = LABEL_AT[f.supplierId];
   const why = pinReason(f, bomFor["10ma"].length);
   const full = matchReason(f, bomFor["10ma"].length);
-  const left = ((x - view.x) / view.w) * 100, top = ((y - view.y) / view.h) * 100;
+  const [fx, fy] = pinFrac(f.supplierId, view);
+  const left = fx * 100, top = fy * 100;
   if (left < 0 || left > 100 || top < 0 || top > 100) return null;
   const tx = at.x === "right" ? "-100%" : "0", ty = at.y === "bottom" ? "-100%" : at.y === "middle" ? "-50%" : "0";
   return (
-    <div className={sh.pinTag} data-tone={why.tone} data-tag={why.tag} title={full} aria-label={`${sup.name}: ${full}`}
+    <div ref={measure} className={sh.pinTag} data-tone={why.tone} data-tag={why.tag} data-label={f.supplierId} title={full} aria-label={`${sup.name}: ${full}`}
       data-focus={why.tag === "late" ? "map.results.partial" : undefined}
-      style={{ left: `${left}%`, top: `${top}%`, transform: `translate(${at.dx}px, ${at.dy}px) translate(${tx}, ${ty})` }}>
+      style={pos ? { left: pos.x, top: pos.y } : { left: `${left}%`, top: `${top}%`, transform: `translate(${at.dx}px, ${at.dy}px) translate(${tx}, ${ty})` }}>
       <span className={sh.pinTagName}><Dot tone={why.tone} />{sup.name}</span>
-      <span className={sh.pinTagWhy}>{why.text}</span>
+      <span className={sh.pinTagWhy}>{labelWhy(why.text, f.pass, mapW)}</span>
     </div>
   );
 }
@@ -196,6 +194,45 @@ export function MapPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }) 
   // you pin in another chapter shows them all.
   const pinShown = (id: string) => shipping || checked.has(id) || !st.layout.includes("map");
 
+  // The search's labels: placed so none overlaps another, a pin, the search bar or Astro's HQ name,
+  // the suppliers that fit first. Sizes are measured once drawn (estimated before that).
+  const boxRef = useRef<HTMLDivElement>(null);
+  const topRef = useRef<HTMLDivElement>(null);
+  const [box, setBox] = useState<{ w: number; h: number; top: Box | null } | null>(null);
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const read = () => {
+      const t = topRef.current;
+      const top = t ? { x: t.offsetLeft - el.offsetLeft, y: t.offsetTop - el.offsetTop, w: t.offsetWidth, h: t.offsetHeight } : null;
+      setBox((b) => (b && b.w === el.offsetWidth && b.h === el.offsetHeight && JSON.stringify(b.top) === JSON.stringify(top) ? b : { w: el.offsetWidth, h: el.offsetHeight, top }));
+    };
+    const ro = new ResizeObserver(read);
+    ro.observe(el);
+    if (topRef.current) ro.observe(topRef.current);
+    read();
+    return () => ro.disconnect();
+  }, [searching, expanded]);
+  const [sizes, setSizes] = useState<Record<string, { w: number; h: number }>>({});
+  const measure = (id: string) => (el: HTMLDivElement | null) => {
+    if (!el || !el.offsetWidth) return;
+    const w = el.offsetWidth, h = el.offsetHeight;
+    if (sizes[id]?.w !== w || sizes[id]?.h !== h) queueMicrotask(() => setSizes((x) => (x[id]?.w === w && x[id]?.h === h ? x : { ...x, [id]: { w, h } })));
+  };
+  const placed = (() => {
+    if (!searching || !box || !box.w) return null;
+    const labels = matches.map((f) => {
+      const sup = suppliers.find((v) => v.id === f.supplierId)!;
+      const [fx, fy] = pinFrac(f.supplierId, view);
+      const size = sizes[f.supplierId] ?? estimateLabel(sup.name, labelWhy(pinReason(f, bomFor["10ma"].length).text, f.pass, box.w));
+      return { id: f.supplierId, px: fx * box.w, py: fy * box.h, ...size, first: f.pass };
+    });
+    const [hx, hy] = (() => { const [x, y] = MAP.pins.Chicago; return [((x - view.x) / view.w) * box.w, ((y - view.y) / view.h) * box.h]; })();
+    // Astro's HQ name is drawn to the left of its pin.
+    const avoid: Box[] = [{ x: hx - 340, y: hy - 22, w: 350, h: 40 }, ...(box.top ? [box.top] : [])];
+    return Object.fromEntries(placeLabels(labels, { x: 0, y: 0, w: box.w, h: box.h }, avoid).map((p) => [p.id, p]));
+  })();
+
   return (
     <Panel id="map" title="Map" pulse={pulse} meta={shipping ? <>Shipment <N>1042</N></> : "Suppliers"}>
       <div className={s.mapPanel} data-search={searching}>
@@ -205,7 +242,7 @@ export function MapPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }) 
       {expanded && <div className={s.mapScrim} onClick={() => setExpanded(false)} aria-hidden="true" />}
           <div className={s.mapWrap} data-expanded={expanded} role={expanded ? "dialog" : undefined} aria-label={expanded ? "Suppliers map, expanded" : undefined} data-focus={searching ? "map.results" : undefined}>
           {searching && (
-            <div className={sh.mapTop} data-focus="map.search">
+            <div ref={topRef} className={sh.mapTop} data-focus="map.search">
               <div className={sh.mapSearch} role="search" aria-label="Supplier search">
                 <Search size={14} strokeWidth={2} aria-hidden="true" />
                 <span className="es-num"><Typed text={st.search!} /></span>
@@ -218,7 +255,7 @@ export function MapPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }) 
               </div>
             </div>
           )}
-          <div className={s.mapBox}>
+          <div ref={boxRef} className={s.mapBox}>
           <svg ref={svgRef} className={s.map} data-dragging={dragging} viewBox={`${view.x} ${view.y} ${view.w} ${view.h}`} role="img"
             onPointerDown={(e) => { drag.current = { x: e.clientX, y: e.clientY }; moved.current = false; }}
             onPointerMove={(e) => {
@@ -250,7 +287,7 @@ export function MapPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }) 
             <Pin name="Chicago" cls={s.pinHome} k={k} />
             {shipping && t > 0 && t < 1 && <Plane t={t} k={zoom} />}
           </svg>
-          {searching && matches.map((f) => <PinLabel key={f.supplierId} f={f} view={view} />)}
+          {searching && matches.map((f) => <PinLabel key={f.supplierId} f={f} view={view} pos={placed?.[f.supplierId]} measure={measure(f.supplierId)} mapW={box?.w} />)}
           </div>
             <div className={s.mapControls} role="group" aria-label="Map zoom">
               <button type="button" className={s.mapBtn} aria-label="Zoom in" onClick={() => setView((v) => zoomAt(v, 1.5, 0.5, 0.5, W, H))}><ZoomIn size={14} strokeWidth={2} aria-hidden="true" /></button>

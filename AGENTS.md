@@ -21,3 +21,7 @@ Convex agent skills for common tasks can be installed by running
 `npx convex ai-files install`.
 
 <!-- convex-ai-end -->
+
+## Start here
+
+Read [docs/AGENT-GUIDE.md](docs/AGENT-GUIDE.md) before working in this repo: the layout, how to run it with no keys, how to verify the README, and the rules (testnet only, no secrets, tests never create Tidepool agents).

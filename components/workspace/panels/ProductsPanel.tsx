@@ -107,7 +107,7 @@ export function ProductsPanel({ st, pulse }: { st: WorkspaceState; pulse: boolea
             ) : exploded && productId === "10ma" && (
               <figure style={{ margin: 0 }}><ExplodedView highlight={openLine ? bom.find((l) => l.id === openLine)?.part ?? MOTOR_PART : MOTOR_PART} /></figure>
             )}
-            <ul className={s.rows} aria-label={`${product.name} BOM`} style={{ listStyle: "none", margin: 0, padding: 0 }}>
+            <ul className={s.rows} aria-label={`${product.name} BOM`} data-focus="products.bom" style={{ listStyle: "none", margin: 0, padding: 0 }}>
               {bom.map((l) => {
                 const short = productId === "10ma" && l.part === MOTOR_PART && st.demand.ordered * demand.motorsPerRobot > motorsOnHand;
                 const open = openLine === l.id;

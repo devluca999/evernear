@@ -17,11 +17,15 @@ export interface RailProps {
   synthetic: boolean; hide: () => void;
   /** Which proofs are real: all of them, the money steps (a live or recorded testnet run), or none yet. */
   proofsReal?: "all" | "money" | "none";
+  /** Short mode: the section on screen (0 before the first press) and the one the next press plays. */
+  short?: { section: number; sections: number; title: string | null; next: string | null; playing: boolean } | null;
+  setShort?: () => void;
   camera?: { on: boolean; follow: boolean; toggle: () => void; toggleFollow: () => void; focus: string | null; next: string | null; cursor?: boolean; toggleCursor?: () => void };
 }
 
 export function DemoRail(p: RailProps) {
   const LIST = p.scenario.scenes;
+  const sh = p.short ?? null;
   return (
     <aside className={s.rail} aria-label="Demo mode">
       <div className={s.railHead}>
@@ -30,12 +34,20 @@ export function DemoRail(p: RailProps) {
         <button type="button" className={s.railHide} onClick={p.hide}>Hide<ChevronRight size={13} strokeWidth={2} aria-hidden="true" /></button>
       </div>
       <div className={s.sceneHead}>
-        <span className={s.sceneLabel}>{p.scenario.title} · Chapter {p.scene + 1}</span>
+        <span className={s.sceneLabel}>{sh ? (sh.section > 0 ? `Short · Section ${sh.section} of ${sh.sections}` : "Short · Ready") : `${p.scenario.title} · Chapter ${p.scene + 1}`}</span>
         <h2 className={s.sceneTitle}>{p.title}</h2>
         {p.line && <p className={s.sceneLine}>{p.line}</p>}
       </div>
 
-      {p.waiting ? (
+      {sh ? (
+        <div className={s.nextBox} role="group" aria-label="Next step">
+          <span className="es-micro">{sh.playing ? "Playing" : sh.next ? "Next section" : "Finished"}</span>
+          <button type="button" className={`es-btn es-btn-primary es-btn-sm ${s.nextBtn}`} onClick={p.onNext} disabled={sh.playing || !sh.next}
+            title={sh.playing ? "A press does nothing while a section plays" : undefined}>
+            <span className={s.nextLabel}>{sh.playing ? `Section ${sh.section} playing` : sh.next ? `Play ${sh.next}` : "All sections played"}</span><span className={s.kbd}>⌘K</span>
+          </button>
+        </div>
+      ) : p.waiting ? (
         <div className={s.waitBox} role="group" aria-label="Waiting for you">
           <div className={s.headRow}>
             <Dot tone="attention" /><span className={s.waitWho}>Waiting for {p.waiting.who}</span>
@@ -63,23 +75,24 @@ export function DemoRail(p: RailProps) {
 
       <div className={s.modeSeg} role="group" aria-label="Mode">
         <button type="button" aria-pressed={p.present} onClick={() => p.setPresent(true)} title="Nothing moves until you act">Present</button>
-        <button type="button" aria-pressed={!p.present} onClick={() => p.setPresent(false)} title="Plays the scenario start to finish">Autoplay</button>
+        <button type="button" aria-pressed={!p.present && !sh} onClick={() => p.setPresent(false)} title="Plays the scenario start to finish">Autoplay</button>
+        {p.setShort && <button type="button" aria-pressed={!!sh} onClick={p.setShort} title="The happy path in 9 sections for a short video: each press plays one section">Short</button>}
       </div>
 
-      <div className={s.scenarios} role="radiogroup" aria-label="Scenario">
+      {!sh && <div className={s.scenarios} role="radiogroup" aria-label="Scenario">
         <span className="es-micro">Scenario</span>
         {p.scenarios.map((x) => (
-          <button key={x.id} type="button" role="radio" aria-checked={x.id === p.scenario.id} className={s.scenario} onClick={() => p.pick(x.id)}>
+          <button key={x.id} type="button" role="radio" aria-checked={x.id === p.scenario.id} className={s.scenario} onClick={() => { if (x.id !== "short") p.pick(x.id); }}>
             <span className={s.radio} aria-hidden="true" />
             <span><span className={s.scName}>{x.title}</span><span className={s.scDesc}>{x.blurb}</span></span>
           </button>
         ))}
-      </div>
+      </div>}
 
       <div className={s.railBtns}>
         <button type="button" className={`es-btn es-btn-secondary es-btn-sm ${s.railBtn}`} onClick={p.restart}>Restart</button>
         <button type="button" className={`es-btn es-btn-secondary es-btn-sm ${s.railBtn}`} aria-pressed={p.live.on} disabled={!p.live.available}
-          onClick={p.live.toggle} title={p.live.available ? "Run the money steps for real on Tidepool testnet" : "Live mode is not configured here"}>
+          onClick={p.live.toggle} title={sh ? "Live is always off in Short mode" : p.live.available ? "Run the money steps for real on Tidepool testnet" : "Live mode is not configured here"}>
           <Dot tone={p.live.on ? "success" : undefined} />{p.live.on ? "Live on" : "Live off"}
         </button>
         <button type="button" className={`es-btn es-btn-secondary es-btn-sm ${s.railBtn}`} onClick={p.toggleMode}>{p.mode === "dark" ? "Light" : "Dark"}</button>
@@ -105,8 +118,8 @@ export function DemoRail(p: RailProps) {
         </div>
       )}
 
-      <span className="es-micro">Chapters</span>
-      <ol className={s.sceneList} aria-label="Chapters">
+      <span className="es-micro">{sh ? "Sections" : "Chapters"}</span>
+      <ol className={s.sceneList} aria-label={sh ? "Sections" : "Chapters"}>
         {LIST.map((x) => {
           const state = x.id < p.scene ? "done" : x.id === p.scene ? "current" : "pending";
           return (

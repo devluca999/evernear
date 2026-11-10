@@ -12,6 +12,8 @@ export interface RemoteState {
   next: string | null;
   /** Where the camera is now. */
   camera: { on: boolean; follow: boolean; mode: string; focusId: string | null; zoom: number };
+  /** Short mode: the section on screen (0 before the first press), and the one the next press plays. */
+  short?: { section: number; sections: number; title: string | null; next: string | null; playing: boolean } | null;
   /** The next step with a focus, and whether it was skipped. */
   upcoming: { step: string; id: string; zoom: number; skipped: boolean } | null;
 }

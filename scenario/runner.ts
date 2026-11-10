@@ -29,7 +29,7 @@ export function initialState(policy: Policy = defaultPolicy): WorkspaceState {
     approvals: [], limitApprovals: [],
     price: { originalCents: PO.originalUnitCents, limitBps: policy.priceChangeLimitBps, history: [] },
     escrow: null, shipment: { progress: 0, docs: [], checkpoints: [] }, dock: null, refused: [], endCard: false,
-    policy, halted: null, product: null, highlight: null, search: null, offers: [], explain: null, signals: [], protectedShown: false,
+    policy, halted: null, product: null, highlight: null, search: null, offers: [], explain: null, signals: [], protectedShown: false, pin: null,
   };
 }
 
@@ -153,6 +153,7 @@ function apply(s: WorkspaceState, b: Beat): WorkspaceState {
       if (!r.ok) throw new Error(`scenario bug: close refused (${r.reason})`);
       return { ...s, escrow: r.escrow };
     }
+    case "pin": return { ...s, pin: ev.key };
     case "offer": return { ...s, offers: [...s.offers.filter((o) => o.supplierId !== ev.supplierId), { supplierId: ev.supplierId, unitCents: ev.unitCents, note: ev.note, tone: ev.tone }] };
   }
 }

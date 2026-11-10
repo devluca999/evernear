@@ -30,7 +30,7 @@ function Cells({ items, cols = 4 }: { items: { label: string; cents: number; ton
 
 function CanPay({ owner }: { owner: string }) {
   return (
-    <div className={s.rows}>
+    <div className={s.rows} data-focus="money.exits">
       <span className="es-micro" style={{ paddingBottom: 4 }}>Order wallet can pay</span>
       <div className={s.row}><Dot tone="success" /><span>Haoyun Precision</span><span className={`es-num ${s.rowEnd}`} data-abbr title={haoyun.receiveAddress}>{short(haoyun.receiveAddress)}</span></div>
       <div className={s.row}><Dot tone="success" /><span>Astro Robotics</span><N className={s.rowEnd}>{short(owner)}</N></div>

@@ -6,7 +6,10 @@
 // (scenes.ts `shows`) is on screen. At every press it also lists any cut text on the cards.
 // Prints the presses each chapter takes. Replay only: it never turns Live on.
 //
-//   node scripts/check-frames.mjs [--url http://localhost:3000/] [--scenario happy|standoff|adjusted|all] [--shots dir]
+//   node scripts/check-frames.mjs [--url http://localhost:3000/] [--scenario happy|standoff|adjusted|all|short] [--shots dir]
+//
+// --scenario short walks Short mode (?mode=short): one press per section, every zoom in the section
+// checked as it lands, and each section timed from its press until the camera last moved.
 //
 // Uses the installed Google Chrome through the DevTools protocol (Node 24 has WebSocket built in).
 import { spawn } from "node:child_process";
@@ -94,7 +97,7 @@ const PROBE = `(() => {
 })()`;
 
 const press = () => run(`window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true, bubbles: true }))`);
-const scenarios = WHICH === "all" ? ["happy", "standoff", "adjusted"] : [WHICH];
+const scenarios = WHICH === "all" ? ["happy", "standoff", "adjusted"] : WHICH === "short" ? [] : [WHICH];
 const report = { url: BASE, scenarios: {} };
 let failed = 0;
 
@@ -130,6 +133,41 @@ for (const sc of scenarios) {
   report.scenarios[sc] = { presses, zooms, cardCuts: [...cards] };
   console.log(`${sc}: presses by chapter ${JSON.stringify(presses)}`);
   if (cards.size) console.log(`${sc}: cut text on cards (not zoomed):\n  ${[...cards].join("\n  ")}`);
+}
+
+if (WHICH === "short") {
+  await cdp("Page.navigate", { url: `${BASE}?mode=short` });
+  await sleep(3500);
+  const sectionLabel = `[...document.querySelectorAll("span")].map((e) => e.textContent).find((x) => /^Short · /.test(x || "")) || ""`;
+  const lengths = [];
+  for (let n = 1; n <= 9; n++) {
+    const t0 = Date.now();
+    await press();
+    // Watch the section: each zoom is checked once it has settled; the section is done when the
+    // rail says it holds (the next press would play the next one) and the camera has stopped.
+    let lastMove = t0, prev = null, seen = new Set(), stable = 0;
+    for (let i = 0; i < 300; i++) {
+      await sleep(100);
+      const m = await run(PROBE);
+      // Zoom and pan both settled: the element's box on screen has stopped moving.
+      const key = `${m.focus}@${m.zoom}@${JSON.stringify(m.rect ?? null)}`;
+      if (key !== prev) { lastMove = Date.now(); prev = key; stable = 0; } else stable++;
+      if (m.focus && stable === 4 && !seen.has(m.focus)) {
+        seen.add(m.focus);
+        const ok = m.problems.length === 0;
+        if (!ok) failed++;
+        console.log(`${ok ? "ok  " : "FAIL"} short s${n} ${m.focus} x${m.zoom}${ok ? "" : "  " + m.problems.join("; ")}`);
+        if (SHOTS) { const shot = await cdp("Page.captureScreenshot", { format: "png" }); writeFileSync(join(SHOTS, `short-s${n}-${m.focus.replace(/\W+/g, "-")}.png`), Buffer.from(shot.result.data, "base64")); }
+      }
+      const playing = await run(`!!document.querySelector('[aria-label="Next step"] button[disabled]') && /playing/.test(document.querySelector('[aria-label="Next step"]').textContent)`);
+      if (!playing && stable >= 8) break;
+    }
+    const label = await run(sectionLabel);
+    lengths.push({ section: n, label, movingMs: lastMove - t0 });
+    console.log(`short s${n}: ${label}, last camera move ${((lastMove - t0) / 1000).toFixed(1)} s after the press`);
+    if (SHOTS) { const shot = await cdp("Page.captureScreenshot", { format: "png" }); writeFileSync(join(SHOTS, `short-s${n}-hold.png`), Buffer.from(shot.result.data, "base64")); }
+  }
+  report.short = lengths;
 }
 
 writeFileSync(join(SHOTS ?? profile, "frames-report.json"), JSON.stringify(report, null, 1));

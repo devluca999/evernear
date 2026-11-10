@@ -39,6 +39,7 @@ import type { Focus } from "@/scenario/types";
 import { EXPLAINERS } from "@/scenario/explain";
 import { liveEntries, mergeHistory, pendingEntry, type LiveRow } from "@/scenario/liveLog";
 import recordedRun from "@/fixtures/recorded/live-run.json";
+import { SHORT, SHORT_ASK_MS } from "@/scenario/short";
 import s from "./shell.module.css";
 
 const PANELS: Record<PanelId, (p: { st: WorkspaceState; pulse: boolean }) => React.ReactNode> = {
@@ -67,14 +68,20 @@ export function runningText(step: LiveStep, unitCents: number): string {
   }
 }
 
+export type PlayMode = "present" | "autoplay" | "short";
+
 export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: number; autoplay?: boolean }) {
   const [t, setT] = useState(initialMs);
   const [playing, setPlaying] = useState(autoplay);
   // Present: nothing moves until you act, one narratable step at a time. Autoplay: the scenario plays itself.
-  const [playMode, setPlayMode] = useState<"present" | "autoplay">("present");
+  // Short: the happy path as 9 sections for a short video; each press plays one whole section, then holds.
+  const [playMode, setPlayMode] = useState<PlayMode>("present");
   const present = playMode === "present";
+  const short = playMode === "short";
   const [scenarioId, setScenarioId] = useState<ScenarioId>("happy");
-  const SC = SCENARIOS[scenarioId];
+  // Short mode always plays the happy path.
+  const variant: ScenarioId = short ? "happy" : scenarioId;
+  const SC = short ? SHORT : SCENARIOS[scenarioId];
   const TL = SC.timeline, TOTAL = SC.totalMs, LIST = SC.scenes;
   const live = useLive();
   const [policy, setPolicyState] = useState<Policy>(defaultPolicy);
@@ -106,7 +113,7 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
   const [skipped, setSkipped] = useState<string[]>([]);
   // The presenter cursor: C turns it on or off; on by default in Present, off in Autoplay.
   const [cursorPref, setCursorPref] = useState<boolean | null>(null);
-  const cursorOn = cursorPref ?? present;
+  const cursorOn = cursorPref ?? (present || short);
   const camApi = useRef<CameraApi | null>(null);
   const reduced = useReducedMotion();
   const locate = useMemo(() => (id: string) => camApi.current?.locate(id) ?? null, []);
@@ -127,6 +134,12 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
       if (q.get("paused") === "1") setPlaying(false);
       if (q.get("autoplay") === "1" || q.get("play") === "autoplay") setPlayMode("autoplay");
       if (q.get("mode") === "light") setMode("light");
+      // ?mode=short: Short mode, armed on section 1 (or on ?scene=N); nothing plays until a press.
+      if (q.get("mode") === "short") {
+        setPlayMode("short");
+        setPlaying(false);
+        if (id !== null) setT(Number(id) > 1 ? sceneStartMs(Number(id) - 1, SHORT.scenes) - 1 : 0);
+      }
       if (q.get("drawer") === "1") setDrawerOpen(true);
       if (q.get("rail") === "0") setRailHidden(true);
       if (q.get("camera") === "0") setCameraOn(false);
@@ -147,6 +160,8 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
   const haltedAt = useMemo(() => stateAt(TOTAL, TL, policy).halted?.atMs ?? null, [policy, TL, TOTAL]);
   // What holds the clock: a human moment, the end of a scene (narrate, then Cmd+K), or a live step still running.
   const blocked = (b: Beat) => {
+    // Short: the clock only stops before each section. Taps and waits inside it play by themselves.
+    if (short) return b.ev.type === "scene" && b.scene > 0;
     const afterHalt = haltedAt !== null && b.atMs >= haltedAt;
     // A live money step holds the clock until the real call finished, in both modes. Nothing runs past a halt.
     const step = afterHalt ? null : liveStepOf(b, HAOYUN);
@@ -191,14 +206,43 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
   const liveBusy = !!heldStep && live.on && !live.error && !live.done.includes(heldStep);
   // In Present the next step is always named and one press away, whether the clock is held there or on its way.
   const upcoming = held ?? (present ? nextBlock(t, blocked, TL) : null);
-  // In Present, a human moment that comes next is already shown as waiting: the next press answers it.
-  const waiting = heldGate ?? (present && upcoming?.gate ? upcoming.gate : null);
   const finished = t >= TOTAL;
+  // Short: a tap coming up inside the section shows as waiting a moment early, so the cursor can reach it.
+  const shortAsk = short && !finished ? TL.find((b) => b.gate && b.atMs > t && b.atMs - t <= SHORT_ASK_MS)?.gate ?? null : null;
+  // In Present, a human moment that comes next is already shown as waiting: the next press answers it.
+  const waiting = short ? shortAsk : heldGate ?? (present && upcoming?.gate ? upcoming.gate : null);
+  // Short: a section is playing from the press until the clock holds before the next one.
+  const sectionPlaying = short && playing && !held && !finished;
+  const started = t > 0 || playing;
   const sceneTitle = (id: number) => LIST[id]?.enter ?? `Go to ${LIST[id]?.title ?? "the next scene"}`;
   const nextLabel = upcoming && !liveBusy ? describeStop(upcoming, sceneTitle, HAOYUN) : null;
-  const jump = (id: number) => { jumped.current = true; setT(sceneStartMs(id, LIST)); setPinnedProof(null); setViewer(null); };
+  /** Short: hold just before section `id` (on the previous section's final frame); the next press plays it. */
+  const armSection = (id: number, list = LIST) => {
+    jumped.current = true;
+    setT(id <= 0 ? 0 : sceneStartMs(id, list) - 1);
+    setPlaying(false);
+    setPinnedProof(null); setViewer(null);
+    setFullSeq((n) => n + 1);
+  };
+  const jump = (id: number) => { if (short) { armSection(id); return; } jumped.current = true; setT(sceneStartMs(id, LIST)); setPinnedProof(null); setViewer(null); };
   const reset = () => { setPinnedProof(null); setViewer(null); live.reset(); };
-  const restart = () => { jumped.current = true; setT(0); reset(); setPlaying(true); };
+  const restart = () => { if (short) { reset(); armSection(0); return; } jumped.current = true; setT(0); reset(); setPlaying(true); };
+  const choosePlayMode = (m: PlayMode) => {
+    setPlayMode(m); setCursorPref(null); setSkipped([]);
+    if (m === "short") { reset(); armSection(0, SHORT.scenes); return; }
+    // Leaving Short: back to the start of the scenario, whose timing differs.
+    if (short) { jumped.current = true; setT(0); reset(); setFullSeq((n) => n + 1); }
+    if (m === "autoplay" || short) setPlaying(true);
+  };
+  /**
+   * Short: a press plays the next whole section. While one is playing a press does nothing, so a
+   * section is never skipped by accident; after the last one nothing is left to play.
+   */
+  const shortPress = () => {
+    if (finished || sectionPlaying) return;
+    if (held) { setT(held.atMs); setFullSeq((n) => n + 1); }
+    setPlaying(true);
+  };
   const pickScenario = (id: ScenarioId, sceneId = 0) => { jumped.current = true; setScenarioId(id); setT(sceneStartMs(sceneId, SCENARIOS[id].scenes)); reset(); setPlaying(true); };
   const pickRef = useRef(pickScenario);
   useEffect(() => { pickRef.current = pickScenario; });
@@ -222,6 +266,7 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
    * that only animates gets no click; the cursor rests beside its content.
    */
   const advance = () => {
+    if (short) { shortPress(); return; }
     const b = !finished && upcoming && !liveBusy ? upcoming : null;
     const target = b ? clickTargetOf(b) : null;
     if (cursorOn && target) { ghost.tap(target, () => proceedRef.current()); return; }
@@ -230,6 +275,8 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
   };
   const advanceRef = useRef(advance);
   useEffect(() => { advanceRef.current = advance; });
+  const armRef = useRef(armSection);
+  useEffect(() => { armRef.current = armSection; });
   // A click the running clock reaches by itself (a product tab between stops): the cursor sets off
   // early, so the press lands just before the change.
   const tapped = useRef<Set<string>>(new Set());
@@ -240,16 +287,16 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
     if (!cursorOn || !playing) return;
     for (const b of TL) {
       if (b.atMs <= t || b.atMs > t + LOOKAHEAD_MS) continue;
-      const target = clickTargetOf(b), key = `${scenarioId}:${b.atMs}`;
+      const target = clickTargetOf(b), key = `${SC.id}:${b.atMs}`;
       if (!target || tapped.current.has(key) || blockedRef.current(b)) continue;
       tapped.current.add(key);
       ghost.tapBy(target, b.atMs - t);
     }
-  }, [t, TL, cursorOn, playing, scenarioId, ghost]);
+  }, [t, TL, cursorOn, playing, SC.id, ghost]);
 
   // The camera: a step whose beat the clock just crossed brings its focus. Jumps (a chapter, a
   // scenario, a restart) cross many beats at once and zoom nowhere.
-  const focusKey = (b: Beat) => `${scenarioId}:${b.atMs}`;
+  const focusKey = (b: Beat) => `${SC.id}:${b.atMs}`;
   useEffect(() => {
     const from = prevT.current;
     prevT.current = t;
@@ -258,12 +305,13 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
     const hit = TL.filter((b) => b.focus && b.atMs > from && b.atMs <= t).at(-1);
     if (!hit || skipped.includes(focusKey(hit))) return;
     queueMicrotask(() => setCamRequest((r) => ({ seq: (r?.seq ?? 0) + 1, focus: hit.focus! })));
-    // focusKey reads scenarioId, which only changes with a jump.
+    // focusKey reads the scenario's id, which only changes with a jump.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [t, TL, skipped]);
   const nextStop = TL.find((b) => b.atMs > t && isStop(b)) ?? null;
   const nextFocus = TL.find((b) => b.atMs > t && b.focus) ?? null;
-  const holdNext = !!nextStop?.focus && !skipped.includes(focusKey(nextStop));
+  // Short sets each zoom's hold itself: a section's last zoom stays until the next press.
+  const holdNext = !short && !!nextStop?.focus && !skipped.includes(focusKey(nextStop));
   const previewFocus = () => { if (nextFocus) setCamRequest((r) => ({ seq: (r?.seq ?? 0) + 1, focus: nextFocus.focus! })); };
   const skipFocus = () => {
     if (camState.mode !== "full") { setFullSeq((n) => n + 1); return; }
@@ -271,12 +319,16 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
     setFullSeq((n) => n + 1);
   };
 
+  // Live is always off in Short mode: the replay runs on the recorded testnet transactions.
+  const liveOn = live.on && !short;
+  const liveSetOn = live.setOn;
+  useEffect(() => { if (short && live.on) queueMicrotask(() => liveSetOn(false)); }, [short, live.on, liveSetOn]);
   // Live: a money step under way opens the drawer, so its entry shows "Confirming", then its explorer button.
   useEffect(() => { if (live.on && liveBusy) queueMicrotask(() => setDrawerOpen(true)); }, [live.on, liveBusy]);
   // Fire the live step the clock is holding at.
   const liveRun = live.run;
   const liveScenario = scenarioId === "adjusted" ? "adjusted" : "happy";
-  useEffect(() => { if (heldStep && live.on && !live.pending && !live.error) void liveRun(heldStep, liveScenario); }, [heldStep, live.on, live.pending, live.error, liveRun, liveScenario]);
+  useEffect(() => { if (heldStep && liveOn && !live.pending && !live.error) void liveRun(heldStep, liveScenario); }, [heldStep, liveOn, live.pending, live.error, liveRun, liveScenario]);
 
   const base = useMemo(() => stateAt(t, TL, policy), [t, TL, policy]);
   // In live mode the real proofs replace the placeholders as they arrive.
@@ -289,7 +341,7 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || viewer || e.altKey) return;
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); advanceRef.current(); return; }
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "b") { e.preventDefault(); pickRef.current(scenarioId === "standoff" ? "adjusted" : "standoff"); return; }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "b") { e.preventDefault(); if (short) return; pickRef.current(scenarioId === "standoff" ? "adjusted" : "standoff"); return; }
       if (e.key === " ") { e.preventDefault(); setPlaying((p) => !p); }
       if (e.metaKey || e.ctrlKey) return;
       const key = e.key.toLowerCase();
@@ -299,24 +351,26 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
       if (key === "0") { setFullSeq((n) => n + 1); return; }
       // The right arrow plays the next step (and its zoom); the left arrow goes back a chapter.
       if (e.key === "ArrowRight") { e.preventDefault(); advanceRef.current(); }
+      // Short: the left arrow arms the current section again, for another take.
+      if (e.key === "ArrowLeft" && short) { armRef.current(stateAt(t, TL).scene); return; }
       if (e.key === "ArrowLeft") { jumped.current = true; setT(sceneStartMs(Math.max(0, stateAt(t, TL).scene - 1), LIST)); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [t, viewer, TL, LIST, scenarioId, cursorOn]);
+  }, [t, viewer, TL, LIST, scenarioId, cursorOn, short]);
 
   // The drawer's history as a transaction log. Live: every real row of this run as it lands, plus a
   // "Confirming" entry for a money step under way. Replay of the happy path: the recorded live run
   // (fixtures/recorded/live-run.json), each step revealed as the story reaches it. The story's own
   // placeholders for those steps step aside.
   const liveRows = live.rows;
-  const realRows = useMemo<LiveRow[]>(() => (live.on ? liveRows : scenarioId === "happy" ? (recordedRun.rows as LiveRow[]) : []), [live.on, liveRows, scenarioId]);
+  const realRows = useMemo<LiveRow[]>(() => (liveOn ? liveRows : variant === "happy" ? (recordedRun.rows as LiveRow[]) : []), [liveOn, liveRows, variant]);
   const history = useMemo(() => {
-    const real = liveEntries(realRows, TL, { replay: !live.on, supplier: HAOYUN }).filter((p) => live.on || (p.atMs ?? 0) <= t);
-    const waiting = live.on && live.pending ? pendingEntry(live.pending, TL, HAOYUN) : null;
+    const real = liveEntries(realRows, TL, { replay: !liveOn, supplier: HAOYUN }).filter((p) => liveOn || (p.atMs ?? 0) <= t);
+    const waiting = liveOn && live.pending ? pendingEntry(live.pending, TL, HAOYUN) : null;
     const landed = waiting && real.some((p) => p.key && (p.atMs ?? 0) === (waiting.atMs ?? 0) - 1 && p.kind === waiting.kind);
     return mergeHistory(st.proofs, [...real, ...(waiting && !landed ? [waiting] : [])]);
-  }, [realRows, TL, live.on, live.pending, t, st.proofs]);
+  }, [realRows, TL, liveOn, live.pending, t, st.proofs]);
   const lastProof = history.at(-1) ?? null;
   const pinned = pinnedProof ? history.find((p) => p.id === pinnedProof) ?? null : null;
   const placed = arrange(board, st.layout);
@@ -364,15 +418,17 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
   const [shutExplain, setShutExplain] = useState<string | null>(null);
   const explainOn = !!st.explain && shutExplain !== st.explain;
   const explainProof = st.explain ? history.findLast((p) => (p.key ?? p.id) === EXPLAINERS[st.explain!].proof) ?? null : null;
-  const drawerOpen = drawerOpenState || !!pinned || explainOn;
+  // The story can hold one entry open (Short's "On chain": the commit and its NearBlocks button).
+  const storyPin = st.pin ? history.findLast((p) => (p.key ?? p.id) === st.pin) ?? null : null;
+  const drawerOpen = drawerOpenState || !!pinned || explainOn || !!storyPin;
   const actions: WorkspaceActions = {
     openPhoto: (checkpointId, index) => { setPlaying(false); setViewer({ checkpointId, index }); },
     openProof: (id) => { setPinnedProof(id); },
     waiting, answer: () => proceedRef.current(),
     live: {
-      on: live.on, connected: live.on ? (live.preflight ? live.preflight.ok : null) : null,
-      note: live.on && live.preflight?.ok ? `Tidepool testnet · treasury ${formatUsd(Math.round(live.preflight.treasuryUsd * 100))}` : null,
-      running: live.on && liveBusy && heldStep ? runningText(heldStep, st.limitApprovals.length > 0 ? HOLD_UNIT : PO.revisedUnitCents) : null,
+      on: liveOn, connected: liveOn ? (live.preflight ? live.preflight.ok : null) : null,
+      note: liveOn && live.preflight?.ok ? `Tidepool testnet · treasury ${formatUsd(Math.round(live.preflight.treasuryUsd * 100))}` : null,
+      running: liveOn && liveBusy && heldStep ? runningText(heldStep, st.limitApprovals.length > 0 ? HOLD_UNIT : PO.revisedUnitCents) : null,
     },
   };
 
@@ -396,10 +452,10 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
     : st.stage === "paid" || st.stage === "closed" ? { tone: "success", text: scene.status ?? "Settled" }
     : { tone: "active", text: scene.status ?? "Working" };
   const navOpen = navChoice ?? st.scene === 0;
-  const synthetic = history.some((p) => p.synthetic) || (!history.length && !live.on);
+  const synthetic = history.some((p) => p.synthetic) || (!history.length && !liveOn);
   // What the rail's footnote says: every proof real, only the money steps real, or placeholders.
-  const proofsReal: "all" | "money" | "none" = !history.some((p) => p.synthetic) && history.length ? "all" : history.some((p) => !p.synthetic) || (scenarioId === "happy" && !live.on) ? "money" : "none";
-  const endText = scenarioId === "standoff"
+  const proofsReal: "all" | "money" | "none" = !history.some((p) => p.synthetic) && history.length ? "all" : history.some((p) => !p.synthetic) || (variant === "happy" && !liveOn) ? "money" : "none";
+  const endText = variant === "standoff"
     ? { big: <>PO <N>{PO.number}</N> ended. <N>$0</N> moved.</>, sub: "Haoyun and QuickShip held at +10%, over Astro's 5% ceiling. Stockbot stopped before committing anything." }
     : { big: <><N>0</N> wires. <N>0</N> days waiting. <N>1</N> human decision.</>, sub: <>Astro Robotics · PO <N>{PO.number}</N> closed in <N>{story.closedInDays}</N> days</> };
   const sceneGrid = scene.grid;
@@ -427,10 +483,14 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
       else if (c === "hello" && lastSent.current) channel.current?.postMessage(JSON.parse(lastSent.current));
     };
   });
+  // Short: which section is on screen and which one the next press plays.
+  const nextSection = !started ? LIST[0] : finished ? null : LIST[st.scene + 1] ?? null;
+  const shortInfo = { section: started ? st.scene + 1 : 0, sections: LIST.length, title: started ? scene.title : null, next: nextSection?.title ?? null, playing: sectionPlaying };
   const remoteState: RemoteState = {
     type: "state", scenario: SC.title, chapter: st.scene + 1, chapterTitle: scene.title, chapters: LIST.length,
-    next: finished ? AFTER[scenarioId].label : nextLabel,
+    next: short ? null : finished ? AFTER[scenarioId].label : nextLabel,
     camera: { on: cameraOn, follow, mode: camState.mode, focusId: camState.focusId, zoom: camState.zoom },
+    short: short ? shortInfo : null,
     upcoming: nextFocus?.focus ? { step: nextFocus.step ?? nextFocus.focus.id, id: nextFocus.focus.id, zoom: nextFocus.focus.zoom, skipped: skipped.includes(focusKey(nextFocus)) } : null,
   };
   const remoteJson = JSON.stringify(remoteState);
@@ -444,7 +504,8 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
   }, []);
 
   // Live, before the first step: how many order wallets are left and whether the treasury covers the commit.
-  const liveStatus = live.on && (liveBusy || live.error)
+  const liveStatus = short ? "Live is off in Short mode: the replay uses the recorded testnet transactions."
+    : live.on && (liveBusy || live.error)
     ? (live.error ? `Live call failed (${live.error}). The replay carries on.` : `Live on Tidepool testnet: ${heldStep} running`)
     : live.on && !live.done.length && live.preflight ? live.preflight.message
     : null;
@@ -502,7 +563,7 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
                 <p className={s.endSub}>{endText.sub}</p>
               </div>
             )}
-            <Drawer proof={pinned ?? (explainOn ? explainProof : null) ?? lastProof} lastProof={lastProof} history={history} open={drawerOpen} narrow={phoneOn}
+            <Drawer proof={pinned ?? storyPin ?? (explainOn ? explainProof : null) ?? lastProof} fullHash={!pinned && !!storyPin} lastProof={lastProof} history={history} open={drawerOpen} narrow={phoneOn}
               explain={explainOn ? st.explain : null} st={st}
               onToggle={() => { if (pinned) setPinnedProof(null); if (explainOn) setShutExplain(st.explain); setDrawerOpen(!drawerOpen); }} />
           </div>
@@ -517,11 +578,12 @@ export function Workspace({ initialMs = 0, autoplay = true }: { initialMs?: numb
 
       <DemoRail scenario={SC} scenarios={Object.values(SCENARIOS)} scene={st.scene} title={scene.title} line={scene.line}
         waiting={waiting} onHold={waiting?.id === "on_hold"} halted={waiting ? null : st.halted?.reason ?? null} rulesChanged={policyCtx.changed} onResetRules={policyCtx.reset}
-        next={finished ? { label: AFTER[scenarioId].label, key: "⌘B" } : nextLabel ? { label: nextLabel, key: "⌘K" } : null} onNext={() => advanceRef.current()}
-        present={present} setPresent={(p) => { setPlayMode(p ? "present" : "autoplay"); setCursorPref(null); if (!p) setPlaying(true); }}
+        next={short ? null : finished ? { label: AFTER[scenarioId].label, key: "⌘B" } : nextLabel ? { label: nextLabel, key: "⌘K" } : null} onNext={() => advanceRef.current()}
+        present={present} setPresent={(p) => choosePlayMode(p ? "present" : "autoplay")}
+        short={short ? shortInfo : null} setShort={() => choosePlayMode("short")}
         playing={playing && !finished} finished={finished} onPlayPause={() => { if (finished) { setT(0); setPlaying(true); } else setPlaying((x) => !x); }}
         pick={(id) => pickScenario(id)} jump={jump} restart={restart}
-        live={{ available: live.available, on: live.on, toggle: () => live.setOn(!live.on), status: liveStatus }}
+        live={{ available: live.available && !short, on: liveOn, toggle: () => { if (!short) live.setOn(!live.on); }, status: liveStatus }}
         mode={mode} toggleMode={() => setMode((m) => (m === "dark" ? "light" : "dark"))}
         synthetic={synthetic} proofsReal={proofsReal} hide={() => setRailHidden(true)}
         camera={{ on: cameraOn, follow, toggle: () => setCameraOn((c) => !c), toggleFollow: () => setFollow((f) => !f), focus: camState.focusId, next: nextFocus?.step ?? null,

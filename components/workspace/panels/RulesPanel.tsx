@@ -17,13 +17,15 @@ const pctOf = (v: number, max: number) => `${Math.min(100, Math.max(0, (v / max)
 
 type Tone = "attention" | "success" | "alert";
 
-function Bar({ label, read, readTone, big, max, rule, oldRule, value, tone, ghost, ends, marks }: {
+function Bar({ label, read, readTone, big, max, rule, oldRule, value, tone, ghost, ends, marks, focus }: {
   label: ReactNode; read?: ReactNode; readTone?: Tone | "muted"; big?: boolean; max: number; rule: number; oldRule?: number;
   value?: number; tone?: Tone; ghost?: number; ends: [ReactNode, ReactNode, ReactNode?]; marks?: { at: number; text: ReactNode; tone?: Tone | "muted" }[];
+  /** The camera's focus id for this bar. */
+  focus?: string;
 }) {
   const ink = (t?: Tone | "muted") => (t === "attention" ? s.attnInk : t === "alert" ? s.alertInk : t === "success" ? s.hi : t === "muted" ? s.muted : undefined);
   return (
-    <div className={s.bar}>
+    <div className={s.bar} data-focus={focus}>
       <div className={s.barHead}>
         <span>{label}</span>
         {read !== undefined && (big ? <N className={`${s.barBig} ${ink(readTone) ?? s.hi}`}>{read}</N> : <span className={`${s.barRead} ${ink(readTone) ?? ""}`}>{read}</span>)}
@@ -133,7 +135,7 @@ export function RulesPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }
     const overCap = order >= policy.autoApproveUnderCents;
     return (
       <Panel id="rules" title="Rules" pulse={pulse} meta={meta()}>
-        <div className={s.pad} style={{ padding: 20, gap: 20 }}>
+        <div className={s.pad} style={{ padding: 20, gap: 20 }} data-focus="rules.order">
           <div className={s.field} style={{ gap: 8 }}>
             <span className="es-micro">Order</span>
             <div className={s.headRow} style={{ gap: 12 }}>
@@ -168,7 +170,7 @@ export function RulesPanel({ st, pulse }: { st: WorkspaceState; pulse: boolean }
       <Panel id="rules" title="Rules" pulse={pulse} meta={st.escrow ? meta() : null}>
         <div className={s.pad} style={{ padding: "16px 20px", gap: 14 }}>
           <Bar label={<>Price change up to <N>{pct(policy.priceChangeLimitBps)}</N></>} read={`+${pct(last.bps)}`} readTone={last.pass ? undefined : "attention"} big max={1200}
-            rule={policy.priceChangeLimitBps} value={last.bps} tone={last.pass ? "success" : "attention"} ghost={quoted > last.bps ? quoted : undefined} ends={["0%", "12%"]}
+            rule={policy.priceChangeLimitBps} value={last.bps} tone={last.pass ? "success" : "attention"} ghost={quoted > last.bps ? quoted : undefined} ends={["0%", "12%"]} focus="rules.ceiling"
             marks={[{ at: policy.priceChangeLimitBps, text: `Limit ${pct(policy.priceChangeLimitBps)}`, tone: "muted" }, ...(quoted > last.bps ? [{ at: quoted, text: `Quoted ${pct(quoted)}` }] : [])]} />
           <div className={s.headRow} style={{ gap: 18, paddingTop: 12, borderTop: "1px solid var(--line-hairline)", fontSize: 12, color: "var(--text-muted)", flexWrap: "wrap" }}>
             {st.approvals.length === 0 ? (

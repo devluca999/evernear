@@ -94,7 +94,9 @@ export type Event =
   /** An explainer moment opens (an id) or ends (null): the drawer shows what it means. */
   | { type: "explain"; id: import("./explain").ExplainerId | null }
   /** The order's wallet is frozen, the agent's grant revoked; it stays as the receipt. */
-  | { type: "close_wallet" };
+  | { type: "close_wallet" }
+  /** The drawer opens on one entry (a proof key, e.g. escrow_wallet), or closes again (null). */
+  | { type: "pin"; key: string | null };
 
 /** A beat that waits for the viewer: the clock stops just before it until they click. */
 export interface Gate {
@@ -181,4 +183,6 @@ export interface WorkspaceState {
   signals: import("../engine/escrow").SignalId[];
   /** The Money card shows what the two-stage escrow protected. */
   protectedShown: boolean;
+  /** The drawer entry the story holds open (a proof key), if any. */
+  pin: string | null;
 }

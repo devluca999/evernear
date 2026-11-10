@@ -30,13 +30,26 @@ export function Remote() {
         <p className={s.note}>Open the workspace in another tab or window of this browser. This remote connects to it by itself.</p>
       ) : (
         <>
+          {state.short ? (
+            <section className={s.remoteCard} aria-label="Section">
+              <span className="es-micro">{state.short.section > 0
+                ? <>Section <span className="es-num">{state.short.section}</span> of <span className="es-num">{state.short.sections}</span>{state.short.playing ? " · playing" : ""}</>
+                : <>Short · <span className="es-num">{state.short.sections}</span> sections</>}</span>
+              <h1 className={s.remoteTitle}>{state.short.title ?? "Ready"}</h1>
+              <span className={s.note}>{state.short.next ? <>Next: {state.short.next}</> : "Last section played"}</span>
+              <button type="button" className={`es-btn es-btn-primary ${s.remoteNext}`} onClick={() => send("next")} disabled={!state.short.next || state.short.playing}>
+                {state.short.playing ? "Playing" : state.short.next ? `Play ${state.short.next}` : "Done"}<span className={s.kbd}>→</span>
+              </button>
+            </section>
+          ) : (
           <section className={s.remoteCard} aria-label="Chapter">
-            <span className="es-micro">Chapter <span className="es-num">{state.chapter}</span> of <span className="es-num">{state.chapters}</span></span>
-            <h1 className={s.remoteTitle}>{state.chapterTitle}</h1>
-            <button type="button" className={`es-btn es-btn-primary ${s.remoteNext}`} onClick={() => send("next")} disabled={!state.next}>
-              {state.next ?? "Waiting"}<span className={s.kbd}>→</span>
-            </button>
-          </section>
+              <span className="es-micro">Chapter <span className="es-num">{state.chapter}</span> of <span className="es-num">{state.chapters}</span></span>
+              <h1 className={s.remoteTitle}>{state.chapterTitle}</h1>
+              <button type="button" className={`es-btn es-btn-primary ${s.remoteNext}`} onClick={() => send("next")} disabled={!state.next}>
+                {state.next ?? "Waiting"}<span className={s.kbd}>→</span>
+              </button>
+            </section>
+          )}
           <section className={s.remoteCard} aria-label="Camera">
             <div className={s.headRow}>
               <span className="es-micro">Camera</span>

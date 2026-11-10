@@ -309,7 +309,7 @@ button.chip:hover { color: var(--text-primary); border-color: var(--line-focus);
 .nextBtn { width: 100%; justify-content: space-between !important; }
 .nextLabel { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .kbd { flex: none; font-family: var(--font-mono); font-size: 11px; opacity: .7; }
-.modeSeg { display: grid; grid-template-columns: 1fr 1fr; padding: 2px; gap: 2px; border-radius: 8px; background: var(--bg-sunken); border: 1px solid var(--line-hairline); }
+.modeSeg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; padding: 2px; gap: 2px; border-radius: 8px; background: var(--bg-sunken); border: 1px solid var(--line-hairline); }
 .modeSeg button { font: inherit; font-size: 12px; text-align: center; padding: 4px 0; border: none; border-radius: 6px; background: none; color: var(--text-faint); cursor: pointer; }
 .modeSeg button[aria-pressed="true"] { background: var(--bg-raised); color: var(--text-primary); box-shadow: var(--elev-1); }
 .scenarios { display: flex; flex-direction: column; gap: 6px; }
@@ -521,6 +521,9 @@ button.chip:hover { color: var(--text-primary); border-color: var(--line-focus);
 .stepItem { display: flex; flex-direction: column; gap: 4px; padding-bottom: 6px; }
 .stepExplorer { padding-left: 34px; }
 .proofExplorer { padding: 2px 0 4px; }
+/* The commit's hash and its explorer button, framed together when the story holds the entry open. */
+.chain { display: flex; flex-direction: column; gap: 8px; min-width: 0; flex: none; }
+.callMeta > .fullHash { white-space: normal; overflow: visible; overflow-wrap: anywhere; color: var(--text-primary); }
 .exRow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
 .exBtn { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--bg-raised); color: var(--text-primary); font: inherit; font-size: 14px; font-weight: 500; text-decoration: none; white-space: nowrap; }
 .exBtn:hover { border-color: var(--text-muted); }

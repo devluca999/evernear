@@ -18,7 +18,7 @@ export interface SceneGrid { cols: string; rows?: string; areas?: string[] }
 
 /** What a beat can carry besides its event: a human moment, a named step, a camera focus. */
 export interface Extra { gate?: Gate; step?: string; focus?: Focus; clickTarget?: string }
-type Entry = [number, Event] | [number, Event, Gate] | [number, Event, Extra];
+export type Entry = [number, Event] | [number, Event, Gate] | [number, Event, Extra];
 
 export interface Scene {
   id: number; title: string; durationMs: number; layout: PanelId[];
@@ -43,14 +43,14 @@ export const gateOf = (e: Entry): Gate | undefined => (isGate(e[2]) ? e[2] : e[2
  * A named step with a camera focus and what its frame must show in full:
  * `step("Pins resolve", "map.results", 1.4, ["Comparing suppliers"])`.
  */
-const step = (name: string, id: string, zoom: number, shows: string[], more: Omit<Focus, "id" | "zoom" | "shows"> & { gate?: Gate; clickTarget?: string } = {}): Extra => {
+export const step = (name: string, id: string, zoom: number, shows: string[], more: Omit<Focus, "id" | "zoom" | "shows"> & { gate?: Gate; clickTarget?: string } = {}): Extra => {
   const { gate, clickTarget, ...rest } = more;
   return { step: name, focus: { id, zoom, shows, ...rest }, ...(gate ? { gate } : {}), ...(clickTarget ? { clickTarget } : {}) };
 };
 /** A chapter's steps this close behind its start play with the press that enters the chapter. */
 export const RIDE_MS = 1600;
 /** The products card's tab for a product: the presenter cursor clicks it before the switch. */
-const tab = (id: string) => `products.tab.${id}`;
+export const tab = (id: string) => `products.tab.${id}`;
 /** The phone's live answer button (a YES, a chip, or the button under the chat). */
 export const PHONE_TAP = "phone.tap";
 
@@ -342,8 +342,8 @@ function atUnit(sc: Scene, unitCents: number): Scene {
 }
 
 export type ScenarioId = "happy" | "standoff" | "adjusted";
-export interface Scenario { id: ScenarioId; title: string; blurb: string; scenes: Scene[]; timeline: Beat[]; totalMs: number }
-function scenario(id: ScenarioId, title: string, blurb: string, list: Scene[]): Scenario {
+export interface Scenario { id: ScenarioId | "short"; title: string; blurb: string; scenes: Scene[]; timeline: Beat[]; totalMs: number }
+export function scenario(id: ScenarioId | "short", title: string, blurb: string, list: Scene[]): Scenario {
   const sc = renumber(list);
   return { id, title, blurb, scenes: sc, timeline: buildTimeline(sc), totalMs: sc.reduce((t, x) => t + x.durationMs, 0) };
 }

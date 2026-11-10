@@ -95,11 +95,13 @@ export function Explorer({ p }: { p: Proof }) {
   return <span className={s.exText}>{v.text}</span>;
 }
 
-export function Drawer({ proof, open, onToggle, lastProof, history = [], narrow = false, explain = null, st = null }: {
+export function Drawer({ proof, open, onToggle, lastProof, history = [], narrow = false, explain = null, st = null, fullHash = false }: {
   proof: Proof | null; open: boolean; onToggle: () => void; lastProof: Proof | null; history?: Proof[]; narrow?: boolean;
   /** The explainer moment the story is in, if any: the right column shows it. */
   explain?: ExplainerId | null;
   st?: WorkspaceState | null;
+  /** Show the proof's whole hash, not its short form (the story holds this entry open). */
+  fullHash?: boolean;
 }) {
   // null: follow the newest step; an id: the step picked in the history.
   const [picked, setPicked] = useState<string | null>(null);
@@ -179,13 +181,17 @@ export function Drawer({ proof, open, onToggle, lastProof, history = [], narrow 
               <span className="es-tag es-tag-mono">{p.network}</span>
               <span className="es-tag es-tag-mono">{live ? "live" : p.synthetic ? "synthetic" : "replay"}</span>
             </div>
-            <div className={s.callMeta}>
-              <span className="es-micro">Code path</span><span className="es-num" title={p.codePath}>{p.codePath}</span>
-              <span className="es-micro">Hash</span>
-              <span className="es-num" title={p.hash} data-focus="developer.hash" data-abbr>{p.hash ? shortHash(p.hash) : "not known yet"}</span>
-            </div>
-            <div className={s.proofExplorer}>
-              <Explorer p={p} />
+            <div className={s.chain} data-focus="developer.chain">
+              <div className={s.callMeta}>
+                <span className="es-micro">Code path</span><span className="es-num" title={p.codePath}>{p.codePath}</span>
+                <span className="es-micro">Hash</span>
+                {fullHash && p.hash
+                  ? <span className={`es-num ${s.fullHash}`} title={p.hash} data-focus="developer.hash">{p.hash}</span>
+                  : <span className="es-num" title={p.hash} data-focus="developer.hash" data-abbr>{p.hash ? shortHash(p.hash) : "not known yet"}</span>}
+              </div>
+              <div className={s.proofExplorer}>
+                <Explorer p={p} />
+              </div>
             </div>
             <div className={s.json} data-single={!parts}>
               {parts ? (

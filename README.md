@@ -182,6 +182,22 @@ The per-PO escrow and the payout use the official [`@near-intents-agent-api/sdk`
 
 The faucet drips 100 test USDC an hour, so the demo runs at 1:1,000: $63.00 committed, $18.90 advance, $36.54 balance, $7.56 back. The screen keeps the story amounts and labels the scale ([RulesPanel.tsx](components/workspace/panels/RulesPanel.tsx), [test](components/__tests__/design.test.tsx) "commitment at 1:1,000").
 
+**Why Tidepool.** The NEAR Intents Agent API runs on mainnet only, and so do NEAR Intents on OutLayer. Tidepool serves the same Agent API on testnet, so Evernear could build and run real per-order escrow without real money. The code calls the official SDK, unchanged; only the base URL points at Tidepool.
+
+**How Evernear uses it, step by step** (all in [escrow.ts](convex/near/escrow.ts), every call written as a proof row by [agentapi.ts](convex/near/agentapi.ts)):
+
+| Step | Agent API call on Tidepool | What it does |
+| --- | --- | --- |
+| Fund the treasury | `deposit` with the testnet faucet, then `swap` | Astro's treasury account takes test USDC on NEAR and swaps it into USDC on Base Sepolia, where Haoyun is paid (`scripts/faucet-treasury.mts`) |
+| Open the order's wallet | `agent_create`, signed by Astro's owner key | One new account per PO, never reused, with policy `destinations: only`: withdraw to Haoyun's Base Sepolia address, or transfer back to Astro. Nothing else |
+| Commit | `transfer` from the treasury | $63.00 moves into the PO account. On screen this is "Committed" |
+| Advance and balance | `withdraw` to Base Sepolia | Sent by the [release gate](worker/release-gate/README.md) in OutLayer's enclave, which alone holds the PO account's grant; each payout lands on Base Sepolia with a Basescan link |
+| Wrong address | `withdraw` to any other address | Refused by the account's policy (`policy_destination_denied`), and the refusal is a proof row |
+| Return the held part | policy narrowed to Astro only, then `transfer` | The $7.56 for the 6 missing motors goes back to Astro's treasury, by Astro or at the deadline ([deadline.ts](convex/near/deadline.ts)) |
+| Close | `grant_revoke`, then `agent_freeze` | The PO account is frozen for good and kept as the order's receipt |
+
+Tidepool's limits shape the design: 25 accounts per key, never deleted, which is why the rail counts order wallets left before a live run and the demo replays the recorded run by default. Unit tests never call Tidepool; they run against [fakeTidepool.ts](tests/near/fakeTidepool.ts), which enforces the rules the live API showed.
+
 ## The developer drawer as a transaction log
 
 Record in Present mode with Live on and the drawer open: every real call appears in the drawer's Steps the moment it lands, in story order, with the time it ran, the story day (3 Nov commit, 5 Nov advance, 11 Nov balance, 11 Dec return) and the chapter. The commit, the advance, the refused wrong-address payment, the balance, the return to Astro and the wallet closing are all there, and each release gate run has its own entry before the payout it sent. Clicking an older entry opens its proof; "Follow the latest" goes back. The history stays for the whole run. Under each entry's title:

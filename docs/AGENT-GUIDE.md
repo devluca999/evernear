@@ -6,6 +6,8 @@ This page is for an AI agent (Claude Code, Codex, Cursor or a judge's tool) that
 
 Evernear is a demo of an agent that sources a scarce part for Astro Robotics (a fictional robot maker), negotiates within Astro's rules, gets two human approvals, commits the money into a wallet made for that one order, and pays the supplier in two stages only on proof: an advance when the goods ship, and a balance for exactly what arrived (44 of 50 motors). The money for the 6 missing motors never leaves Astro. Escrow and payout run on the NEAR Intents Agent API through Tidepool, a community-run testnet (not affiliated with NEAR), at 1:1,000 of the story amounts. Private inference runs on NEAR AI Cloud, and the release gate runs as a WASI module in an OutLayer enclave on NEAR testnet.
 
+All of the code was written during NEAR HACKATHON (Nov 1 to Nov 14, 2026); the first commit is dated Nov 5, 2026. The only code not written for the hackathon is third-party: npm dependencies and the MIT-licensed figure library in `vendor/anatomy`.
+
 ## Which parts decide what
 
 | Layer | Where | What it does | Deterministic? |

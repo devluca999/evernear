@@ -574,3 +574,20 @@ fn v3_advance_does_not_need_a_dock_count() {
     let host = MockHost::accepting();
     assert_eq!(run_case(&host, &case("advance at $1260"))["ok"], true);
 }
+
+/// Pins a v3 bound the judge panel found (Nov 14): the gate checks ordered_qty x unit_cents == locked,
+/// but not that this is the approved price. A backend that states 45 x $1,400 (= $63,000) with a
+/// genuinely signed count of 44 is paid 44 x 1,400 - 18,900 = $42,700 instead of $36,540, out of the
+/// held part, to the allowlisted supplier only. v4 binds the price and quantity to the approvers'
+/// signed terms inside the enclave.
+#[test]
+fn v3_bound_unit_price_not_bound_to_approved_terms() {
+    let mut input = case("balance at $1260");
+    input["ordered_qty"] = json!(45);
+    input["unit_cents"] = json!(140_000);
+    let r: ReleaseInput = serde_json::from_value(input).unwrap();
+    match decide(&r) {
+        Decision::Release { amount_cents, .. } => assert_eq!(amount_cents, 4_270_000),
+        d => panic!("{d:?}"),
+    }
+}

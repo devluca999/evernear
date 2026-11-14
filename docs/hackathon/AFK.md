@@ -25,7 +25,7 @@ Goal: make the procurement-payment demo technically defensible before 2026-11-14
 8. Optional: request-changes to add the `security` track; reply to the Nov 10 X post with the new video.
 
 ## Decisions
-- Approver keys are generated and held by approvers, never by the server or me — server-held keys would be theatre; reverse by adding a server signer (not recommended).
+- Approver keys are generated and held by approvers, never by the server. (Second session: on Luca's authorization the agent generated Jordan's and the dock device's keys on this machine, so in the hosted setup one operator provisions both approvers and the dock; Luca's approver is his own NEAR account key. The agent did not sign approvals; an attempt was refused by the permission system.)
 - Commit is refused (not errored) when approvals are missing, so the run can be retried after signing — reverse in convex/live.ts.
 - A refused commit consumes nothing; a claimed commit whose lock later fails keeps its approvals spent (fail closed, reapproval needed).
 - Did not rebuild/redeploy the release-gate wasm: new build = new key and upload I cannot do; gaps documented and pinned by tests.

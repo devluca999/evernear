@@ -44,7 +44,7 @@ Not yet run against the live deployment: approver keys must be provisioned first
 | 10 | Missing milestone evidence | engine and gate | `missing_signal(s)` | engine + gate twin (+ Rust) | Refusal proof rows in the app; no testnet call is made |
 | 11 | Tampered evidence | gate; server dock-count signature check when devices are pinned | `count_mismatch`, `dock_bad_signature`, `dock_wrong_po`, `dock_unsigned`, `dock_stale` | gate twin + server ([escrow.test.ts](../../tests/near/escrow.test.ts) "signed dock count") | **Gap remains**: a pinned device that reports a false count is paid; the deployed gate (v3) checks the signature inside the enclave since Nov 14 (on-chain probe `8S4uYwhT…`) |
 | 12 | Reused evidence (second advance / balance) | engine, gate, idempotency | `already_released`, `nothing_due` | engine + gate twin | No |
-| 13 | Wrong policy version | engine reads [`policy/astro.json`](../../policy/astro.json); gate v2 pins `ADVANCE_PERCENT` | `percent_not_policy` | engine + gate twin + Rust v2 | Deployed v1 still takes it from the caller; v2 uploaded and live on the deployment Nov 14 |
+| 13 | Wrong policy version | engine reads [`policy/astro.json`](../../policy/astro.json); gate v2 pins `ADVANCE_PERCENT` | `percent_not_policy` | engine + gate twin + Rust v2 | v1 (recorded run) took it from the caller; v3 (deployed Nov 14) pins it |
 | 14 | Correct authorization, evidence, recipient | (pays) | | all | **Yes**: $18.90 and $36.54 to Haoyun on Base Sepolia, read from chain |
 | 15 | Repeat payout after success | engine; balance reconcile; idempotency | `already_released`, `state_mismatch` | engine + simulated provider | No |
 | 16 | After deadline or settlement | engine | `past_deadline`, `closed` | engine | No |
@@ -70,7 +70,7 @@ Layer key: **E** reference engine (server, before any call) · **B** application
 | 3 | Valid grant, prohibited destination | P (allowlist) + E | matrix 8 | Nov 5 probe: `policy_destination_denied`, same grant then paid Haoyun (tx `0x34da8955…`) |
 | 4 | Excessive withdrawal | P (per-tx cap) + E (`over_balance`, `bad_quantity`) + G (`over_locked`, `received_over_ordered`) | matrix 9 | — |
 | 5 | Wrong purchase-order identity | B (server check of the gate's signed answer) + G v2 (account read by agent id) | matrix 4 | — |
-| 6 | Incorrect payout amount | B (`amount_mismatch`) + G v2 (`released_not_on_chain`, `locked_not_on_chain`) | matrix 5, Rust `v2_*` | — |
+| 6 | Incorrect payout amount | B (`amount_mismatch`) + G v3 (`released_not_on_chain`, `locked_not_on_chain`) | matrix 5, Rust `v2_*` | — **Bound:** v3 does not bind unit price and quantity to the approved terms (Rust `v3_bound_unit_price_not_bound_to_approved_terms`) |
 | 7 | Missing milestone evidence | E + G | matrix 10 | — |
 | 8 | Tampered or replayed evidence | G (`count_mismatch`; v3: `dock_unsigned`, `dock_bad_signature`, `dock_wrong_po`), B (signed dock count: `replayed`, stale) | matrix 11, dockLive.test | — |
 | 9 | Duplicate release attempt | E (`already_released`), B (step claim, reconcile), P (idempotency key) | matrix 7, 12, 15; commitAuthorization "concurrent advance" | — |

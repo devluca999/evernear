@@ -4,6 +4,10 @@
 
 by luca_m · Built at NEAR HACKATHON · MIT
 
+## For judges, in one paragraph
+
+EverNEAR turns a purchase order into a programmable payment agreement that an AI procurement agent can operate but not override. The agent sources, checks fit and negotiates; code turns the agreed offer into the PO and its settlement plan ([engine/order.ts](engine/order.ts)); two people sign those exact terms before any money is committed ([approvals](#commit-approvals)); the order's wallet only pays the supplier or returns to the buyer; payment comes in stages on evidence, a 30% advance on shipping documents and a balance on a dock count signed by a pinned device, and the paying key lives only inside an OutLayer enclave that re-reads the wallet before it pays (gate v3). In the demo 44 of 50 motors arrive: $55,440 paid, $7,560 back, reconciled against the chain (`npm run reconcile`), with every step on one page at [`/audit`](app/audit/page.tsx). What it is not: trustless custody. The wallet's rules are the provider's policy and the buyer can override them, and the carrier and customs signals are simulated ([TRUST-MODEL.md](docs/hackathon/TRUST-MODEL.md), [COMPETITIVE-ANALYSIS.md](docs/hackathon/COMPETITIVE-ANALYSIS.md)).
+
 ## In 30 seconds
 
 - **The problem.** Buying from an overseas supplier means prepaying by wire (and chasing anything that doesn't arrive) or a letter of credit (about 3% and up to two weeks).

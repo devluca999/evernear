@@ -62,7 +62,7 @@ export const JudgeDemoThumb: React.FC<StoryProps> = ({ receivedQty }) => {
       <HookScene
         story={s}
         line="AI can handle procurement. It doesn't get to invent the payment rules."
-        sub={`One PO, eight acts: approvals refused on testnet, ${s.testnet.advance} + ${s.testnet.balance} + ${s.testnet.returned} = ${s.testnet.total} read from chain.`}
+        sub={`One PO, eight acts. ${s.testnet.advance} + ${s.testnet.balance} + ${s.testnet.returned} = ${s.testnet.total} test USDC, read from chain.`}
       />
     </Settled>
   );

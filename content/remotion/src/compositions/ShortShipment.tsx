@@ -26,7 +26,7 @@ export const ShortShipment: React.FC<StoryProps> = ({ receivedQty }) => {
       </TransitionSeries.Sequence>
       {fadeT}
       <TransitionSeries.Sequence name="Wallet" durationInFrames={150}>
-        <WalletScene story={s} withReceipt={false} caption="Committed to a wallet whose rules only pay the supplier or us." />
+        <WalletScene story={s} withReceipt={false} caption="Recorded Nov 6, before the approval check. Rules: provider-enforced; the owner key can change them." />
       </TransitionSeries.Sequence>
       {fadeT}
       <TransitionSeries.Sequence name="Advance" durationInFrames={150}>

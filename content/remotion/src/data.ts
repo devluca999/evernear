@@ -5,6 +5,8 @@
 //   docs/hackathon/payment-proofs.json    the ONLY source of tx hashes and explorer URLs
 //   fixtures/recorded/approval-gated-run.json   real testnet approval refusals (Nov 14)
 //   fixtures/recorded/gate-v2-frozen-probe.json release gate v2 signed refusal on chain (Nov 14)
+//   fixtures/recorded/gate-v3-unsigned-dock-probe.json release gate v3 signed dock_unsigned refusal (Nov 14)
+//   fixtures/recorded/gate-v4-exploit-probe.json  release gate v4 (deployed) signed terms_missing refusal (Nov 14)
 //   docs/hackathon/ENFORCEMENT-MATRIX.md, TRUST-MODEL.md, READINESS.md
 //                                         refusal and trust facts below (test/facts.spec.mjs checks
 //                                         that each quoted code appears in those documents)
@@ -14,6 +16,8 @@ import rules from "../../../policy/astro.json";
 import proofsJson from "../../../docs/hackathon/payment-proofs.json";
 import approvalRunJson from "../../../fixtures/recorded/approval-gated-run.json";
 import gateV2Json from "../../../fixtures/recorded/gate-v2-frozen-probe.json";
+import gateV3Json from "../../../fixtures/recorded/gate-v3-unsigned-dock-probe.json";
+import gateV4Json from "../../../fixtures/recorded/gate-v4-exploit-probe.json";
 import { compareWithBinaryEscrow, computeSettlement, formatTestUsdc, toTestnetRaw, type Settlement } from "./amounts";
 
 export const PROOFS_DOC = "docs/hackathon/PAYMENT-PROOFS.md";
@@ -245,6 +249,10 @@ export function buildStory(o: StoryOverrides = {}) {
     source: "fixtures/recorded/gate-v2-frozen-probe.json",
   };
 
+  const gateV3 = { tx: gateV3Json.tx, explorerUrl: gateV3Json.explorer, reason: gateV3Json.output.reason, ok: gateV3Json.output.ok, stage: gateV3Json.output.stage, source: "fixtures/recorded/gate-v3-unsigned-dock-probe.json" };
+
+  const gateV4 = { tx: gateV4Json.tx, explorerUrl: gateV4Json.explorer, reason: gateV4Json.output.reason, ok: gateV4Json.output.ok, stage: gateV4Json.output.stage, source: "fixtures/recorded/gate-v4-exploit-probe.json" };
+
   // Reconciliation read from chain (payment-proofs.json), not recomputed.
   const rc = proofs.reconciliation;
   const reconciliation = {
@@ -261,6 +269,8 @@ export function buildStory(o: StoryOverrides = {}) {
     comparison: compareWithBinaryEscrow(settlement),
     approvalRun,
     gateV2,
+    gateV3,
+    gateV4,
     reconciliation,
     buyer: { name: astro.name, short: astro.name.replace(/ Inc\.$/, ""), city: astro.city },
     approvers,
@@ -371,14 +381,21 @@ export const TWO_SIGNATURES_SEEN = "Test suite only: the full approval-gated tes
 export const WALLET_RULES_NOTE = "Rules enforced by the wallet provider, not a smart contract";
 /** gate-v2-frozen-probe.json _note: "Release gate v2 on OutLayer testnet, Nov 14". */
 export const GATE_V2_DATE = "Nov 14";
-/** TRUST-MODEL.md B4: gate v2 is live on the deployment but has not yet paid an order. */
-export const GATE_V2_SCOPE = "Gate v2 is live on the deployment; it has not yet been exercised on a paying order. The advance and balance above went through gate v1.";
+/** TRUST-MODEL.md B4: the deployed gate version (test/facts.spec.mjs reads it from the doc). */
+export const DEPLOYED_GATE = "v4";
+/** TRUST-MODEL.md B4: v2 to v4 have only refused on chain; the paid run went through v1. */
+export const GATE_SCOPE = `The deployed gate is ${DEPLOYED_GATE}. Gates v2 to ${DEPLOYED_GATE} have only refused on chain so far; the recorded paying run went through v1, on an unsigned, simulated count of 44.`;
+/** TRUST-MODEL.md B4 + trusted party 2: the release grant is in the enclave, the owner key is not. */
+export const OWNER_KEY_NOTE = "The buyer's owner key (held by our backend in this demo) can still change the wallet's rules.";
+export const RELEASE_GRANT_NOTE = `The release grant is held by the enclave. ${OWNER_KEY_NOTE}`;
+/** approval-gated-run.json: a backend refusal, run against the real Tidepool testnet, not an on-chain refusal. */
+export const APPROVAL_RUN_NOTE = "Refused by our backend before any call, run against the real Tidepool testnet (no wallet opened)";
 
 /** TRUST-MODEL.md, "Evidence received is not a fact established". */
 export const DOCK_SIGNING = {
-  capability: "Dock count: signed by a pinned device; the server enforces it when devices are configured",
-  recorded: "The recorded run's 44 was a simulated, unsigned count",
-  gap: "A signed count shows who reported it, not that it is true; the deployed gate does not check the signature yet",
+  capability: `Since Nov 14 the deployed gate (${DEPLOYED_GATE}) requires a dock count signed by the pinned device for this order`,
+  recorded: "The recorded paying run went through gate v1 on a simulated, unsigned count of 44",
+  gap: "A signed count shows who reported it, not that it is true",
 } as const;
 
 export type AutonomyKind = "deterministic" | "real" | "simulated" | "human" | "fixed";
@@ -391,7 +408,7 @@ export const AUTONOMY: readonly { step: string; cls: string; kind: AutonomyKind;
   { step: "Recommendation (Haoyun all-50 at $1,260)", cls: "Deterministic rule (meets date and ceiling)", kind: "deterministic", tag: "Deterministic" },
   { step: "Approvals", cls: "**Human-controlled action**: ed25519 signatures from approver devices (live); simulated taps in replay", kind: "human", tag: "Human" },
   { step: "Milestone monitoring", cls: "**Mocked third-party response** (simulated carrier/customs feed)", kind: "simulated", tag: "Simulated" },
-  { step: "Dock count", cls: "**Fixed demonstration data** (44)", kind: "fixed", tag: "Fixed demo data" },
+  { step: "Dock count", cls: "Signed by a pinned dock device for the order's wallet when `DOCK_DEVICE_KEYS` is set (it is on the deployment); the recorded Nov 6 run used fixed demo data (44)", kind: "fixed", tag: "Signed / demo 44" },
   { step: "Release decision and amount", cls: "Deterministic, in engine and in the OutLayer gate", kind: "deterministic", tag: "Deterministic" },
 ];
 /** READINESS.md, closing line of the autonomy table. */
@@ -404,7 +421,7 @@ export const STILL_SIMULATED_DOC =
 /** TRUST-MODEL.md, "Trusted parties, in order of what they could do if dishonest" (condensed). */
 export const TRUSTED_PARTIES = [
   { who: "Astro's owner key", could: "anything: change policy, unfreeze, withdraw. By design, it is the buyer's money." },
-  { who: "Evernear's backend", could: "holds Astro's testnet owner key in this demo: could skip approvals and commit; could make the gate overpay Haoyun up to the order total." },
+  { who: "Evernear's backend", could: "holds Astro's testnet owner key in this demo: could skip approvals and commit; could make the gate overpay Haoyun up to the order total; with the owner key it can rewrite a funded order wallet's policy and pay any address." },
   { who: "Tidepool", could: "community-run testnet, not NEAR infrastructure: enforces grants, policy and idempotency on its server." },
   { who: "OutLayer TEE", could: "keeps the gate's grant and signing key bound to the wasm hash." },
   { who: "Evidence sources", could: "simulated." },
@@ -414,7 +431,6 @@ export const TRUSTED_PARTIES = [
 export const ATTACK = {
   command: "npm run attack",
   cases: 49,
-  countedOn: "run Nov 13",
   files: ["tests/commitAuthorization.test.ts", "tests/enforcementMatrix.test.ts", "engine/__tests__/approvals.test.ts"],
 } as const;
 

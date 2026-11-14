@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import { linearTiming, TransitionSeries } from "@remotion/transitions";
 import { fade } from "@remotion/transitions/fade";
 import { formatUsd } from "../amounts";
-import { buildStory } from "../data";
+import { buildStory, RELEASE_GRANT_NOTE } from "../data";
 import {
   ApprovalScene,
   DockScene,
@@ -55,7 +55,7 @@ export const JudgeCut: React.FC<StoryProps> = ({ receivedQty }) => {
           receipt={s.receipts.advance}
           eyebrow={`Advance · ${pct}% of the order`}
           headline={`${formatUsd(s.settlement.advanceCents)} advance, released by the gate in an OutLayer TEE.`}
-          caption="Sent from the enclave. Evernear's server holds no grant on this wallet."
+          caption={RELEASE_GRANT_NOTE}
         />
       </TransitionSeries.Sequence>
       {fadeT}

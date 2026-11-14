@@ -80,7 +80,18 @@ test("gate v2 refused a frozen account on chain with a signed account_frozen", (
   assert.equal(gateV2.signature_valid, true);
   assert.ok(gateV2.explorer.includes(gateV2.tx));
   assert.match(gateV2._note, /Nov 14/);
-  assert.match(trust, /not yet exercised on a paying order/);
+  const deployed = trust.match(/Gate (v\d) \(deployed Nov 14; has only refused on chain so far\)/);
+  assert.ok(deployed, "TRUST-MODEL names the deployed gate");
+  assert.match(data, new RegExp(`DEPLOYED_GATE = "${deployed[1]}"`));
+  const v4 = JSON.parse(read("fixtures/recorded/gate-v4-exploit-probe.json"));
+  assert.equal(v4.output.reason, "terms_missing");
+  assert.equal(v4.output.ok, false);
+  assert.ok(v4.explorer.includes(v4.tx));
+  assert.match(trust, /Through the gate that paid the recorded run \(v1\)/);
+  const v3 = JSON.parse(read("fixtures/recorded/gate-v3-unsigned-dock-probe.json"));
+  assert.equal(v3.output.reason, "dock_unsigned");
+  assert.equal(v3.output.ok, false);
+  assert.ok(v3.explorer.includes(v3.tx));
 });
 
 test("reconciliation 18.90 + 36.54 + 7.56 = 63.00 comes from chain reads in payment-proofs.json", () => {
@@ -104,7 +115,9 @@ test("still simulated / trusted quotes match the docs", () => {
   assert.match(trust, /keeps the gate's grant and signing key bound to the wasm hash/);
   assert.match(trust, /when devices are pinned/);
   assert.match(trust, /without pinned devices the scenario's 44 is used and labelled unsigned/);
-  assert.match(trust, /the deployed gate does not check it yet/);
+  assert.match(trust, /since Nov 14 the deployed gate \(v\d\) checks it too/);
+  assert.match(trust, /with the owner key it can rewrite a funded order wallet's policy and pay any address/);
+  assert.doesNotMatch(data, /does not check the signature yet|paying key lives only/);
   const dock = proofs.entries.find((e) => e.txId === "dock-1042");
   assert.equal(dock.verification.status, "simulated");
 });

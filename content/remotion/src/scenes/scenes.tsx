@@ -13,7 +13,7 @@ import { TransactionReceipt } from "../components/TransactionReceipt";
 import { TrustBoundary } from "../components/TrustBoundary";
 import { Micro, Mono, Stage } from "../components/ui";
 import { useT } from "../components/useT";
-import { PROOFS_DOC, type Receipt, type Story } from "../data";
+import { OWNER_KEY_NOTE, PROOFS_DOC, type Receipt, type Story } from "../data";
 import { color, enter } from "../theme";
 import { SceneFrame, useLayout } from "./SceneFrame";
 
@@ -191,7 +191,7 @@ export const WalletScene: React.FC<S & { withReceipt?: boolean; caption?: string
     <SceneFrame
       eyebrow={eyebrow ?? "Step 3 · Money is committed, not paid"}
       headline={`${formatUsd(s.settlement.orderTotalCents)} moves into a wallet for this one order.`}
-      caption={caption ?? "Recorded Nov 6, before the signature check existed."}
+      caption={caption ?? "Recorded Nov 6, before the signature check: no signatures were checked."}
     >
       {withReceipt && layout === "wide" ? (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 36 * u, alignItems: "start" }}>
@@ -286,7 +286,7 @@ export const GrantRefusalScene: React.FC<S & { caption?: string; eyebrow?: strin
     <SceneFrame
       eyebrow={eyebrow ?? "What the server could not do"}
       headline={headline ?? "Our own server tried to pay an unknown address."}
-      caption={caption ?? "Refused at the grant layer: Evernear's server holds no grant on this wallet."}
+      caption={caption ?? `Refused at the grant layer: the server holds no release grant. ${OWNER_KEY_NOTE}`}
       contentWidth={layout === "wide" ? 1600 : undefined}
     >
       <SecurityRefusal

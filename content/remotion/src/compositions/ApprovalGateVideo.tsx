@@ -4,7 +4,7 @@ import { fade } from "@remotion/transitions/fade";
 import { formatUsd } from "../amounts";
 import { AgentDecision } from "../components/AgentDecision";
 import { ApprovalGate } from "../components/ApprovalGate";
-import { buildStory, type Story } from "../data";
+import { buildStory, OWNER_KEY_NOTE, type Story } from "../data";
 import { SceneFrame, useLayout } from "../scenes/SceneFrame";
 import { agentReasons, approvalTerms, EndCard, GrantRefusalScene, HookScene } from "../scenes/scenes";
 import type { StoryProps } from "./JudgeCut";
@@ -94,7 +94,7 @@ export const ApprovalGateVideo: React.FC<StoryProps> = ({ receivedQty }) => {
           story={s}
           eyebrow="What it couldn't do · 3"
           headline="Pay out from the order wallet."
-          caption="Evernear's server holds no grant on the wallet. Its withdraw was refused at the grant layer."
+          caption={`Its withdraw was refused at the grant layer. ${OWNER_KEY_NOTE}`}
         />
       </TransitionSeries.Sequence>
       {fadeT}

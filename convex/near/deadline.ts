@@ -106,9 +106,23 @@ export const preflight = internalAction({
 
 /** Opens a new account for this order, sets its policy, commits the total and starts the deadline clock. */
 export const lock = internalAction({
-  args: { restockId: v.optional(v.id("restocks")), runId: v.optional(v.id("liveRuns")), po: v.string(), supplier: v.string(), cents: v.number(), orderedQty: v.optional(v.number()), deadlineMs: v.number() },
+  args: { restockId: v.optional(v.id("restocks")), runId: v.optional(v.id("liveRuns")), po: v.string(), supplier: v.string(), cents: v.number(), orderedQty: v.number(), deadlineMs: v.number() },
   handler: async (ctx, a): Promise<{ status: string; escrowId?: Id<"escrows">; reason?: string; releasePath?: ReleasePath }> => {
     const supplier = a.supplier.toLowerCase();
+    // The authorization boundary, checked again right here, before the order's wallet is opened:
+    // the run must have claimed its commit for exactly these terms with the approvals they need
+    // (convex/approvals.ts claimCommit). No run, no claim, or other terms: nothing is called.
+    const unitCents = a.cents / a.orderedQty;
+    const auth = !a.runId ? { ok: false, reason: "no_authorization" }
+      : !Number.isSafeInteger(unitCents) ? { ok: false, reason: "bad_terms" }
+      : await ctx.runQuery(internal.approvals.commitAuthorized, { runId: a.runId, po: a.po, supplierAddress: supplier, quantity: a.orderedQty, unitCents });
+    if (!auth.ok) {
+      await ctx.runMutation(internal.proofs.record, {
+        restockId: a.restockId, runId: a.runId, scene: LOCK_SCENE, kind: "refusal", label: `Commit refused at the wallet: ${auth.reason}`, call: "convex/approvals.ts commitAuthorized",
+        codePath: "convex/near/deadline.ts#lock", network: "offchain", hash: "none", response: { status: "refused", reason: auth.reason, po: a.po, cents: a.cents, supplier }, replay: false, synthetic: false,
+      });
+      return { status: "refused", reason: auth.reason };
+    }
     let acct: PoAccount;
     try {
       acct = await withProofs(ctx, LOCK_SCENE, a.restockId, (e) => e.open({ po: a.po, supplier, lockedCents: a.cents }), a.runId);

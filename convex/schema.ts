@@ -71,7 +71,16 @@ export default defineSchema({
   liveRuns: defineTable({
     startedAt: v.number(), escrowId: v.optional(v.id("escrows")), error: v.optional(v.string()),
     done: v.array(liveStep),
+    // The commit's authorization, claimed atomically with the approvals it consumed (convex/approvals.ts claimCommit).
+    commit: v.optional(v.object({ digest: v.string(), approvers: v.array(v.string()), nonces: v.array(v.string()), claimedAt: v.number() })),
   }).index("by_started", ["startedAt"]),
+  // Signed commit approvals (engine/approvals.ts): one row per signature, spent once by claimCommit.
+  commitApprovals: defineTable({
+    digest: v.string(), po: v.string(), approver: v.string(), publicKey: v.string(), nonce: v.string(),
+    issuedAt: v.number(), expiresAt: v.number(), signature: v.string(),
+    status: v.union(v.literal("pending"), v.literal("consumed"), v.literal("revoked")),
+    runId: v.optional(v.id("liveRuns")), at: v.number(),
+  }).index("by_digest_status", ["digest", "status"]).index("by_nonce", ["nonce"]).index("by_run", ["runId"]),
   proofs: defineTable({
     restockId: v.optional(v.id("restocks")), runId: v.optional(v.id("liveRuns")), scene: v.number(), kind: v.string(), label: v.string(), call: v.string(),
     hash: v.string(), explorerUrl: v.optional(v.string()), codePath: v.string(), network,

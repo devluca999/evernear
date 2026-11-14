@@ -9,12 +9,13 @@ import { EscrowAdapter } from "@/convex/near/escrow";
 import { BASE_USDC, grantToken } from "@/convex/near/agentapi";
 import { cents } from "@/engine/money";
 import type { Id } from "@/convex/_generated/dataModel";
+import { authorizedRun, setApprovers } from "./approvalFixtures";
 
 const modules = import.meta.glob("../convex/**/*.ts");
 const HAOYUN = "0x2003975a521c6fa45238dbc402c9e4adcb8863e0";
 const T0 = Date.UTC(2026, 10, 10, 9, 0, 0);
 const DAY = 86_400_000;
-const ENV = ["AGENT_API_KEY", "AGENT_API_BASE_URL", "AGENT_OWNER_ACCOUNT_ID", "AGENT_OWNER_PUBLIC_KEY", "AGENT_OWNER_PRIVATE_KEY_PKCS8", "AGENT_TREASURY_ID"];
+const ENV = ["AGENT_API_KEY", "AGENT_API_BASE_URL", "AGENT_OWNER_ACCOUNT_ID", "AGENT_OWNER_PUBLIC_KEY", "AGENT_OWNER_PRIVATE_KEY_PKCS8", "AGENT_TREASURY_ID", "APPROVER_KEYS"];
 
 /** A fake Tidepool with Astro's treasury holding 100 Base USDC, and the env Convex reads. */
 async function world(tp = fakeTidepool()) {
@@ -25,6 +26,7 @@ async function world(tp = fakeTidepool()) {
     AGENT_API_KEY: API_KEY, AGENT_API_BASE_URL: FAKE_BASE, AGENT_OWNER_ACCOUNT_ID: owner.accountId,
     AGENT_OWNER_PUBLIC_KEY: owner.publicKey, AGENT_OWNER_PRIVATE_KEY_PKCS8: pkcs8Base64, AGENT_TREASURY_ID: treasuryId,
   });
+  setApprovers();
   vi.stubGlobal("fetch", tp.fetch);
   const treasuryAccount = tp.agents.get(treasuryId)!.account;
   return { tp, treasuryId, treasuryAccount, t: convexTest(schema, modules) };
@@ -33,7 +35,8 @@ async function world(tp = fakeTidepool()) {
 const transfers = (tp: ReturnType<typeof fakeTidepool>) => tp.sent.filter((s) => s.method === "POST" && s.path.endsWith("/transfer")).map((s) => s.body);
 
 async function lockPo(t: ReturnType<typeof convexTest>, po = "1042") {
-  const r = await t.action(internal.near.deadline.lock, { po, supplier: HAOYUN, cents: cents(63000), orderedQty: 50, deadlineMs: T0 + DAY });
+  const runId = await authorizedRun(t, { po, supplierAddress: HAOYUN, quantity: 50, unitCents: cents(1260) });
+  const r = await t.action(internal.near.deadline.lock, { runId, po, supplier: HAOYUN, cents: cents(63000), orderedQty: 50, deadlineMs: T0 + DAY });
   expect(r.status).toBe("success");
   return r.escrowId!;
 }
@@ -180,7 +183,8 @@ describe("commit and deadline refund on the Agent API", () => {
     await lockPo(t, "1042");
     await lockPo(t, "1043");
     const n = tp.agents.size;
-    expect(await t.action(internal.near.deadline.lock, { po: "1099", supplier: HAOYUN, cents: cents(100), orderedQty: 1, deadlineMs: T0 + DAY })).toEqual({ status: "refused", reason: "accounts_full" });
+    const runId = await authorizedRun(t, { po: "1099", supplierAddress: HAOYUN, quantity: 1, unitCents: cents(100) });
+    expect(await t.action(internal.near.deadline.lock, { runId, po: "1099", supplier: HAOYUN, cents: cents(100), orderedQty: 1, deadlineMs: T0 + DAY })).toEqual({ status: "refused", reason: "accounts_full" });
     expect(tp.agents.size).toBe(n);
     const refusal = (await t.query(api.proofs.latest, {})).find((p) => p.codePath === "convex/near/escrow.ts#open" && p.kind === "refusal");
     expect(refusal).toMatchObject({ scene: 6, label: "This key has used all 3 order wallets; a new Tidepool key is needed", response: { reason: "accounts_full", limit: 3, used: 3 } });

@@ -12,6 +12,7 @@ import type { Id } from "./_generated/dataModel";
 import { v } from "convex/values";
 import { PO, suppliers } from "../seed/astro";
 import { liveStep } from "./schema";
+import { UNIT_CENTS } from "./approvalTerms";
 
 export const LIVE_DEADLINE_MS = 30 * 60_000;
 export const LIVE_RUNS_PER_HOUR = 6;
@@ -19,8 +20,6 @@ const HAOYUN = suppliers.find((s) => s.id === "haoyun")!.receiveAddress;
 const OFF_LIST = "0x000000000000000000000000000000000000dead";
 /** The story's order: the balance is paid at the dock (chapter 7), the wrong-address attempt comes in Paid (chapter 8). */
 const ORDER = ["commit", "advance", "pay", "refuse", "reclaim"] as const;
-/** The unit price each scenario commits at, fixed here: the happy path at Haoyun's $1,260, the adjusted one at $1,320. */
-const UNIT_CENTS = { happy: PO.revisedUnitCents, adjusted: PO.confirmedUnitCents } as const;
 
 /**
  * Before a live run, for the page: order wallets left on the Tidepool key and whether Astro's treasury
@@ -86,6 +85,10 @@ export const runStep = action({
     if (data.done.length !== ORDER.indexOf(st)) return { ok: false, reason: "out_of_order" };
     try {
       if (st === "commit") {
+        // Two signed approvals for exactly these terms, spent here, or no call at all. A refusal
+        // leaves the run open so the approvers can sign and the commit be tried again.
+        const claim = await ctx.runMutation(internal.approvals.claimCommit, { runId, scenario });
+        if (!claim.ok) return { ok: false, reason: claim.reason };
         const unit = UNIT_CENTS[scenario ?? "happy"];
         const r = await ctx.runAction(internal.near.deadline.lock, { runId, po: PO.number, supplier: HAOYUN, cents: unit * PO.quantity, orderedQty: PO.quantity, deadlineMs: Date.now() + LIVE_DEADLINE_MS });
         if (r.status !== "success" || !r.escrowId) throw new Error(r.reason ?? r.status);

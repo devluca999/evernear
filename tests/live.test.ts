@@ -8,10 +8,11 @@ import { API_KEY, testOwner } from "./near/agentFixtures";
 import { EscrowAdapter } from "@/convex/near/escrow";
 import { BASE_USDC } from "@/convex/near/agentapi";
 import { fakeReleaseGate, GATE_PUBLIC_KEY, outlayerWithGate } from "./near/fakeReleaseGate";
+import { approveLive, setApprovers } from "./approvalFixtures";
 
 const modules = import.meta.glob("../convex/**/*.ts");
 const ENV = ["AGENT_API_KEY", "AGENT_API_BASE_URL", "AGENT_OWNER_ACCOUNT_ID", "AGENT_OWNER_PUBLIC_KEY", "AGENT_OWNER_PRIVATE_KEY_PKCS8", "AGENT_TREASURY_ID", "LIVE_ENABLED",
-  "RELEASE_GATE_WASM_URL", "RELEASE_GATE_WASM_SHA256", "RELEASE_GATE_WALLET_KEY", "RELEASE_GATE_PUBLIC_KEY"];
+  "RELEASE_GATE_WASM_URL", "RELEASE_GATE_WASM_SHA256", "RELEASE_GATE_WALLET_KEY", "RELEASE_GATE_PUBLIC_KEY", "APPROVER_KEYS"];
 const STEPS = ["commit", "advance", "pay", "refuse", "reclaim"] as const; // the story's order: the balance at the dock, then the wrong address in Paid
 
 async function world(live = true, gate = false) {
@@ -23,6 +24,7 @@ async function world(live = true, gate = false) {
     AGENT_API_KEY: API_KEY, AGENT_API_BASE_URL: FAKE_BASE, AGENT_OWNER_ACCOUNT_ID: owner.accountId, AGENT_OWNER_PUBLIC_KEY: owner.publicKey,
     AGENT_OWNER_PRIVATE_KEY_PKCS8: pkcs8Base64, AGENT_TREASURY_ID: treasuryId, ...(live ? { LIVE_ENABLED: "1" } : {}),
   });
+  setApprovers();
   if (gate) {
     const fake = fakeReleaseGate({ fetch: tp.fetch, apiKey: API_KEY });
     Object.assign(process.env, { RELEASE_GATE_WASM_URL: fake.gate.wasmUrl, RELEASE_GATE_WASM_SHA256: fake.gate.wasmSha256, RELEASE_GATE_WALLET_KEY: "wk_" + "e".repeat(64), RELEASE_GATE_PUBLIC_KEY: GATE_PUBLIC_KEY });
@@ -40,6 +42,7 @@ describe("live mode", () => {
   it("runs commit, the advance, the balance, the refused withdraw and the reclaim, in the story's order, with proofs under the run", async () => {
     const { t, tp } = await world();
     const { runId } = await t.mutation(api.live.start, {});
+    await approveLive(t);
     expect(await t.action(api.live.runStep, { runId: runId!, step: "pay" })).toEqual({ ok: false, reason: "out_of_order" });
     for (const step of STEPS) expect(await t.action(api.live.runStep, { runId: runId!, step })).toEqual({ ok: true });
     // 1:1,000: $18.90 advance and $36.54 balance to Haoyun, $7.56 back to Astro.
@@ -62,6 +65,7 @@ describe("live mode", () => {
   it("with the release gate configured, both stages are sent from the enclave and the server never holds a paying grant", async () => {
     const { t, tp } = await world(true, true);
     const { runId } = await t.mutation(api.live.start, {});
+    await approveLive(t);
     for (const step of STEPS) expect(await t.action(api.live.runStep, { runId: runId!, step })).toEqual({ ok: true });
     expect(tp.payouts.map((p) => p.amount)).toEqual([18_900_000n, 36_540_000n]);
     const r = (await t.query(api.live.getRun, { runId: runId! }))!;
@@ -88,6 +92,7 @@ describe("live mode, adjusted scenario", () => {
   it("commits at $1,320 ($66.00 at 1:1,000), pays the $19.80 advance and the $38.28 balance, and returns $7.92", async () => {
     const { t, tp } = await world();
     const { runId } = await t.mutation(api.live.start, {});
+    await approveLive(t, "adjusted");
     for (const step of STEPS) expect(await t.action(api.live.runStep, { runId: runId!, step, scenario: "adjusted" })).toEqual({ ok: true });
     expect(tp.payouts.map((p) => p.amount)).toEqual([19_800_000n, 38_280_000n]);
     const back = tp.sent.filter((x) => x.path.endsWith("/transfer")).at(-1)!.body;

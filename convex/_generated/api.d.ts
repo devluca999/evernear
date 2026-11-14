@@ -8,6 +8,8 @@
  * @module
  */
 
+import type * as approvalTerms from "../approvalTerms.js";
+import type * as approvals from "../approvals.js";
 import type * as channels_email from "../channels/email.js";
 import type * as channels_telegram from "../channels/telegram.js";
 import type * as channels_verify from "../channels/verify.js";
@@ -37,6 +39,8 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  approvalTerms: typeof approvalTerms;
+  approvals: typeof approvals;
   "channels/email": typeof channels_email;
   "channels/telegram": typeof channels_telegram;
   "channels/verify": typeof channels_verify;

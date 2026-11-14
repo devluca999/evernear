@@ -1,5 +1,7 @@
 # NEAR HACKATHON: rules, field and positioning for Evernear
 
+> **Superseded in part (Nov 14, later):** [COMPETITIVE-ANALYSIS.md](COMPETITIVE-ANALYSIS.md) audits the entries' code and contracts. Corrections to this file: Accord has a repo (`Pelz01/accord`) and a mainnet partial settlement, not "no NEAR mechanism or proof"; Fulfil's linked repo now returns 404 and was audited from its contracts on chain; and pro-rata payment for a partial delivery is not unique to Evernear (Accord and Day One do it).
+
 Researched 2026-11-14 around 03:00 UTC, about 21 hours before development ends. Sources: [nearhackathon.com](https://nearhackathon.com/), [HACKATHON.md](https://nearhackathon.com/HACKATHON.md) (live copy read today), [near-hackathon-prompt-examples](https://github.com/nearai/near-hackathon-prompt-examples), the site's public project directory (`GET https://nearhackathon.com/api/projects?page=N`, the feed behind the "Explore the builds" section), each entry's demo post on X (read through the public fxtwitter mirror), and the public READMEs of the repos those posts link. Nobody watched any demo video. "Not found" means the item was searched for and not located.
 
 ## 1. Rules and deadline

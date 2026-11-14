@@ -1,6 +1,6 @@
 # Evernear
 
-**Pay on proof, not on trust.** An AI agent that buys parts from overseas suppliers, holds the money in a wallet made for that one order on NEAR, and pays the supplier only for what actually arrived.
+**The agent runs the purchase. It doesn't get to invent the payment rules.** An AI agent that buys parts from overseas suppliers, commits the money to a wallet made for that one order on NEAR (rules enforced by the wallet provider's policy, not a smart contract), and pays the supplier in stages for what the evidence says arrived.
 
 by luca_m · Built at NEAR HACKATHON · MIT
 
@@ -8,7 +8,7 @@ by luca_m · Built at NEAR HACKATHON · MIT
 
 - **The problem.** Buying from an overseas supplier means prepaying by wire (and chasing anything that doesn't arrive) or a letter of credit (about 3% and up to two weeks).
 - **What Evernear does.** An agent finds a supplier that fits, negotiates inside the buyer's price rules, gets two human approvals, then commits the money into a wallet made for that one order. The wallet can do only two things: pay that supplier, or return the money to the buyer.
-- **How it pays.** In two stages, on proof. An advance when the goods ship (bill of lading and export clearance), and a balance at the dock for exactly what was counted. In the demo, 44 of 50 motors arrive: the supplier is paid for 44, and the $7,560 for the missing 6 never leaves the buyer.
+- **How it pays.** In two stages, on evidence. An advance when the goods ship (bill of lading and export clearance), and a balance at the dock for exactly what was counted. In the demo, 44 of 50 motors arrive: the supplier is paid for 44, and the $7,560 for the missing 6 never leaves the buyer.
 - **What NEAR does.** The per-order wallet and payouts run on the NEAR Intents Agent API, releases are sent by a program in an OutLayer enclave, and supplier search runs as private inference in a TEE on NEAR AI Cloud.
 - **Status.** Testnet only. The money steps are real testnet transactions; the people around the buyer are simulated and labelled so. A live commit needs two signed approvals for its exact terms, and every recorded transaction can be re-checked on public RPCs with `npm run verify:proofs`; 49 attacks on the money path run with `npm run attack` ([docs/hackathon](docs/hackathon/READINESS.md)).
 
@@ -22,7 +22,7 @@ by luca_m · Built at NEAR HACKATHON · MIT
 4. [Run it](#run-it)
 5. [The story](#the-story)
 6. [What each chapter does](#what-each-chapter-does)
-7. [Two-stage escrow](#two-stage-escrow)
+7. [Two-stage settlement](#two-stage-settlement)
 8. [Tidepool](#tidepool)
 9. [The honest limit](#the-honest-limit)
 10. [Acceptance checks](#acceptance-checks)
@@ -137,13 +137,13 @@ Astro Robotics, a robot maker in Chicago, has 500 orders for its 10MA robot, all
 | 5 | Negotiation: two email threads side by side, both down from +10%; Haoyun all 50 at +5%, QuickShip 38 now at +10%; Stockbot's comparison; Luca picks Haoyun | OutLayer Gmail connector `send`, allowlisted | [gmail.ts](convex/near/gmail.ts), [suppliers.ts](scenarios/suppliers.ts) | [adapters.test.ts](tests/near/adapters.test.ts) "gmail connector", [channels.test.ts](tests/channels.test.ts) "supplier simulator" |
 | 6 | Approve and commit: two signatures, then $63.00 (1:1,000) into one Agent API account per PO on Tidepool, policy `destinations: only` [withdraw to Haoyun on Base Sepolia, transfer to Astro] | Agent API account and transfer | [approvals.ts](convex/approvals.ts) (signed terms, enforced before commit), [escrow.ts](convex/near/escrow.ts), [agentapi.ts](convex/near/agentapi.ts), [deadline.ts](convex/near/deadline.ts) | [commitAuthorization.test.ts](tests/commitAuthorization.test.ts), [escrow.test.ts](tests/near/escrow.test.ts) "EscrowAdapter on the Agent API", [deadline.test.ts](tests/deadline.test.ts) |
 | 7 | Shenzhen to the Chicago dock: the advance on departure (bill of lading and export clearance), then the balance at the dock (import customs and the attested count, 44 of 50) | OutLayer worker, attested over code, input and output | [dockcheck.ts](convex/near/dockcheck.ts), [worker/dock-check](worker/dock-check/src/lib.rs) | [dockcheck.test.ts](tests/dockcheck.test.ts) |
-| 8 | Paid, what the escrow protected, then the end line | Agent API withdraws of $18.90 and $36.54 to Haoyun on Base Sepolia, $7.56 back to Astro at the deadline, then the wallet closes; a withdraw to a wrong address refused live by the account's policy | [escrow.ts](convex/near/escrow.ts), [deadline.ts](convex/near/deadline.ts) | [escrow.test.ts](tests/near/escrow.test.ts), [deadline.test.ts](tests/deadline.test.ts) |
+| 8 | Paid, what the order wallet protected, then the end line | Agent API withdraws of $18.90 and $36.54 to Haoyun on Base Sepolia, $7.56 back to Astro at the deadline, then the wallet closes; a withdraw to a wrong address refused live by the account's policy | [escrow.ts](convex/near/escrow.ts), [deadline.ts](convex/near/deadline.ts) | [escrow.test.ts](tests/near/escrow.test.ts), [deadline.test.ts](tests/deadline.test.ts) |
 
-## Two-stage escrow
+## Two-stage settlement
 
 The order wallet releases in two stages, each waiting for two signals that code checks and records as proofs ([policy/astro.json](policy/astro.json), [escrow.ts](engine/escrow.ts) `releaseStage`): the advance (30%) once the bill of lading AND export clearance are in, the balance once import customs AND the attested dock count agree, computed as received times unit price minus what was already released. A release with a missing signal is refused, and the refusal is a proof. The wallet never pays out more than it holds. After the balance, the Money card shows what this protected, against the two usual ways to pay an overseas supplier (typical figures, labelled so):
 
-| | Prepaid wire (typical) | Letter of credit (typical) | Evernear two-stage escrow |
+| | Prepaid wire (typical) | Letter of credit (typical) | Evernear two-stage settlement |
 | --- | --- | --- | --- |
 | Astro's money at risk for the 6 missing motors | $7,560 already paid, to be chased | Paid on documents, $7,560 to dispute | $7,560 never left Astro's control |
 | Cost and time to set up | Wire fees, 3 to 5 days | About 3% ($1,890) and up to 14 days, missing Dec 14 | Instant |
@@ -175,7 +175,9 @@ Tidepool's limits shape the design: 25 accounts per key, never deleted, which is
 
 ## The honest limit
 
-**The escrow is a commitment, not a lock.** Each PO account's rules (pay only Haoyun on Base Sepolia or Astro, at most the PO amount) are enforced by Tidepool's server, not by the chain, and Astro as owner can sign a policy change or unfreeze at any time. It is a visible, rule-bound commitment to the supplier, not a lock the supplier can enforce ([escrow.ts](convex/near/escrow.ts)). The screen stamps it "Committed".
+See also [COMPETITIVE-ANALYSIS.md](docs/hackathon/COMPETITIVE-ANALYSIS.md) for how this custody model compares with contract escrows in other entries.
+
+**The order wallet is a commitment, not a lock.** Each PO account's rules (pay only Haoyun on Base Sepolia or Astro, at most the PO amount) are enforced by Tidepool's server, not by the chain, and Astro as owner can sign a policy change or unfreeze at any time. It is a visible, rule-bound commitment to the supplier, not a lock the supplier can enforce ([escrow.ts](convex/near/escrow.ts)). The screen stamps it "Committed".
 
 **What the release gate does not check.** The deployed gate (v1) is stateless: the amount already released, the advance percentage, the recipient and the evidence come from its caller (Evernear's backend). Through the gate alone a compromised backend could make it overpay Haoyun up to the full $63.00 (never above it, only to the allowlisted address). Gate v2 (uploaded Nov 14 and live on the deployment, first exercised on a frozen account, not yet on a paying order; [worker README](worker/release-gate/README.md)) reads the committed total, the recipient and what was released from the order account itself and pins the advance at 30%. Evidence still comes from the caller ([TRUST-MODEL.md](docs/hackathon/TRUST-MODEL.md)).
 

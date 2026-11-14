@@ -42,6 +42,9 @@ export interface CommitTerms {
   quantity: number;
   unitCents: number;
   totalCents: number;
+  /** Premium over the part's usual price (basis points) and whether it is inside the buyer's ceiling: approvers sign it too. */
+  priceChangeBps: number;
+  withinCeiling: boolean;
   currency: "USD";
   /** What actually moves on testnet: the total at 1:TESTNET_SCALE, in 6-decimal Base USDC units. */
   settlement: { asset: string; chain: string; scale: number; units: string };

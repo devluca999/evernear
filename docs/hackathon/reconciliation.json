@@ -1,0 +1,57 @@
+{
+  "generatedBy": "scripts/reconcile.mts",
+  "order": {
+    "po": "1042",
+    "supplier": "Haoyun Precision",
+    "quantity": 50,
+    "unitCents": 126000,
+    "totalCents": 6300000,
+    "priceChangeBps": 500,
+    "approvalsRequired": 2,
+    "receivedQty": 44
+  },
+  "invariant": {
+    "committedCents": 6300000,
+    "paidCents": 5544000,
+    "returnedCents": 756000,
+    "heldCents": 0,
+    "holds": true
+  },
+  "scale": "testnet 1:1000; 6-decimal test USDC units = cents x 10",
+  "chainSource": {
+    "file": "docs/hackathon/payment-proofs.json",
+    "checkedAt": "2026-11-14T04:08:24.306Z",
+    "reconcilesOnChain": true
+  },
+  "rows": [
+    {
+      "step": "commit",
+      "commercialCents": 6300000,
+      "expectedUnits": "63000000",
+      "chainUnits": "63000000",
+      "matches": true
+    },
+    {
+      "step": "advance",
+      "commercialCents": 1890000,
+      "expectedUnits": "18900000",
+      "chainUnits": "18900000",
+      "matches": true
+    },
+    {
+      "step": "balance",
+      "commercialCents": 3654000,
+      "expectedUnits": "36540000",
+      "chainUnits": "36540000",
+      "matches": true
+    },
+    {
+      "step": "returned",
+      "commercialCents": 756000,
+      "expectedUnits": "7560000",
+      "chainUnits": "7560000",
+      "matches": true
+    }
+  ],
+  "allMatch": true
+}

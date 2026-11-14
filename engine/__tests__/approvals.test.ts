@@ -8,7 +8,7 @@ const approvers = [{ name: "Luca", publicKey: hex(ed25519.getPublicKey(K.Luca)) 
 const NOW = 1_800_000_000_000;
 const terms: CommitTerms = {
   v: 1, po: "1042", termsVersion: 2, buyer: "Astro Robotics Inc.", supplierId: "haoyun", supplierAddress: "0x2003975a521c6fa45238dbc402c9e4adcb8863e0", supplierChain: "base",
-  part: "Actuator motor", quantity: 50, unitCents: 126_000, totalCents: 6_300_000, currency: "USD", settlement: { asset: "a", chain: "base", scale: 1000, units: "63000000" },
+  part: "Actuator motor", quantity: 50, unitCents: 126_000, totalCents: 6_300_000, priceChangeBps: 500, withinCeiling: true, currency: "USD", settlement: { asset: "a", chain: "base", scale: 1000, units: "63000000" },
   rulesHash: "r1", approvalsRequired: 2,
 };
 const sign = (name: "Luca" | "Jordan", t: CommitTerms = terms, o: { issuedAt?: number; ttl?: number; nonce?: string } = {}) =>

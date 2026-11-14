@@ -15,7 +15,8 @@
     "demo": "node scripts/demo.mjs",
     "rehearse": "tsx scripts/rehearse.ts",
     "attack": "vitest run tests/commitAuthorization.test.ts tests/enforcementMatrix.test.ts engine/__tests__/approvals.test.ts --reporter=verbose",
-    "verify:proofs": "node scripts/verify-proofs.mjs"
+    "verify:proofs": "node scripts/verify-proofs.mjs",
+    "reconcile": "tsx scripts/reconcile.mts"
   },
   "dependencies": {
     "@near-intents-agent-api/sdk": "^0.7.4",

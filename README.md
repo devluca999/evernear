@@ -222,6 +222,13 @@ In this demo Evernear's Convex deployment holds Astro's dedicated testnet owner 
 - A challenge window and an independent inspector for disputed holds.
 - Real carrier and customs feeds behind the tracking adapter.
 
+## Disclosures
+
+- **Built in the hackathon window.** The first commit is Nov 5, 2026 (`git log --reverse`); no code predates it.
+- **AI-written code.** Most of the code, tests and docs were written with Claude Code (Anthropic) under Luca's direction; commits say so in their `Co-Authored-By` lines. Luca made the product, design and money decisions.
+- **Libraries and templates.** Started from Create Next App. Runtime: Next.js, React, Convex, `@near-intents-agent-api/sdk`, `@noble/curves` and `@noble/hashes`, lucide-react; dev: Vitest, convex-test, Testing Library, d3-geo, topojson, world-atlas, ESLint, TypeScript, tsx. The release gate uses the Rust crates listed in [worker/release-gate/Cargo.toml](worker/release-gate/Cargo.toml). Figures: Anatomy (credited below).
+- **Third-party services.** Tidepool (community testnet of the NEAR Intents Agent API, not run by NEAR), OutLayer testnet, NEAR AI Cloud, NEAR testnet RPC, Base Sepolia.
+
 ## Credits
 
 Map outlines from [Natural Earth](https://www.naturalearthdata.com/) 1:50m via [world-atlas](https://github.com/topojson/world-atlas) (public domain), projected with [d3-geo](https://github.com/d3/d3-geo) at build time by [scripts/build-map.mjs](scripts/build-map.mjs) ([test](components/__tests__/map.test.ts)).

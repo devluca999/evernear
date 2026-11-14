@@ -90,6 +90,26 @@ impl Host for MockHost {
     }
 }
 
+/// Re-signs a test input's terms with the TEST-ONLY approver keys (seeds 41, 42) after an edit to
+/// po, to, quantity, unit price or total, the way the approvers would sign new terms.
+fn resign(input: &mut Value) {
+    let (po, to, q, u, l) = (input["po"].clone(), input["to"].as_str().unwrap().to_ascii_lowercase(), input["ordered_qty"].clone(), input["unit_cents"].clone(), input["locked_cents"].clone());
+    let t = &mut input["terms"];
+    t["po"] = po;
+    t["supplierAddress"] = json!(to);
+    t["quantity"] = q;
+    t["unitCents"] = u;
+    t["totalCents"] = l;
+    let digest = hex::encode(sha2::Sha256::digest(canonical(&input["terms"]).as_bytes()));
+    for (i, seed) in [(0usize, 41u8), (1, 42)] {
+        let a = &mut input["approvals"][i];
+        a["digest"] = json!(digest);
+        let nep413 = a.get("scheme").and_then(Value::as_str) == Some("nep413");
+        let bytes = approval_bytes(a, nep413).unwrap();
+        a["signature"] = json!(hex::encode(SigningKey::from_bytes(&[seed; 32]).sign(&bytes).to_bytes()));
+    }
+}
+
 fn vectors() -> Value {
     serde_json::from_str(include_str!("../vectors.json")).unwrap()
 }
@@ -379,6 +399,7 @@ fn worst_case_output_fits_on_chain() {
     host.response = Ok(HttpResponse { status: 202, body: body.to_string().into_bytes() });
     let mut input = case("advance at $1260");
     input["po"] = json!("p".repeat(48));
+    resign(&mut input);
     input["signals"]["bill_of_lading"]["id"] = json!("b".repeat(48));
     input["signals"]["export_cleared"]["id"] = json!("e".repeat(48));
     let raw = host.run(&input.to_string());
@@ -562,8 +583,10 @@ fn v3_balance_needs_a_pinned_dock_signature() {
     assert_eq!(refuse(&|i| i["signals"]["dock_count"]["attestation"]["count"] = json!(50)), "dock_bad_signature");
     assert_eq!(refuse(&|i| i["signals"]["dock_count"]["attestation"]["device"] = json!("someone-else")), "dock_unknown_device");
     assert_eq!(refuse(&|i| i["signals"]["dock_count"]["attestation"]["publicKey"] = json!("ab".repeat(32))), "dock_unknown_device");
-    // A count signed for another PO.
-    assert_eq!(refuse(&|i| { i["po"] = json!("1043"); }), "dock_wrong_po");
+    // A count signed for another PO (the terms re-signed for that PO, the count still for 1042).
+    assert_eq!(refuse(&|i| { i["po"] = json!("1043"); resign(i); }), "dock_wrong_po");
+    // v4: a count signed for another order's wallet of the same PO.
+    assert_eq!(refuse(&|i| i["agent_id"] = json!("agent_other123")), "dock_wrong_wallet");
     // The signed attestation itself is good: the case pays.
     let host = MockHost::accepting();
     assert_eq!(run_case(&host, &case("balance at $1260"))["ok"], true);
@@ -590,4 +613,40 @@ fn v3_bound_unit_price_not_bound_to_approved_terms() {
         Decision::Release { amount_cents, .. } => assert_eq!(amount_cents, 4_270_000),
         d => panic!("{d:?}"),
     }
+}
+
+
+// ---------- v4: the gate pays only on terms the pinned approvers signed ----------
+
+#[test]
+fn v4_the_unit_price_exploit_is_refused() {
+    // The v3 bound: 45 x $1,400 = $63,000 with a real count of 44. Without new approvals: refused.
+    let host = MockHost::accepting();
+    let mut input = case("balance at $1260");
+    input["ordered_qty"] = json!(45);
+    input["unit_cents"] = json!(140_000);
+    let out = run_case(&host, &input);
+    assert_eq!((out["ok"].clone(), out["reason"].clone()), (json!(false), json!("terms_mismatch")));
+    assert!(host.sent.borrow().is_empty());
+    // Even with the terms rewritten to match, the old signatures do not cover them.
+    let host = MockHost::accepting();
+    input["terms"]["quantity"] = json!(45);
+    input["terms"]["unitCents"] = json!(140_000);
+    let out = run_case(&host, &input);
+    assert_eq!(out["reason"], "approvals_insufficient");
+    assert!(host.sent.borrow().is_empty());
+}
+
+#[test]
+fn v4_needs_two_distinct_pinned_approvers_over_the_digest() {
+    let reason = |edit: &dyn Fn(&mut Value)| { let mut i = case("advance at $1260"); edit(&mut i); let h = MockHost::accepting(); let o = run_case(&h, &i); assert!(h.sent.borrow().is_empty() || o["ok"] == true); o["reason"].as_str().unwrap_or("paid").to_string() };
+    assert_eq!(reason(&|_| {}), "paid");
+    assert_eq!(reason(&|i| { i.as_object_mut().unwrap().remove("terms"); }), "terms_missing");
+    assert_eq!(reason(&|i| { i["approvals"].as_array_mut().unwrap().pop(); }), "approvals_insufficient");
+    assert_eq!(reason(&|i| { let a = i["approvals"][1].clone(); i["approvals"][0] = a; }), "approvals_insufficient"); // same approver twice
+    assert_eq!(reason(&|i| i["approvals"][1]["signature"] = json!("00".repeat(64))), "approvals_insufficient");
+    assert_eq!(reason(&|i| i["approvals"][0]["scheme"] = json!("ed25519")), "approvals_insufficient"); // NEAR approver must sign NEP-413
+    assert_eq!(reason(&|i| i["approvals"][1]["approver"] = json!("Mallory")), "approvals_insufficient");
+    assert_eq!(reason(&|i| i["to"] = json!("0x1111111111111111111111111111111111111111")), "terms_mismatch");
+    assert_eq!(reason(&|i| i["terms"]["approvalsRequired"] = json!(0)), "approvals_insufficient"); // digest changes; and 2 are always required
 }

@@ -262,7 +262,7 @@ export class EscrowAdapter {
    * call is made. Then the money moves on the escrow's path: the gate sends it and the server checks
    * the gate's signed answer, or the server sends it, and the proof says which.
    */
-  async releaseStage(i: { escrow: Escrow; agentId: string; stage: Stage; to: string; evidence: SignalEvidence; unitCents: number; po: string; ref: string; nowMs: number; path?: ReleasePath; gatePublicKey?: string; payee?: string }): Promise<StageMoved> {
+  async releaseStage(i: { escrow: Escrow; agentId: string; stage: Stage; to: string; evidence: SignalEvidence; unitCents: number; po: string; ref: string; nowMs: number; path?: ReleasePath; gatePublicKey?: string; payee?: string; approved?: { terms: Record<string, unknown>; approvals: Record<string, unknown>[] } }): Promise<StageMoved> {
     const path = i.path ?? "server";
     // Evidence received is not a fact established. When Astro has pinned receiving devices, the
     // balance needs a dock count signed by one of them, for this PO, fresh, and equal to the count
@@ -270,7 +270,7 @@ export class EscrowAdapter {
     // used unsigned and its proof row says so.
     if (i.stage === "balance" && this.o.dockDevices?.length) {
       const dc = i.evidence.dock_count;
-      const v = verifyDockCount(dc?.attestation as Partial<DockAttestation> | undefined, { po: i.po, devices: this.o.dockDevices, nowMs: i.nowMs });
+      const v = verifyDockCount(dc?.attestation as Partial<DockAttestation> | undefined, { po: i.po, agentId: i.agentId, devices: this.o.dockDevices, nowMs: i.nowMs });
       const reason = !v.ok ? v.reason : v.count !== dc?.count ? "count_mismatch" : null;
       if (reason) {
         await this.o.sink({
@@ -329,7 +329,7 @@ export class EscrowAdapter {
   }
 
   private async releaseByGate(
-    i: { escrow: Escrow; agentId: string; stage: Stage; to: string; evidence: SignalEvidence; unitCents: number; po: string; gatePublicKey?: string },
+    i: { escrow: Escrow; agentId: string; stage: Stage; to: string; evidence: SignalEvidence; unitCents: number; po: string; gatePublicKey?: string; approved?: { terms: Record<string, unknown>; approvals: Record<string, unknown>[] } },
     rule: { escrow: Escrow; amountCents: number }, request: Record<string, unknown>, meta: ProofMeta,
   ): Promise<StageMoved> {
     const gate = this.o.gate;
@@ -342,6 +342,8 @@ export class EscrowAdapter {
       locked_cents: i.escrow.lockedCents, released_cents: i.escrow.releasedCents, advance_percent: RELEASE_RULES.advancePercent,
       ...(i.stage === "balance" && typeof i.evidence.dock_count?.count === "number" ? { received_qty: i.evidence.dock_count.count } : {}),
       signals: i.evidence as Record<string, unknown>,
+      // v4: the gate pays only on the terms the approvers signed; it re-checks their signatures itself.
+      ...(i.approved ? { terms: i.approved.terms, approvals: i.approved.approvals } : {}),
     };
     const { output, run } = await gate.release(input);
     if (!output.ok) {

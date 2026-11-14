@@ -333,7 +333,8 @@ describe("failure injection: a lost answer is not a refusal", () => {
 
 describe("signed dock count (engine/attestation.ts)", () => {
   const DEVICE_SK = new Uint8Array(32).fill(5);
-  const devices = () => { const a = signDockCount({ po: "1042", count: 44, at: "1970-01-01T00:00:00Z", device: "dock-3-scanner", secretKey: DEVICE_SK }); return [{ device: "dock-3-scanner", publicKey: a.publicKey }]; };
+  const devices = () => { const a = signDockCount({ po: "1042", agentId: "x", count: 44, at: "1970-01-01T00:00:00Z", device: "dock-3-scanner", secretKey: DEVICE_SK }); return [{ device: "dock-3-scanner", publicKey: a.publicKey }]; };
+  let WALLET_ID = "";
   async function withDevices() {
     const tp = fakeTidepool();
     const { owner } = testOwner();
@@ -345,10 +346,11 @@ describe("signed dock count (engine/attestation.ts)", () => {
     const { acct, escrow } = await openAndLock(s);
     const a = await stageOf(s, { escrow, agentId: acct.agentId, stage: "advance" });
     if (!a.ok) throw new Error(a.reason);
+    WALLET_ID = acct.agentId;
     return { s, acct, escrow: a.escrow };
   }
   const withAtt = (count: number, att?: object) => { const ev = evidence("balance", [], count); ev.dock_count = { ...ev.dock_count!, ...(att ? { attestation: att } : {}) }; return ev; };
-  const signed = (o: { count?: number; po?: string; key?: Uint8Array } = {}) => signDockCount({ po: o.po ?? "1042", count: o.count ?? 44, at: "1970-01-01T00:00:00Z", device: "dock-3-scanner", secretKey: o.key ?? DEVICE_SK });
+  const signed = (o: { count?: number; po?: string; key?: Uint8Array; agentId?: string } = {}) => signDockCount({ po: o.po ?? "1042", agentId: o.agentId ?? WALLET_ID, count: o.count ?? 44, at: "1970-01-01T00:00:00Z", device: "dock-3-scanner", secretKey: o.key ?? DEVICE_SK });
 
   it("pays the balance on a count signed by the pinned dock device, and labels it evidence, not fact", async () => {
     const { s, acct, escrow } = await withDevices();
@@ -364,6 +366,8 @@ describe("signed dock count (engine/attestation.ts)", () => {
     expect(await bal(withAtt(50, { ...signed(), count: 50 }))).toEqual({ ok: false, reason: "dock_bad_signature" });
     expect(await bal(withAtt(44, signed({ po: "1043" })))).toEqual({ ok: false, reason: "dock_wrong_po" });
     expect(await bal(withAtt(50, signed()))).toEqual({ ok: false, reason: "dock_count_mismatch" });
+    // A count signed for another order's wallet, same PO.
+    expect(await bal(withAtt(44, signed({ agentId: "agent_other" })))).toEqual({ ok: false, reason: "dock_wrong_wallet" });
     expect(s.tp.payouts).toHaveLength(1); // only the advance
   });
   it("refuses a stale count", async () => {

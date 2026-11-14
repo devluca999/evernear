@@ -35,9 +35,31 @@ pub const ADVANCE_PERCENT: u64 = 30;
 
 /// v3: the receiving dock devices whose signed count the balance is paid on, pinned in the build
 /// (the same keys as the deployment's DOCK_DEVICE_KEYS). A new device is a new build and a new grant.
+/// Tests build with test-only keys (seeds 43), so no real key ever signs a test vector.
+#[cfg(not(test))]
 pub const PINNED_DOCK_DEVICES: [(&str, &str); 1] = [("dock-3-scanner", "cb7f72a5c9f648acf4b989d5868d1129374da140a206eba6304bc4a43a594edc")];
-/// The bytes a dock device signs: this prefix, then canonical JSON of {at, count, device, po}.
-pub const DOCK_PREFIX: &str = "evernear-dock-count:v1:";
+#[cfg(test)]
+pub const PINNED_DOCK_DEVICES: [(&str, &str); 1] = [("dock-3-scanner", "4508a07aa941707f3eb2db94c8897a80b2c1197476b6de213ac273df7d86c4ff")];
+/// The bytes a dock device signs: this prefix, then canonical JSON of {agentId, at, count, device, po}.
+/// v4: bound to one order's wallet (agentId), so a count cannot be replayed into another order.
+pub const DOCK_PREFIX: &str = "evernear-dock-count:v2:";
+
+/// v4: the approvers whose signatures over the exact commit terms the gate requires, pinned in the
+/// build (the deployment's APPROVER_KEYS): (name, ed25519 public key hex, NEAR account for NEP-413
+/// signatures or "" for a plain ed25519 key). At least MIN_APPROVALS distinct approvers, always.
+#[cfg(not(test))]
+pub const PINNED_APPROVERS: [(&str, &str, &str); 2] = [
+    ("Luca", "a01397cd4794d56361552246e73143e063effb1c816dd6ebb06b5ab6656baadd", "evernear-luca.testnet"),
+    ("Jordan", "c7ea19869066eefbcc5f17ee684eff8586e9423cbaca02e185e0b79057279d84", ""),
+];
+#[cfg(test)]
+pub const PINNED_APPROVERS: [(&str, &str, &str); 2] = [
+    ("Luca", "fa4834147f6e690c3693eff61336046403cd8ae2a14f31b3c407358569239565", "luca-test.testnet"),
+    ("Jordan", "197f6b23e16c8532c6abc838facd5ea789be0c76b2920334039bfa8b3d368d61", ""),
+];
+pub const MIN_APPROVALS: usize = 2;
+pub const APPROVAL_PREFIX: &str = "evernear-approval:v1:";
+pub const NEP413_RECIPIENT: &str = "evernear";
 
 pub const ADVANCE_SIGNALS: [&str; 2] = ["bill_of_lading", "export_cleared"];
 pub const BALANCE_SIGNALS: [&str; 2] = ["import_cleared", "dock_count"];
@@ -91,6 +113,11 @@ pub struct ReleaseInput {
     /// Accepted for compatibility. The module always sends its own key (`idempotency_key`).
     #[serde(default)]
     pub idempotency_key: Option<String>,
+    /// v4: the commit terms the approvers signed (engine/approvals.ts CommitTerms) and their approvals.
+    #[serde(default)]
+    pub terms: Option<Value>,
+    #[serde(default)]
+    pub approvals: Vec<Value>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -540,20 +567,101 @@ pub fn check_dock_attestation(r: &ReleaseInput) -> Result<(), &'static str> {
     let (device, key, sig, po, at) = (field("device"), field("publicKey"), field("signature"), field("po"), field("at"));
     let (Some(device), Some(key), Some(sig), Some(po), Some(at)) = (device, key, sig, po, at) else { return Err("dock_unsigned") };
     let count = a.get("count").and_then(Value::as_u64).ok_or("dock_unsigned")?;
+    let wallet = field("agentId").ok_or("dock_unsigned")?;
     let pinned = PINNED_DOCK_DEVICES.iter().find(|(d, _)| *d == device).ok_or("dock_unknown_device")?;
     if !pinned.1.eq_ignore_ascii_case(key) {
         return Err("dock_unknown_device");
     }
     let pk: [u8; 32] = hex::decode(pinned.1).ok().and_then(|b| b.try_into().ok()).ok_or("dock_unknown_device")?;
     let sig: [u8; 64] = hex::decode(sig).ok().and_then(|b| b.try_into().ok()).ok_or("dock_bad_signature")?;
-    let msg = format!("{DOCK_PREFIX}{}", canonical(&json!({"at": at, "count": count, "device": device, "po": po})));
+    let msg = format!("{DOCK_PREFIX}{}", canonical(&json!({"agentId": wallet, "at": at, "count": count, "device": device, "po": po})));
     VerifyingKey::from_bytes(&pk).map_err(|_| "dock_unknown_device")?
         .verify(msg.as_bytes(), &Signature::from_bytes(&sig)).map_err(|_| "dock_bad_signature")?;
     if po != r.po {
         return Err("dock_wrong_po");
     }
+    if wallet != r.agent_id {
+        return Err("dock_wrong_wallet");
+    }
     if Some(count) != r.received_qty {
         return Err("dock_count_mismatch");
+    }
+    Ok(())
+}
+
+// ---------- v4: the approved terms ----------
+
+fn borsh_str(out: &mut Vec<u8>, s: &str) {
+    out.extend_from_slice(&(s.len() as u32).to_le_bytes());
+    out.extend_from_slice(s.as_bytes());
+}
+
+/// The bytes one approval signs: plain ed25519 over the message, or NEP-413 (what NEAR wallets sign).
+pub fn approval_bytes(a: &Value, nep413: bool) -> Option<Vec<u8>> {
+    let mut body = Map::new();
+    for k in ["approver", "digest", "nonce", "publicKey"] {
+        body.insert(k.into(), Value::String(a.get(k)?.as_str()?.to_string()));
+    }
+    for k in ["issuedAt", "expiresAt"] {
+        body.insert(k.into(), json!(a.get(k)?.as_u64()?));
+    }
+    if let Some(acc) = a.get("accountId").and_then(Value::as_str) {
+        body.insert("accountId".into(), Value::String(acc.to_string()));
+    }
+    let message = format!("{APPROVAL_PREFIX}{}", canonical(&Value::Object(body)));
+    if !nep413 {
+        return Some(message.into_bytes());
+    }
+    let mut b = Vec::new();
+    b.extend_from_slice(&(2u32.pow(31) + 413).to_le_bytes());
+    borsh_str(&mut b, &message);
+    b.extend_from_slice(&Sha256::digest(a.get("nonce")?.as_str()?.as_bytes()));
+    borsh_str(&mut b, NEP413_RECIPIENT);
+    b.push(0);
+    Some(Sha256::digest(&b).to_vec())
+}
+
+/// The gate pays only on terms the pinned approvers signed: the terms' digest is recomputed here,
+/// every number it pays on (PO, recipient, quantity, unit price, total) must be those terms', and at
+/// least MIN_APPROVALS distinct pinned approvers must have signed that digest. The gate has no clock,
+/// so approval expiry is the server's check at commit, not this one.
+pub fn check_approved_terms(r: &ReleaseInput) -> Result<(), &'static str> {
+    use ed25519_dalek::{Signature, Verifier, VerifyingKey};
+    let t = r.terms.as_ref().ok_or("terms_missing")?;
+    let digest = hex::encode(Sha256::digest(canonical(t).as_bytes()));
+    let s = |k: &str| t.get(k).and_then(Value::as_str);
+    let n = |k: &str| t.get(k).and_then(Value::as_u64);
+    if s("po") != Some(r.po.as_str())
+        || s("supplierAddress").map(str::to_ascii_lowercase) != Some(r.to.to_ascii_lowercase())
+        || n("quantity") != Some(r.ordered_qty)
+        || n("unitCents") != Some(r.unit_cents)
+        || n("totalCents") != Some(r.locked_cents)
+    {
+        return Err("terms_mismatch");
+    }
+    let mut approvers: Vec<&str> = Vec::new();
+    for a in &r.approvals {
+        let Some(name) = a.get("approver").and_then(Value::as_str) else { continue };
+        let Some(&(_, key, account)) = PINNED_APPROVERS.iter().find(|p| p.0 == name) else { continue };
+        if a.get("publicKey").and_then(Value::as_str).map(str::to_ascii_lowercase).as_deref() != Some(key) || a.get("digest").and_then(Value::as_str) != Some(digest.as_str()) {
+            continue;
+        }
+        let nep413 = !account.is_empty();
+        if nep413 && (a.get("accountId").and_then(Value::as_str) != Some(account) || a.get("scheme").and_then(Value::as_str) != Some("nep413")) {
+            continue;
+        }
+        let (Some(bytes), Some(pk), Some(sig)) = (
+            approval_bytes(a, nep413),
+            hex::decode(key).ok().and_then(|b| <[u8; 32]>::try_from(b).ok()),
+            a.get("signature").and_then(Value::as_str).and_then(|x| hex::decode(x).ok()).and_then(|b| <[u8; 64]>::try_from(b).ok()),
+        ) else { continue };
+        let Ok(vk) = VerifyingKey::from_bytes(&pk) else { continue };
+        if vk.verify(&bytes, &Signature::from_bytes(&sig)).is_ok() && !approvers.contains(&name) {
+            approvers.push(name);
+        }
+    }
+    if approvers.len() < MIN_APPROVALS {
+        return Err("approvals_insufficient");
     }
     Ok(())
 }
@@ -631,6 +739,9 @@ pub fn release(host: &dyn Host, r: &ReleaseInput) -> String {
         Decision::Refuse { reason, missing } => return sign_result(host, refusal(r, reason, missing, None)),
         Decision::Release { amount_cents, held_cents, signal_ids } => (amount_cents, held_cents, signal_ids),
     };
+    if let Err(reason) = check_approved_terms(r) {
+        return sign_result(host, refusal(r, reason, vec![], None));
+    }
     if r.stage == "balance" {
         if let Err(reason) = check_dock_attestation(r) {
             return sign_result(host, refusal(r, reason, vec![], None));

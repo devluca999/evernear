@@ -18,6 +18,7 @@ export function DockDevice() {
   const [count, setCount] = useState("");
   const [key, setKey] = useState("");
   const [result, setResult] = useState<string | null>(null);
+  const [order, setOrder] = useState<{ agentId: string } | null>(null);
 
   useEffect(() => {
     if (!URL) return;
@@ -27,16 +28,19 @@ export function DockDevice() {
   }, []);
   useEffect(() => {
     if (!client) return;
-    return client.onUpdate(api.dock.devices, {}, (d) => { setDevices(d); setDevice((x) => x || d[0] || ""); });
+    const a = client.onUpdate(api.dock.devices, {}, (d) => { setDevices(d); setDevice((x) => x || d[0] || ""); });
+    const b = client.onUpdate(api.dock.openOrder, { po: PO.number }, setOrder);
+    return () => { a(); b(); };
   }, [client]);
 
   async function submit() {
     if (!client) return;
+    if (!order) { setResult(`No open order wallet for PO ${PO.number}: nothing to count for.`); return; }
     const n = Number(count), hex = key.trim().toLowerCase();
     if (!Number.isSafeInteger(n) || n < 0 || n > PO.quantity) { setResult(`The count must be a whole number from 0 to ${PO.quantity}.`); return; }
     if (!/^[0-9a-f]{64}$/.test(hex)) { setResult("The device key must be 64 hex characters."); return; }
     const sk = Uint8Array.from(hex.match(/../g)!.map((h) => parseInt(h, 16)));
-    const a = signDockCount({ po: PO.number, count: n, at: new Date().toISOString(), device, secretKey: sk });
+    const a = signDockCount({ po: PO.number, agentId: order.agentId, count: n, at: new Date().toISOString(), device, secretKey: sk });
     setKey("");
     const r = await client.mutation(api.dock.submit, { attestation: a });
     setResult(r.ok ? `Signed: ${n} of ${PO.quantity} received for PO ${PO.number} by ${device}.` : `Refused: ${r.reason}`);
@@ -46,6 +50,7 @@ export function DockDevice() {
   return (
     <main style={{ maxWidth: 480, margin: "0 auto", padding: "32px 16px", display: "grid", gap: 16, color: "var(--text-primary)", fontFamily: "var(--font-ui)" }}>
       <h1 className="es-title">Dock count, PO {PO.number}</h1>
+      <p>Order wallet: <code>{order?.agentId ?? "none open"}</code></p>
       <p>Count what arrived and sign it. The balance is paid on this number. Your signature says this device reported it; it does not prove it.</p>
       {devices.length === 0 ? <p role="status">No dock device is pinned on this deployment (DOCK_DEVICE_KEYS).</p> : (
         <label>Device <select value={device} onChange={(e) => setDevice(e.target.value)}>{devices.map((d) => <option key={d}>{d}</option>)}</select></label>

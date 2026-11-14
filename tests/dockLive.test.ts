@@ -16,7 +16,8 @@ const modules = import.meta.glob("../convex/**/*.ts");
 const ENV = ["AGENT_API_KEY", "AGENT_API_BASE_URL", "AGENT_OWNER_ACCOUNT_ID", "AGENT_OWNER_PUBLIC_KEY", "AGENT_OWNER_PRIVATE_KEY_PKCS8", "AGENT_TREASURY_ID", "LIVE_ENABLED", "APPROVER_KEYS", "DOCK_DEVICE_KEYS"];
 const DEVICE = new Uint8Array(32).fill(7);
 const T0 = Date.UTC(2026, 10, 10, 9);
-const sign = (count: number, po = "1042", key = DEVICE) => signDockCount({ po, count, at: new Date(Date.now()).toISOString(), device: "dock-3-scanner", secretKey: key });
+let WALLET = "";
+const sign = (count: number, po = "1042", key = DEVICE, agentId = WALLET) => signDockCount({ po, agentId, count, at: new Date(Date.now()).toISOString(), device: "dock-3-scanner", secretKey: key });
 
 async function world() {
   const tp = fakeTidepool();
@@ -26,14 +27,18 @@ async function world() {
   Object.assign(process.env, {
     AGENT_API_KEY: API_KEY, AGENT_API_BASE_URL: FAKE_BASE, AGENT_OWNER_ACCOUNT_ID: owner.accountId, AGENT_OWNER_PUBLIC_KEY: owner.publicKey,
     AGENT_OWNER_PRIVATE_KEY_PKCS8: pkcs8Base64, AGENT_TREASURY_ID: treasuryId, LIVE_ENABLED: "1",
-    DOCK_DEVICE_KEYS: JSON.stringify([{ device: "dock-3-scanner", publicKey: sign(1).publicKey }]),
+    DOCK_DEVICE_KEYS: JSON.stringify([{ device: "dock-3-scanner", publicKey: sign(1, "1042", DEVICE, "x").publicKey }]),
   });
   setApprovers();
   vi.stubGlobal("fetch", tp.fetch);
   const t = convexTest(schema, modules);
   const { runId } = await t.mutation(api.live.start, {});
   await approveLive(t);
-  const step = (s: "commit" | "advance" | "pay" | "refuse" | "reclaim") => t.action(api.live.runStep, { runId: runId!, step: s });
+  const step = async (s: "commit" | "advance" | "pay" | "refuse" | "reclaim") => {
+    const r = await t.action(api.live.runStep, { runId: runId!, step: s });
+    if (s === "commit" && r.ok) WALLET = (await t.query(api.dock.openOrder, { po: "1042" }))!.agentId;
+    return r;
+  };
   return { tp, t, runId: runId!, step };
 }
 
@@ -78,7 +83,7 @@ describe("live balance on a signed dock count", () => {
     await w.step("commit"); await w.step("advance");
     vi.setSystemTime(T0 + 60_000);
     // Signed an hour before this run (a previous run's count), submitted during this one.
-    const old = signDockCount({ po: "1042", count: 50, at: new Date(T0 - 3_600_000).toISOString(), device: "dock-3-scanner", secretKey: DEVICE });
+    const old = signDockCount({ po: "1042", agentId: WALLET, count: 50, at: new Date(T0 - 3_600_000).toISOString(), device: "dock-3-scanner", secretKey: DEVICE });
     expect(await w.t.mutation(api.dock.submit, { attestation: old })).toEqual({ ok: true });
     expect(await w.t.mutation(api.dock.submit, { attestation: old })).toEqual({ ok: false, reason: "replayed" });
     expect(await w.step("pay")).toEqual({ ok: false, reason: "awaiting_dock_count" });

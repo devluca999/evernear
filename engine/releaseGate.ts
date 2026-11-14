@@ -39,6 +39,9 @@ export interface GateReleaseInput {
   received_qty?: number;
   signals: Record<string, unknown>;
   idempotency_key?: string;
+  /** v4: the commit terms the approvers signed, and their approvals (engine/approvals.ts). */
+  terms?: Record<string, unknown>;
+  approvals?: Record<string, unknown>[];
 }
 
 export type GateDecision =

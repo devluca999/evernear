@@ -131,14 +131,14 @@ export const runStep = action({
         if (!escrow) throw new Error("no escrow");
         // After the balance, what is left is the held part: the wrong address tries to take that.
         const due = Math.max(1, escrow.lockedCents - escrow.releasedCents - escrow.reclaimedCents);
-        const dock = await dockFor(ctx, data.startedAt);
+        const dock = await dockFor(ctx, data.startedAt, escrowId);
         if (!dock.ok) throw new Error(dock.reason);
         await ctx.runAction(internal.near.deadline.releaseStage, { runId, escrowId, stage: "balance", to: OFF_LIST, ...dock.args });
         const r = await ctx.runAction(internal.near.deadline.policyRefusal, { runId, escrowId, to: OFF_LIST, cents: due });
         if (!r.refused) throw new Error("the PO account paid an off-list address");
       }
       if (st === "pay") {
-        const dock = await dockFor(ctx, data.startedAt);
+        const dock = await dockFor(ctx, data.startedAt, escrowId);
         if (!dock.ok) { await ctx.runMutation(internal.live.unclaim, { runId }); return { ok: false, reason: dock.reason }; }
         const r = await ctx.runAction(internal.near.deadline.releaseStage, { runId, escrowId, stage: "balance", to: HAOYUN, ...dock.args, payee: "Haoyun" });
         if (!r.ok) throw new Error(r.reason ?? "balance failed");
@@ -163,9 +163,11 @@ export const runStep = action({
  * balance at all (`awaiting_dock_count`): the clerk signs it at /dock. Without pinned devices, the
  * scenario's 44, used unsigned and labelled so on its proof row.
  */
-async function dockFor(ctx: ActionCtx, since: number): Promise<{ ok: true; args: { dockCount: number; dockAttestation?: { po: string; count: number; at: string; device: string; publicKey: string; signature: string } } } | { ok: false; reason: string }> {
+async function dockFor(ctx: ActionCtx, since: number, escrowId: Id<"escrows">): Promise<{ ok: true; args: { dockCount: number; dockAttestation?: { po: string; agentId: string; count: number; at: string; device: string; publicKey: string; signature: string } } } | { ok: false; reason: string }> {
   if (!process.env.DOCK_DEVICE_KEYS) return { ok: true, args: { dockCount: PO.receivedQty } };
-  const a = await ctx.runQuery(internal.dock.latest, { po: PO.number, since });
+  const e = await ctx.runQuery(internal.near.escrowState.get, { escrowId });
+  if (!e) return { ok: false, reason: "no_escrow" };
+  const a = await ctx.runQuery(internal.dock.latest, { po: PO.number, agentId: e.agentId, since });
   if (!a) return { ok: false, reason: "awaiting_dock_count" };
   return { ok: true, args: { dockCount: a.count, dockAttestation: a } };
 }

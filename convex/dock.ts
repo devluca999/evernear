@@ -7,7 +7,7 @@ import { internalQuery, mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { parseDockDevices, verifyDockCount } from "../engine/attestation";
 
-const attestationArg = v.object({ po: v.string(), count: v.number(), at: v.string(), device: v.string(), publicKey: v.string(), signature: v.string() });
+const attestationArg = v.object({ po: v.string(), agentId: v.string(), count: v.number(), at: v.string(), device: v.string(), publicKey: v.string(), signature: v.string() });
 
 /** Whether dock devices are pinned on this deployment, and their names (for the /dock page). */
 export const devices = query({
@@ -30,14 +30,23 @@ export const submit = mutation({
   },
 });
 
-/** The latest signed count for a PO signed (by the device's own clock) and received after `since`, or null. An older count never carries into a new run. */
+/** The order wallet a dock count is signed for: the open (not settled) escrow of this PO. For the /dock page and scripts/dock-sign.mts. */
+export const openOrder = query({
+  args: { po: v.string() },
+  handler: async (ctx, { po }) => {
+    const rows = await ctx.db.query("escrows").withIndex("by_po", (q) => q.eq("po", po)).collect();
+    const open = rows.filter((e) => !e.closed && e.lockedCents - e.releasedCents - e.reclaimedCents > 0).at(-1);
+    return open ? { agentId: open.agentId } : null;
+  },
+});
+
+/** The latest count signed for this PO and this order's wallet, signed (by the device's own clock) and received after `since`, or null. */
 export const latest = internalQuery({
-  args: { po: v.string(), since: v.number() },
-  handler: async (ctx, { po, since }) => {
+  args: { po: v.string(), agentId: v.string(), since: v.number() },
+  handler: async (ctx, { po, agentId, since }) => {
     const rows = await ctx.db.query("dockCounts").withIndex("by_po", (q) => q.eq("po", po).gt("receivedAt", since)).order("desc").take(20);
-    const row = rows.find((r) => Date.parse(r.at) >= since);
+    const row = rows.find((r) => r.agentId === agentId && Date.parse(r.at) >= since);
     if (!row) return null;
-    const { po: p, count, at, device, publicKey, signature } = row;
-    return { po: p, count, at, device, publicKey, signature };
+    return { po: row.po, agentId, count: row.count, at: row.at, device: row.device, publicKey: row.publicKey, signature: row.signature };
   },
 });

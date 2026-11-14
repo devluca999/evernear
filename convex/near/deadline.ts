@@ -159,17 +159,19 @@ export const releaseStage = internalAction({
   args: {
     escrowId: v.id("escrows"), stage: v.union(v.literal("advance"), v.literal("balance")), to: v.string(),
     dockCount: v.optional(v.number()), payee: v.optional(v.string()), runId: v.optional(v.id("liveRuns")),
-    dockAttestation: v.optional(v.object({ po: v.string(), count: v.number(), at: v.string(), device: v.string(), publicKey: v.string(), signature: v.string() })),
+    dockAttestation: v.optional(v.object({ po: v.string(), agentId: v.string(), count: v.number(), at: v.string(), device: v.string(), publicKey: v.string(), signature: v.string() })),
   },
   handler: async (ctx, { escrowId, stage, to, dockCount, payee, runId, dockAttestation }): Promise<{ ok: boolean; reason?: string; missing?: string[]; amountCents?: number; walletClosed?: boolean; releasePath?: ReleasePath }> => {
     const e = await ctx.runQuery(internal.near.escrowState.get, { escrowId });
     if (!e) return { ok: false, reason: "no_escrow" };
     if (!e.orderedQty) return { ok: false, reason: "no_terms" };
     const evidence = await signalEvidence(e.po, stage, dockCount);
+    // The terms the approvers signed and their approvals, for the release gate to check itself (v4).
+    const approved = runId ? await ctx.runQuery(internal.approvals.forRun, { runId, po: e.po, supplierAddress: e.supplier, quantity: e.orderedQty, unitCents: e.lockedCents / e.orderedQty }) : null;
     if (dockAttestation && evidence.dock_count) evidence.dock_count = { ...evidence.dock_count, at: dockAttestation.at, source: `dock device ${dockAttestation.device}`, attestation: dockAttestation };
     const r = await withProofs(ctx, RELEASE_SCENE, e.restockId, (a) => a.releaseStage({
       escrow: toEscrow(e), agentId: e.agentId, stage, to: to.toLowerCase(), evidence, unitCents: e.lockedCents / e.orderedQty!, po: e.po, ref: e.ref,
-      nowMs: Date.now(), path: pathOf(e), gatePublicKey: e.gatePublicKey, payee,
+      nowMs: Date.now(), path: pathOf(e), gatePublicKey: e.gatePublicKey, payee, ...(approved ? { approved } : {}),
     }), runId);
     if (!r.ok) return { ok: false, reason: r.reason, ...(r.missing ? { missing: r.missing } : {}), releasePath: pathOf(e) };
     const s = await store(ctx, RELEASE_SCENE, e, r.escrow, "released", runId);

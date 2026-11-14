@@ -81,7 +81,7 @@ export default defineSchema({
   }).index("by_started", ["startedAt"]),
   // Signed dock counts from pinned receiving devices (engine/attestation.ts, convex/dock.ts).
   dockCounts: defineTable({
-    po: v.string(), count: v.number(), at: v.string(), device: v.string(), publicKey: v.string(), signature: v.string(), receivedAt: v.number(),
+    po: v.string(), agentId: v.optional(v.string()), count: v.number(), at: v.string(), device: v.string(), publicKey: v.string(), signature: v.string(), receivedAt: v.number(),
   }).index("by_po", ["po", "receivedAt"]),
   // Signed commit approvals (engine/approvals.ts): one row per signature, spent once by claimCommit.
   commitApprovals: defineTable({

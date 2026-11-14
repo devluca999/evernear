@@ -34,7 +34,53 @@
             "source": "simulated"
           }
         },
-        "idempotency_key": "ignored-by-module"
+        "idempotency_key": "ignored-by-module",
+        "terms": {
+          "v": 1,
+          "po": "1042",
+          "termsVersion": 3,
+          "buyer": "Astro Robotics Inc. (test vector)",
+          "supplierId": "haoyun",
+          "supplierAddress": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+          "supplierChain": "base",
+          "part": "Actuator motor",
+          "quantity": 50,
+          "unitCents": 126000,
+          "totalCents": 6300000,
+          "priceChangeBps": 500,
+          "withinCeiling": true,
+          "currency": "USD",
+          "settlement": {
+            "asset": "test",
+            "chain": "base",
+            "scale": 1000,
+            "units": "0"
+          },
+          "rulesHash": "test-vector",
+          "approvalsRequired": 2
+        },
+        "approvals": [
+          {
+            "approver": "Luca",
+            "accountId": "luca-test.testnet",
+            "publicKey": "fa4834147f6e690c3693eff61336046403cd8ae2a14f31b3c407358569239565",
+            "digest": "f53c304e6ff50466fa81bbe9adb5114c4356a0cb971511bdd0b3d0cc5ebe3e01",
+            "nonce": "vec-advance at $1260-l",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "scheme": "nep413",
+            "signature": "57b3e2b3b051e50fd8b394b5670bb49746ea7469519b2e83ce74997366bb2f72c5d6bf1be64c1c556563892ef7b6006099edfb1a2c5d4a0c53cf7ced70093000"
+          },
+          {
+            "approver": "Jordan",
+            "publicKey": "197f6b23e16c8532c6abc838facd5ea789be0c76b2920334039bfa8b3d368d61",
+            "digest": "f53c304e6ff50466fa81bbe9adb5114c4356a0cb971511bdd0b3d0cc5ebe3e01",
+            "nonce": "vec-advance at $1260-j",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "signature": "9a7d9f0d9292e0ce17f7dc07ac9199e4efd6746c53e47c5bfb0b012e7639656ba4788ab5d326e174b5f87b2b998ff57d491e6d14b21fd3c38ed2c73d09aabb05"
+          }
+        ]
       },
       "expect": {
         "ok": true,
@@ -72,17 +118,64 @@
             "count": 44,
             "source": "simulated",
             "attestation": {
-              "at": "2026-11-11T08:40:00Z",
-              "count": 44,
-              "device": "dock-3-scanner",
               "po": "1042",
-              "publicKey": "cb7f72a5c9f648acf4b989d5868d1129374da140a206eba6304bc4a43a594edc",
-              "signature": "3cba3dbde61037b64500d4be89637a9226a576f506efc0ac1846251cda557c37f123a1b3bece8498f8593245128adece098d3ba7c0c7f15a0d1a9c2ffe16f70e"
+              "agentId": "agent_fe8606f9c6dc60f3f1768ed9",
+              "count": 44,
+              "at": "2026-11-11T08:40:00Z",
+              "device": "dock-3-scanner",
+              "publicKey": "4508a07aa941707f3eb2db94c8897a80b2c1197476b6de213ac273df7d86c4ff",
+              "signature": "63d5d5006db1fca13dff66c8f01135fdee4c889fb85a98b5cb69705d95347c2fe582cb9464388ece65889687b161b2ef34e2dc33b52fcabfa830911b6d537a05"
             }
           }
         },
         "idempotency_key": "ignored-by-module",
-        "received_qty": 44
+        "received_qty": 44,
+        "terms": {
+          "v": 1,
+          "po": "1042",
+          "termsVersion": 3,
+          "buyer": "Astro Robotics Inc. (test vector)",
+          "supplierId": "haoyun",
+          "supplierAddress": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+          "supplierChain": "base",
+          "part": "Actuator motor",
+          "quantity": 50,
+          "unitCents": 126000,
+          "totalCents": 6300000,
+          "priceChangeBps": 500,
+          "withinCeiling": true,
+          "currency": "USD",
+          "settlement": {
+            "asset": "test",
+            "chain": "base",
+            "scale": 1000,
+            "units": "0"
+          },
+          "rulesHash": "test-vector",
+          "approvalsRequired": 2
+        },
+        "approvals": [
+          {
+            "approver": "Luca",
+            "accountId": "luca-test.testnet",
+            "publicKey": "fa4834147f6e690c3693eff61336046403cd8ae2a14f31b3c407358569239565",
+            "digest": "f53c304e6ff50466fa81bbe9adb5114c4356a0cb971511bdd0b3d0cc5ebe3e01",
+            "nonce": "vec-balance at $1260-l",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "scheme": "nep413",
+            "signature": "6f74aca232ec378e355af93b1def7632fa0a4cb7b6b620c9a81959a49209fecf023beb95310ac8b7dc719c65b772a332c448d68e5004dc79c17d08a72325f502"
+          },
+          {
+            "approver": "Jordan",
+            "publicKey": "197f6b23e16c8532c6abc838facd5ea789be0c76b2920334039bfa8b3d368d61",
+            "digest": "f53c304e6ff50466fa81bbe9adb5114c4356a0cb971511bdd0b3d0cc5ebe3e01",
+            "nonce": "vec-balance at $1260-j",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "signature": "68f48b246d949474694a6701fd6a3cf234efa2c286d8e46f96f1511e95a8a17e8b631cea564458a111746127ea2262cbeed11c85f0823c02e2f425f17ac4cd03"
+          }
+        ]
       },
       "expect": {
         "ok": true,
@@ -120,7 +213,53 @@
             "source": "simulated"
           }
         },
-        "idempotency_key": "ignored-by-module"
+        "idempotency_key": "ignored-by-module",
+        "terms": {
+          "v": 1,
+          "po": "1042",
+          "termsVersion": 3,
+          "buyer": "Astro Robotics Inc. (test vector)",
+          "supplierId": "haoyun",
+          "supplierAddress": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+          "supplierChain": "base",
+          "part": "Actuator motor",
+          "quantity": 50,
+          "unitCents": 132000,
+          "totalCents": 6600000,
+          "priceChangeBps": 500,
+          "withinCeiling": true,
+          "currency": "USD",
+          "settlement": {
+            "asset": "test",
+            "chain": "base",
+            "scale": 1000,
+            "units": "0"
+          },
+          "rulesHash": "test-vector",
+          "approvalsRequired": 2
+        },
+        "approvals": [
+          {
+            "approver": "Luca",
+            "accountId": "luca-test.testnet",
+            "publicKey": "fa4834147f6e690c3693eff61336046403cd8ae2a14f31b3c407358569239565",
+            "digest": "6a8e614c47ddf3eeb1be6282c34bda125f0b051ff30c87cf54e37f66268dfa75",
+            "nonce": "vec-advance at $1320-l",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "scheme": "nep413",
+            "signature": "2c6164acbabefa560d492c35038e5b2fb01d6e6ab872b0cdc6de57d4f737c78ff86104b02a9d7b1b779b779b3f159da6999212f0dda0eaa070cfabfacc2eea0a"
+          },
+          {
+            "approver": "Jordan",
+            "publicKey": "197f6b23e16c8532c6abc838facd5ea789be0c76b2920334039bfa8b3d368d61",
+            "digest": "6a8e614c47ddf3eeb1be6282c34bda125f0b051ff30c87cf54e37f66268dfa75",
+            "nonce": "vec-advance at $1320-j",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "signature": "be848ea103cdaf12fab058de5b37557c6771e9eb84aa0bcaa4e17c530324a1b480918da8f1ae89495d5f73070f078cbf6835dafc6bc1a69e64ea102dc69b700c"
+          }
+        ]
       },
       "expect": {
         "ok": true,
@@ -158,17 +297,64 @@
             "count": 44,
             "source": "simulated",
             "attestation": {
-              "at": "2026-11-11T08:40:00Z",
-              "count": 44,
-              "device": "dock-3-scanner",
               "po": "1042",
-              "publicKey": "cb7f72a5c9f648acf4b989d5868d1129374da140a206eba6304bc4a43a594edc",
-              "signature": "3cba3dbde61037b64500d4be89637a9226a576f506efc0ac1846251cda557c37f123a1b3bece8498f8593245128adece098d3ba7c0c7f15a0d1a9c2ffe16f70e"
+              "agentId": "agent_fe8606f9c6dc60f3f1768ed9",
+              "count": 44,
+              "at": "2026-11-11T08:40:00Z",
+              "device": "dock-3-scanner",
+              "publicKey": "4508a07aa941707f3eb2db94c8897a80b2c1197476b6de213ac273df7d86c4ff",
+              "signature": "63d5d5006db1fca13dff66c8f01135fdee4c889fb85a98b5cb69705d95347c2fe582cb9464388ece65889687b161b2ef34e2dc33b52fcabfa830911b6d537a05"
             }
           }
         },
         "idempotency_key": "ignored-by-module",
-        "received_qty": 44
+        "received_qty": 44,
+        "terms": {
+          "v": 1,
+          "po": "1042",
+          "termsVersion": 3,
+          "buyer": "Astro Robotics Inc. (test vector)",
+          "supplierId": "haoyun",
+          "supplierAddress": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+          "supplierChain": "base",
+          "part": "Actuator motor",
+          "quantity": 50,
+          "unitCents": 132000,
+          "totalCents": 6600000,
+          "priceChangeBps": 500,
+          "withinCeiling": true,
+          "currency": "USD",
+          "settlement": {
+            "asset": "test",
+            "chain": "base",
+            "scale": 1000,
+            "units": "0"
+          },
+          "rulesHash": "test-vector",
+          "approvalsRequired": 2
+        },
+        "approvals": [
+          {
+            "approver": "Luca",
+            "accountId": "luca-test.testnet",
+            "publicKey": "fa4834147f6e690c3693eff61336046403cd8ae2a14f31b3c407358569239565",
+            "digest": "6a8e614c47ddf3eeb1be6282c34bda125f0b051ff30c87cf54e37f66268dfa75",
+            "nonce": "vec-balance at $1320-l",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "scheme": "nep413",
+            "signature": "7f15850f3930d9f3716fbc017bfd67df55757eb84889bb31a199d3a8c6ef20c4c41dec6345ff39e3269f0b88603d3c65397fb5cce6da7cb8f6c459e3cc20f201"
+          },
+          {
+            "approver": "Jordan",
+            "publicKey": "197f6b23e16c8532c6abc838facd5ea789be0c76b2920334039bfa8b3d368d61",
+            "digest": "6a8e614c47ddf3eeb1be6282c34bda125f0b051ff30c87cf54e37f66268dfa75",
+            "nonce": "vec-balance at $1320-j",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "signature": "2f87c1c04bc0095f6894d12dae337f3df65b348735f30b21eb15d3e161424fdfbc0552389489591790b039e45dc45cbd96e402072ceaf834131a6279acb4a00f"
+          }
+        ]
       },
       "expect": {
         "ok": true,
@@ -201,7 +387,53 @@
             "source": "simulated"
           }
         },
-        "idempotency_key": "ignored-by-module"
+        "idempotency_key": "ignored-by-module",
+        "terms": {
+          "v": 1,
+          "po": "1042",
+          "termsVersion": 3,
+          "buyer": "Astro Robotics Inc. (test vector)",
+          "supplierId": "haoyun",
+          "supplierAddress": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+          "supplierChain": "base",
+          "part": "Actuator motor",
+          "quantity": 50,
+          "unitCents": 126000,
+          "totalCents": 6300000,
+          "priceChangeBps": 500,
+          "withinCeiling": true,
+          "currency": "USD",
+          "settlement": {
+            "asset": "test",
+            "chain": "base",
+            "scale": 1000,
+            "units": "0"
+          },
+          "rulesHash": "test-vector",
+          "approvalsRequired": 2
+        },
+        "approvals": [
+          {
+            "approver": "Luca",
+            "accountId": "luca-test.testnet",
+            "publicKey": "fa4834147f6e690c3693eff61336046403cd8ae2a14f31b3c407358569239565",
+            "digest": "f53c304e6ff50466fa81bbe9adb5114c4356a0cb971511bdd0b3d0cc5ebe3e01",
+            "nonce": "vec-advance without bill of lading-l",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "scheme": "nep413",
+            "signature": "bee7743dda07b8f2629fe2657ae00af0d480b60a072576592cf247699f608795922f4ba0d774319553fcac7562282cae3f8aaf166c3779a65e4050e34e51e50a"
+          },
+          {
+            "approver": "Jordan",
+            "publicKey": "197f6b23e16c8532c6abc838facd5ea789be0c76b2920334039bfa8b3d368d61",
+            "digest": "f53c304e6ff50466fa81bbe9adb5114c4356a0cb971511bdd0b3d0cc5ebe3e01",
+            "nonce": "vec-advance without bill of lading-j",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "signature": "ff4fdbfd5c4f563774247eb36c3ba51e272acdef0b462076682f0a38450e507fe11f70ea124bfda66575268707e5b5dd5fcc6231c7813f10e4895d402cf36c0a"
+          }
+        ]
       },
       "expect": {
         "ok": false,
@@ -231,7 +463,53 @@
             "source": "simulated"
           }
         },
-        "idempotency_key": "ignored-by-module"
+        "idempotency_key": "ignored-by-module",
+        "terms": {
+          "v": 1,
+          "po": "1042",
+          "termsVersion": 3,
+          "buyer": "Astro Robotics Inc. (test vector)",
+          "supplierId": "haoyun",
+          "supplierAddress": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+          "supplierChain": "base",
+          "part": "Actuator motor",
+          "quantity": 50,
+          "unitCents": 126000,
+          "totalCents": 6300000,
+          "priceChangeBps": 500,
+          "withinCeiling": true,
+          "currency": "USD",
+          "settlement": {
+            "asset": "test",
+            "chain": "base",
+            "scale": 1000,
+            "units": "0"
+          },
+          "rulesHash": "test-vector",
+          "approvalsRequired": 2
+        },
+        "approvals": [
+          {
+            "approver": "Luca",
+            "accountId": "luca-test.testnet",
+            "publicKey": "fa4834147f6e690c3693eff61336046403cd8ae2a14f31b3c407358569239565",
+            "digest": "f53c304e6ff50466fa81bbe9adb5114c4356a0cb971511bdd0b3d0cc5ebe3e01",
+            "nonce": "vec-advance without export clearance-l",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "scheme": "nep413",
+            "signature": "3b3362633512f6b14debe55140b5a214e39874b816b98318cdacdd2f1c046b1d5a0734e589cb23eda5ddb441d98b6a4b9a715e603ad4162a087d1cd51d11b60c"
+          },
+          {
+            "approver": "Jordan",
+            "publicKey": "197f6b23e16c8532c6abc838facd5ea789be0c76b2920334039bfa8b3d368d61",
+            "digest": "f53c304e6ff50466fa81bbe9adb5114c4356a0cb971511bdd0b3d0cc5ebe3e01",
+            "nonce": "vec-advance without export clearance-j",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "signature": "2e9fb146833268c151ca7e9056d95af8004a27d4fb45fc50301623eadcd2fdf43a3c088b95e6210555def7b9b6f1cce6eccdac90871220e09d08ea75b6dcac01"
+          }
+        ]
       },
       "expect": {
         "ok": false,
@@ -255,7 +533,53 @@
         "released_cents": 0,
         "advance_percent": 30,
         "signals": {},
-        "idempotency_key": "ignored-by-module"
+        "idempotency_key": "ignored-by-module",
+        "terms": {
+          "v": 1,
+          "po": "1042",
+          "termsVersion": 3,
+          "buyer": "Astro Robotics Inc. (test vector)",
+          "supplierId": "haoyun",
+          "supplierAddress": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+          "supplierChain": "base",
+          "part": "Actuator motor",
+          "quantity": 50,
+          "unitCents": 126000,
+          "totalCents": 6300000,
+          "priceChangeBps": 500,
+          "withinCeiling": true,
+          "currency": "USD",
+          "settlement": {
+            "asset": "test",
+            "chain": "base",
+            "scale": 1000,
+            "units": "0"
+          },
+          "rulesHash": "test-vector",
+          "approvalsRequired": 2
+        },
+        "approvals": [
+          {
+            "approver": "Luca",
+            "accountId": "luca-test.testnet",
+            "publicKey": "fa4834147f6e690c3693eff61336046403cd8ae2a14f31b3c407358569239565",
+            "digest": "f53c304e6ff50466fa81bbe9adb5114c4356a0cb971511bdd0b3d0cc5ebe3e01",
+            "nonce": "vec-advance with no signals-l",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "scheme": "nep413",
+            "signature": "fb6efbd2c5be9b64f1181e613f69cf39282c4a688be9c22664676fd43e9aabe7bd9b3b77ddbeceac0268d1e7cc009f9cf40e9349805fffa3052d3de8623a1d0a"
+          },
+          {
+            "approver": "Jordan",
+            "publicKey": "197f6b23e16c8532c6abc838facd5ea789be0c76b2920334039bfa8b3d368d61",
+            "digest": "f53c304e6ff50466fa81bbe9adb5114c4356a0cb971511bdd0b3d0cc5ebe3e01",
+            "nonce": "vec-advance with no signals-j",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "signature": "e4f05cebc94cd4213e735b13793ffc4b88d72534d34d85e260648f02ccb74cad84fe5b918680727085694ed1208d3aa141b4fbb7c8ea302d6b2f7de9e9c99e0d"
+          }
+        ]
       },
       "expect": {
         "ok": false,
@@ -287,7 +611,53 @@
             "source": "simulated"
           }
         },
-        "idempotency_key": "ignored-by-module"
+        "idempotency_key": "ignored-by-module",
+        "terms": {
+          "v": 1,
+          "po": "1042",
+          "termsVersion": 3,
+          "buyer": "Astro Robotics Inc. (test vector)",
+          "supplierId": "haoyun",
+          "supplierAddress": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+          "supplierChain": "base",
+          "part": "Actuator motor",
+          "quantity": 50,
+          "unitCents": 126000,
+          "totalCents": 6300000,
+          "priceChangeBps": 500,
+          "withinCeiling": true,
+          "currency": "USD",
+          "settlement": {
+            "asset": "test",
+            "chain": "base",
+            "scale": 1000,
+            "units": "0"
+          },
+          "rulesHash": "test-vector",
+          "approvalsRequired": 2
+        },
+        "approvals": [
+          {
+            "approver": "Luca",
+            "accountId": "luca-test.testnet",
+            "publicKey": "fa4834147f6e690c3693eff61336046403cd8ae2a14f31b3c407358569239565",
+            "digest": "f53c304e6ff50466fa81bbe9adb5114c4356a0cb971511bdd0b3d0cc5ebe3e01",
+            "nonce": "vec-advance with empty bill of lading-l",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "scheme": "nep413",
+            "signature": "fc1f8fd1c3581e09a6c2a1212672a656001198f5895e4350055ac12639f7e990a62bc2a7a68ae15a73c1dc46a750bc88a7059a9cd1ae4fcf6b1bd13f9552060c"
+          },
+          {
+            "approver": "Jordan",
+            "publicKey": "197f6b23e16c8532c6abc838facd5ea789be0c76b2920334039bfa8b3d368d61",
+            "digest": "f53c304e6ff50466fa81bbe9adb5114c4356a0cb971511bdd0b3d0cc5ebe3e01",
+            "nonce": "vec-advance with empty bill of lading-j",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "signature": "aea1b2fdc5d49f1e140cafe85f25059be1b65f0a6e923137648301bdee238ee0fb97a54d03082527e25fbd2c0c46941df15a28779a95cca1204a23e6f8d3dc0a"
+          }
+        ]
       },
       "expect": {
         "ok": false,
@@ -321,7 +691,53 @@
             "source": "simulated"
           }
         },
-        "idempotency_key": "ignored-by-module"
+        "idempotency_key": "ignored-by-module",
+        "terms": {
+          "v": 1,
+          "po": "1042",
+          "termsVersion": 3,
+          "buyer": "Astro Robotics Inc. (test vector)",
+          "supplierId": "haoyun",
+          "supplierAddress": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+          "supplierChain": "base",
+          "part": "Actuator motor",
+          "quantity": 50,
+          "unitCents": 126000,
+          "totalCents": 6300000,
+          "priceChangeBps": 500,
+          "withinCeiling": true,
+          "currency": "USD",
+          "settlement": {
+            "asset": "test",
+            "chain": "base",
+            "scale": 1000,
+            "units": "0"
+          },
+          "rulesHash": "test-vector",
+          "approvalsRequired": 2
+        },
+        "approvals": [
+          {
+            "approver": "Luca",
+            "accountId": "luca-test.testnet",
+            "publicKey": "fa4834147f6e690c3693eff61336046403cd8ae2a14f31b3c407358569239565",
+            "digest": "f53c304e6ff50466fa81bbe9adb5114c4356a0cb971511bdd0b3d0cc5ebe3e01",
+            "nonce": "vec-advance with export clearance missing at-l",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "scheme": "nep413",
+            "signature": "92bf5acbb0021f28358fdf51503d8c883bb01700895995e40928d65f2ee7ae61d20d75645953b0d212acea0d4e3224a29d9a6ee2234656a47e9afd39b48d4606"
+          },
+          {
+            "approver": "Jordan",
+            "publicKey": "197f6b23e16c8532c6abc838facd5ea789be0c76b2920334039bfa8b3d368d61",
+            "digest": "f53c304e6ff50466fa81bbe9adb5114c4356a0cb971511bdd0b3d0cc5ebe3e01",
+            "nonce": "vec-advance with export clearance missing at-j",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "signature": "5dcc27a45bb0477b8cccfe7a253bb733ee776a905b4ad8d4d27e7d5b8d11f219b7c7b13b8ef90b195f683024830b98c53b097fc6073cba2b72bd90af739b7900"
+          }
+        ]
       },
       "expect": {
         "ok": false,
@@ -357,7 +773,53 @@
             "source": "simulated"
           }
         },
-        "idempotency_key": "ignored-by-module"
+        "idempotency_key": "ignored-by-module",
+        "terms": {
+          "v": 1,
+          "po": "1042",
+          "termsVersion": 3,
+          "buyer": "Astro Robotics Inc. (test vector)",
+          "supplierId": "haoyun",
+          "supplierAddress": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+          "supplierChain": "base",
+          "part": "Actuator motor",
+          "quantity": 50,
+          "unitCents": 126000,
+          "totalCents": 6300000,
+          "priceChangeBps": 500,
+          "withinCeiling": true,
+          "currency": "USD",
+          "settlement": {
+            "asset": "test",
+            "chain": "base",
+            "scale": 1000,
+            "units": "0"
+          },
+          "rulesHash": "test-vector",
+          "approvalsRequired": 2
+        },
+        "approvals": [
+          {
+            "approver": "Luca",
+            "accountId": "luca-test.testnet",
+            "publicKey": "fa4834147f6e690c3693eff61336046403cd8ae2a14f31b3c407358569239565",
+            "digest": "f53c304e6ff50466fa81bbe9adb5114c4356a0cb971511bdd0b3d0cc5ebe3e01",
+            "nonce": "vec-balance signals do not release the advance-l",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "scheme": "nep413",
+            "signature": "92428c3c7db700ae6f98a67b3a3603fe95ed864d9aa0d92463a5b1edd31fc9237e16decbe6bcb178677681e5384c8bc7c5f7cddf8ce1f54387baf8629490340b"
+          },
+          {
+            "approver": "Jordan",
+            "publicKey": "197f6b23e16c8532c6abc838facd5ea789be0c76b2920334039bfa8b3d368d61",
+            "digest": "f53c304e6ff50466fa81bbe9adb5114c4356a0cb971511bdd0b3d0cc5ebe3e01",
+            "nonce": "vec-balance signals do not release the advance-j",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "signature": "08b03559e99180846fee7c2a4b8d3659f52023059e2b6ff581eec7196841d305cf2247f2d3d7b259862496215ed07c6ffb56f60e36b284d1f0ae2f5f4c8c6707"
+          }
+        ]
       },
       "expect": {
         "ok": false,
@@ -388,17 +850,64 @@
             "count": 44,
             "source": "simulated",
             "attestation": {
-              "at": "2026-11-11T08:40:00Z",
-              "count": 44,
-              "device": "dock-3-scanner",
               "po": "1042",
-              "publicKey": "cb7f72a5c9f648acf4b989d5868d1129374da140a206eba6304bc4a43a594edc",
-              "signature": "3cba3dbde61037b64500d4be89637a9226a576f506efc0ac1846251cda557c37f123a1b3bece8498f8593245128adece098d3ba7c0c7f15a0d1a9c2ffe16f70e"
+              "agentId": "agent_fe8606f9c6dc60f3f1768ed9",
+              "count": 44,
+              "at": "2026-11-11T08:40:00Z",
+              "device": "dock-3-scanner",
+              "publicKey": "4508a07aa941707f3eb2db94c8897a80b2c1197476b6de213ac273df7d86c4ff",
+              "signature": "63d5d5006db1fca13dff66c8f01135fdee4c889fb85a98b5cb69705d95347c2fe582cb9464388ece65889687b161b2ef34e2dc33b52fcabfa830911b6d537a05"
             }
           }
         },
         "idempotency_key": "ignored-by-module",
-        "received_qty": 44
+        "received_qty": 44,
+        "terms": {
+          "v": 1,
+          "po": "1042",
+          "termsVersion": 3,
+          "buyer": "Astro Robotics Inc. (test vector)",
+          "supplierId": "haoyun",
+          "supplierAddress": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+          "supplierChain": "base",
+          "part": "Actuator motor",
+          "quantity": 50,
+          "unitCents": 126000,
+          "totalCents": 6300000,
+          "priceChangeBps": 500,
+          "withinCeiling": true,
+          "currency": "USD",
+          "settlement": {
+            "asset": "test",
+            "chain": "base",
+            "scale": 1000,
+            "units": "0"
+          },
+          "rulesHash": "test-vector",
+          "approvalsRequired": 2
+        },
+        "approvals": [
+          {
+            "approver": "Luca",
+            "accountId": "luca-test.testnet",
+            "publicKey": "fa4834147f6e690c3693eff61336046403cd8ae2a14f31b3c407358569239565",
+            "digest": "f53c304e6ff50466fa81bbe9adb5114c4356a0cb971511bdd0b3d0cc5ebe3e01",
+            "nonce": "vec-balance without import clearance-l",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "scheme": "nep413",
+            "signature": "1e8f0778556ac12e39f09362edd2350f05e4d5ab31ec80fc49a759813604d3bfb9d5c05a4fe7643e5543eeeb96da0a8e2cf6a1de5e575acda7181955419c5c0a"
+          },
+          {
+            "approver": "Jordan",
+            "publicKey": "197f6b23e16c8532c6abc838facd5ea789be0c76b2920334039bfa8b3d368d61",
+            "digest": "f53c304e6ff50466fa81bbe9adb5114c4356a0cb971511bdd0b3d0cc5ebe3e01",
+            "nonce": "vec-balance without import clearance-j",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "signature": "d45b465e5d0d3605ac88fa6ab90a092252c197a847f85fbdc4742566248270a114ea1e9d6fd680c9c49b5050505e42b54a853b62f0a1f193330c561b041c660e"
+          }
+        ]
       },
       "expect": {
         "ok": false,
@@ -429,7 +938,53 @@
           }
         },
         "idempotency_key": "ignored-by-module",
-        "received_qty": 44
+        "received_qty": 44,
+        "terms": {
+          "v": 1,
+          "po": "1042",
+          "termsVersion": 3,
+          "buyer": "Astro Robotics Inc. (test vector)",
+          "supplierId": "haoyun",
+          "supplierAddress": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+          "supplierChain": "base",
+          "part": "Actuator motor",
+          "quantity": 50,
+          "unitCents": 126000,
+          "totalCents": 6300000,
+          "priceChangeBps": 500,
+          "withinCeiling": true,
+          "currency": "USD",
+          "settlement": {
+            "asset": "test",
+            "chain": "base",
+            "scale": 1000,
+            "units": "0"
+          },
+          "rulesHash": "test-vector",
+          "approvalsRequired": 2
+        },
+        "approvals": [
+          {
+            "approver": "Luca",
+            "accountId": "luca-test.testnet",
+            "publicKey": "fa4834147f6e690c3693eff61336046403cd8ae2a14f31b3c407358569239565",
+            "digest": "f53c304e6ff50466fa81bbe9adb5114c4356a0cb971511bdd0b3d0cc5ebe3e01",
+            "nonce": "vec-balance without dock count-l",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "scheme": "nep413",
+            "signature": "2f10d89bcab639ad0a985ceb2d7abb59d19437fbf82c83a36b77fc7968ad5138429d963a84e8fc2d8b6e99b7c5b147b6301f0f26556450b884cc1cfb521ea40a"
+          },
+          {
+            "approver": "Jordan",
+            "publicKey": "197f6b23e16c8532c6abc838facd5ea789be0c76b2920334039bfa8b3d368d61",
+            "digest": "f53c304e6ff50466fa81bbe9adb5114c4356a0cb971511bdd0b3d0cc5ebe3e01",
+            "nonce": "vec-balance without dock count-j",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "signature": "ae8ff91a01c52e5ebbf5f475a335efb1dbe8bf344b94b98fe2988e3d9dbd669b64c606e2c23a3a4a644b4ce76656c953eeb1eb8ec91071c12141835a301e0606"
+          }
+        ]
       },
       "expect": {
         "ok": false,
@@ -464,7 +1019,53 @@
             "source": "simulated"
           }
         },
-        "idempotency_key": "ignored-by-module"
+        "idempotency_key": "ignored-by-module",
+        "terms": {
+          "v": 1,
+          "po": "1042",
+          "termsVersion": 3,
+          "buyer": "Astro Robotics Inc. (test vector)",
+          "supplierId": "haoyun",
+          "supplierAddress": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+          "supplierChain": "base",
+          "part": "Actuator motor",
+          "quantity": 50,
+          "unitCents": 126000,
+          "totalCents": 6300000,
+          "priceChangeBps": 500,
+          "withinCeiling": true,
+          "currency": "USD",
+          "settlement": {
+            "asset": "test",
+            "chain": "base",
+            "scale": 1000,
+            "units": "0"
+          },
+          "rulesHash": "test-vector",
+          "approvalsRequired": 2
+        },
+        "approvals": [
+          {
+            "approver": "Luca",
+            "accountId": "luca-test.testnet",
+            "publicKey": "fa4834147f6e690c3693eff61336046403cd8ae2a14f31b3c407358569239565",
+            "digest": "f53c304e6ff50466fa81bbe9adb5114c4356a0cb971511bdd0b3d0cc5ebe3e01",
+            "nonce": "vec-advance paid twice-l",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "scheme": "nep413",
+            "signature": "4849839b867c2ecff1684a4b293c273d14d1b573bceb4acf40cdc7c82101cc26e85010be839a7af061a786528bda7550180670c4985e43398f0db608a48aed00"
+          },
+          {
+            "approver": "Jordan",
+            "publicKey": "197f6b23e16c8532c6abc838facd5ea789be0c76b2920334039bfa8b3d368d61",
+            "digest": "f53c304e6ff50466fa81bbe9adb5114c4356a0cb971511bdd0b3d0cc5ebe3e01",
+            "nonce": "vec-advance paid twice-j",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "signature": "995a93f05ae6f6455383072ea967b9adde70ad3cd697ba4cc989053c257d39571ffca6012287506169aafcf164c1c49fa48185ac3bc427aac4f8a091bd178f05"
+          }
+        ]
       },
       "expect": {
         "ok": false,
@@ -497,17 +1098,64 @@
             "count": 51,
             "source": "simulated",
             "attestation": {
-              "at": "2026-11-11T08:40:00Z",
-              "count": 51,
-              "device": "dock-3-scanner",
               "po": "1042",
-              "publicKey": "cb7f72a5c9f648acf4b989d5868d1129374da140a206eba6304bc4a43a594edc",
-              "signature": "a98fbab36fcd6f260ff8f3ac72a47b09f3159ff10f43cd9682a695984ab73a8cebedec894b531d866f5b3690df855ab4dbe9e54aa34f3018327a51b6a2ffc70d"
+              "agentId": "agent_fe8606f9c6dc60f3f1768ed9",
+              "count": 51,
+              "at": "2026-11-11T08:40:00Z",
+              "device": "dock-3-scanner",
+              "publicKey": "4508a07aa941707f3eb2db94c8897a80b2c1197476b6de213ac273df7d86c4ff",
+              "signature": "54c4747d29db069ca8d9ba9fc1e7b737e86fff77fb1920ce472da811d7bde52369de456ff6c659f91709e3b07106ddb0af966d05a9fe59aeabe07c06a141a102"
             }
           }
         },
         "idempotency_key": "ignored-by-module",
-        "received_qty": 51
+        "received_qty": 51,
+        "terms": {
+          "v": 1,
+          "po": "1042",
+          "termsVersion": 3,
+          "buyer": "Astro Robotics Inc. (test vector)",
+          "supplierId": "haoyun",
+          "supplierAddress": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+          "supplierChain": "base",
+          "part": "Actuator motor",
+          "quantity": 50,
+          "unitCents": 126000,
+          "totalCents": 6300000,
+          "priceChangeBps": 500,
+          "withinCeiling": true,
+          "currency": "USD",
+          "settlement": {
+            "asset": "test",
+            "chain": "base",
+            "scale": 1000,
+            "units": "0"
+          },
+          "rulesHash": "test-vector",
+          "approvalsRequired": 2
+        },
+        "approvals": [
+          {
+            "approver": "Luca",
+            "accountId": "luca-test.testnet",
+            "publicKey": "fa4834147f6e690c3693eff61336046403cd8ae2a14f31b3c407358569239565",
+            "digest": "f53c304e6ff50466fa81bbe9adb5114c4356a0cb971511bdd0b3d0cc5ebe3e01",
+            "nonce": "vec-received over ordered-l",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "scheme": "nep413",
+            "signature": "327c98115277b6c03933be7980714cae0396e45aad3d3e7efd1fc0174c8ab8c091257ac6d1eb8bf3e0b105bb7e558c2a5a045388a8a62a4d098837722342750a"
+          },
+          {
+            "approver": "Jordan",
+            "publicKey": "197f6b23e16c8532c6abc838facd5ea789be0c76b2920334039bfa8b3d368d61",
+            "digest": "f53c304e6ff50466fa81bbe9adb5114c4356a0cb971511bdd0b3d0cc5ebe3e01",
+            "nonce": "vec-received over ordered-j",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "signature": "3fa090c8efac35186433ef11a1b86940f18a3d00de296dc1b2388441c18e65fae9833deed5f796d3133184130bcbbf1d231c074e52fa2572688b4ad7d63c6b0f"
+          }
+        ]
       },
       "expect": {
         "ok": false,
@@ -540,17 +1188,64 @@
             "count": 44,
             "source": "simulated",
             "attestation": {
-              "at": "2026-11-11T08:40:00Z",
-              "count": 44,
-              "device": "dock-3-scanner",
               "po": "1042",
-              "publicKey": "cb7f72a5c9f648acf4b989d5868d1129374da140a206eba6304bc4a43a594edc",
-              "signature": "3cba3dbde61037b64500d4be89637a9226a576f506efc0ac1846251cda557c37f123a1b3bece8498f8593245128adece098d3ba7c0c7f15a0d1a9c2ffe16f70e"
+              "agentId": "agent_fe8606f9c6dc60f3f1768ed9",
+              "count": 44,
+              "at": "2026-11-11T08:40:00Z",
+              "device": "dock-3-scanner",
+              "publicKey": "4508a07aa941707f3eb2db94c8897a80b2c1197476b6de213ac273df7d86c4ff",
+              "signature": "63d5d5006db1fca13dff66c8f01135fdee4c889fb85a98b5cb69705d95347c2fe582cb9464388ece65889687b161b2ef34e2dc33b52fcabfa830911b6d537a05"
             }
           }
         },
         "idempotency_key": "ignored-by-module",
-        "received_qty": 50
+        "received_qty": 50,
+        "terms": {
+          "v": 1,
+          "po": "1042",
+          "termsVersion": 3,
+          "buyer": "Astro Robotics Inc. (test vector)",
+          "supplierId": "haoyun",
+          "supplierAddress": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+          "supplierChain": "base",
+          "part": "Actuator motor",
+          "quantity": 50,
+          "unitCents": 126000,
+          "totalCents": 6300000,
+          "priceChangeBps": 500,
+          "withinCeiling": true,
+          "currency": "USD",
+          "settlement": {
+            "asset": "test",
+            "chain": "base",
+            "scale": 1000,
+            "units": "0"
+          },
+          "rulesHash": "test-vector",
+          "approvalsRequired": 2
+        },
+        "approvals": [
+          {
+            "approver": "Luca",
+            "accountId": "luca-test.testnet",
+            "publicKey": "fa4834147f6e690c3693eff61336046403cd8ae2a14f31b3c407358569239565",
+            "digest": "f53c304e6ff50466fa81bbe9adb5114c4356a0cb971511bdd0b3d0cc5ebe3e01",
+            "nonce": "vec-dock count disagrees with received-l",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "scheme": "nep413",
+            "signature": "c5f4af1625b3b805d1ccb2e46addc9dabd65db13387e2566e3ba85cc435028bbd2e019d39b253e4503b317ea77e3c4360ebac08d62ece3b7565a3a18f4732b09"
+          },
+          {
+            "approver": "Jordan",
+            "publicKey": "197f6b23e16c8532c6abc838facd5ea789be0c76b2920334039bfa8b3d368d61",
+            "digest": "f53c304e6ff50466fa81bbe9adb5114c4356a0cb971511bdd0b3d0cc5ebe3e01",
+            "nonce": "vec-dock count disagrees with received-j",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "signature": "7ac4e9bf9af1fe5e93fb2cbcf91cf73a9fed015ad8ab3220319f2b9dae790f99b0e4a19d7eb3a6e000d7bb2619abd0925d2ecbef3cdd8544facc0e08a5b3f504"
+          }
+        ]
       },
       "expect": {
         "ok": false,
@@ -583,17 +1278,64 @@
             "count": 10,
             "source": "simulated",
             "attestation": {
-              "at": "2026-11-11T08:40:00Z",
-              "count": 10,
-              "device": "dock-3-scanner",
               "po": "1042",
-              "publicKey": "cb7f72a5c9f648acf4b989d5868d1129374da140a206eba6304bc4a43a594edc",
-              "signature": "f865609233cb0e08fe2719ba641bc103547b77a825ad4f9e5b8ee4d26a0efb2a5b6a31b14480750583d0721e14bb5402af5a6267e71ebd8345ed859101dad406"
+              "agentId": "agent_fe8606f9c6dc60f3f1768ed9",
+              "count": 10,
+              "at": "2026-11-11T08:40:00Z",
+              "device": "dock-3-scanner",
+              "publicKey": "4508a07aa941707f3eb2db94c8897a80b2c1197476b6de213ac273df7d86c4ff",
+              "signature": "cde7e4bca76004f1e3ab98318df2b787276bb523d6aa62927e78e99c0856cd08eacb861815e8ccf8639a384c01be49e267644288de7a64214288bb66f8c3b107"
             }
           }
         },
         "idempotency_key": "ignored-by-module",
-        "received_qty": 10
+        "received_qty": 10,
+        "terms": {
+          "v": 1,
+          "po": "1042",
+          "termsVersion": 3,
+          "buyer": "Astro Robotics Inc. (test vector)",
+          "supplierId": "haoyun",
+          "supplierAddress": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+          "supplierChain": "base",
+          "part": "Actuator motor",
+          "quantity": 50,
+          "unitCents": 126000,
+          "totalCents": 6300000,
+          "priceChangeBps": 500,
+          "withinCeiling": true,
+          "currency": "USD",
+          "settlement": {
+            "asset": "test",
+            "chain": "base",
+            "scale": 1000,
+            "units": "0"
+          },
+          "rulesHash": "test-vector",
+          "approvalsRequired": 2
+        },
+        "approvals": [
+          {
+            "approver": "Luca",
+            "accountId": "luca-test.testnet",
+            "publicKey": "fa4834147f6e690c3693eff61336046403cd8ae2a14f31b3c407358569239565",
+            "digest": "f53c304e6ff50466fa81bbe9adb5114c4356a0cb971511bdd0b3d0cc5ebe3e01",
+            "nonce": "vec-nothing due: received worth less than released-l",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "scheme": "nep413",
+            "signature": "ead1c0ad29e0acd92812d4a58f637d7a8bc42ca05f36dd496f5a18fe65e920abd8b24ca0031f4b235f63d24744d3831178b8c484b198076984f228e4e24b3e0c"
+          },
+          {
+            "approver": "Jordan",
+            "publicKey": "197f6b23e16c8532c6abc838facd5ea789be0c76b2920334039bfa8b3d368d61",
+            "digest": "f53c304e6ff50466fa81bbe9adb5114c4356a0cb971511bdd0b3d0cc5ebe3e01",
+            "nonce": "vec-nothing due: received worth less than released-j",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "signature": "d06155da8b79f7ee7d4da1c259c5cb428d4cb170a3448428f3928db11e02a0a673df6388999166a59f17ea4eddab3324123f1105e8f1b91efdfdb120e36b2a04"
+          }
+        ]
       },
       "expect": {
         "ok": false,
@@ -626,17 +1368,64 @@
             "count": 44,
             "source": "simulated",
             "attestation": {
-              "at": "2026-11-11T08:40:00Z",
-              "count": 44,
-              "device": "dock-3-scanner",
               "po": "1042",
-              "publicKey": "cb7f72a5c9f648acf4b989d5868d1129374da140a206eba6304bc4a43a594edc",
-              "signature": "3cba3dbde61037b64500d4be89637a9226a576f506efc0ac1846251cda557c37f123a1b3bece8498f8593245128adece098d3ba7c0c7f15a0d1a9c2ffe16f70e"
+              "agentId": "agent_fe8606f9c6dc60f3f1768ed9",
+              "count": 44,
+              "at": "2026-11-11T08:40:00Z",
+              "device": "dock-3-scanner",
+              "publicKey": "4508a07aa941707f3eb2db94c8897a80b2c1197476b6de213ac273df7d86c4ff",
+              "signature": "63d5d5006db1fca13dff66c8f01135fdee4c889fb85a98b5cb69705d95347c2fe582cb9464388ece65889687b161b2ef34e2dc33b52fcabfa830911b6d537a05"
             }
           }
         },
         "idempotency_key": "ignored-by-module",
-        "received_qty": 44
+        "received_qty": 44,
+        "terms": {
+          "v": 1,
+          "po": "1042",
+          "termsVersion": 3,
+          "buyer": "Astro Robotics Inc. (test vector)",
+          "supplierId": "haoyun",
+          "supplierAddress": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+          "supplierChain": "base",
+          "part": "Actuator motor",
+          "quantity": 50,
+          "unitCents": 126000,
+          "totalCents": 6300000,
+          "priceChangeBps": 500,
+          "withinCeiling": true,
+          "currency": "USD",
+          "settlement": {
+            "asset": "test",
+            "chain": "base",
+            "scale": 1000,
+            "units": "0"
+          },
+          "rulesHash": "test-vector",
+          "approvalsRequired": 2
+        },
+        "approvals": [
+          {
+            "approver": "Luca",
+            "accountId": "luca-test.testnet",
+            "publicKey": "fa4834147f6e690c3693eff61336046403cd8ae2a14f31b3c407358569239565",
+            "digest": "f53c304e6ff50466fa81bbe9adb5114c4356a0cb971511bdd0b3d0cc5ebe3e01",
+            "nonce": "vec-balance already paid-l",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "scheme": "nep413",
+            "signature": "ce3d6e3923527f2978dd8569c8854a18dbd2cb4533aa2d983a5d10dba1384c4d18571f5a22811cb49445dab6f6d2413b019fdf92f27db61975f60ce3d35f8a0b"
+          },
+          {
+            "approver": "Jordan",
+            "publicKey": "197f6b23e16c8532c6abc838facd5ea789be0c76b2920334039bfa8b3d368d61",
+            "digest": "f53c304e6ff50466fa81bbe9adb5114c4356a0cb971511bdd0b3d0cc5ebe3e01",
+            "nonce": "vec-balance already paid-j",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "signature": "289863b8f67a54942e5295457e7567d63444bbf80f5d8ec2b948ff49084672349d70c3f2862a3a75b1ff35c9efd006db038e2ffaae521fcaf17095c330ba5a08"
+          }
+        ]
       },
       "expect": {
         "ok": false,
@@ -669,17 +1458,64 @@
             "count": 44,
             "source": "simulated",
             "attestation": {
-              "at": "2026-11-11T08:40:00Z",
-              "count": 44,
-              "device": "dock-3-scanner",
               "po": "1042",
-              "publicKey": "cb7f72a5c9f648acf4b989d5868d1129374da140a206eba6304bc4a43a594edc",
-              "signature": "3cba3dbde61037b64500d4be89637a9226a576f506efc0ac1846251cda557c37f123a1b3bece8498f8593245128adece098d3ba7c0c7f15a0d1a9c2ffe16f70e"
+              "agentId": "agent_fe8606f9c6dc60f3f1768ed9",
+              "count": 44,
+              "at": "2026-11-11T08:40:00Z",
+              "device": "dock-3-scanner",
+              "publicKey": "4508a07aa941707f3eb2db94c8897a80b2c1197476b6de213ac273df7d86c4ff",
+              "signature": "63d5d5006db1fca13dff66c8f01135fdee4c889fb85a98b5cb69705d95347c2fe582cb9464388ece65889687b161b2ef34e2dc33b52fcabfa830911b6d537a05"
             }
           }
         },
         "idempotency_key": "ignored-by-module",
-        "received_qty": 44
+        "received_qty": 44,
+        "terms": {
+          "v": 1,
+          "po": "1042",
+          "termsVersion": 3,
+          "buyer": "Astro Robotics Inc. (test vector)",
+          "supplierId": "haoyun",
+          "supplierAddress": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+          "supplierChain": "base",
+          "part": "Actuator motor",
+          "quantity": 50,
+          "unitCents": 126000,
+          "totalCents": 6300000,
+          "priceChangeBps": 500,
+          "withinCeiling": true,
+          "currency": "USD",
+          "settlement": {
+            "asset": "test",
+            "chain": "base",
+            "scale": 1000,
+            "units": "0"
+          },
+          "rulesHash": "test-vector",
+          "approvalsRequired": 2
+        },
+        "approvals": [
+          {
+            "approver": "Luca",
+            "accountId": "luca-test.testnet",
+            "publicKey": "fa4834147f6e690c3693eff61336046403cd8ae2a14f31b3c407358569239565",
+            "digest": "f53c304e6ff50466fa81bbe9adb5114c4356a0cb971511bdd0b3d0cc5ebe3e01",
+            "nonce": "vec-released above locked-l",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "scheme": "nep413",
+            "signature": "f152826c6751f5af3e361d1c602f89fcb2f8ff0f9e01e0b67358971cbcdbaabdbca8dce3917296c1f1e73296a9f9ec6451abdd3595f671557889169d76f1fb0a"
+          },
+          {
+            "approver": "Jordan",
+            "publicKey": "197f6b23e16c8532c6abc838facd5ea789be0c76b2920334039bfa8b3d368d61",
+            "digest": "f53c304e6ff50466fa81bbe9adb5114c4356a0cb971511bdd0b3d0cc5ebe3e01",
+            "nonce": "vec-released above locked-j",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "signature": "97cbbbf3ca2add4f2daea499c755ddc2bd9bf871a7e494d8beee33d59a9ab2c6e1df2bcb9aa84d2f5ab3822d088c9ac7b784329baf398d1fe3004562b0c4eb02"
+          }
+        ]
       },
       "expect": {
         "ok": false,
@@ -712,17 +1548,64 @@
             "count": 50,
             "source": "simulated",
             "attestation": {
-              "at": "2026-11-11T08:40:00Z",
-              "count": 50,
-              "device": "dock-3-scanner",
               "po": "1042",
-              "publicKey": "cb7f72a5c9f648acf4b989d5868d1129374da140a206eba6304bc4a43a594edc",
-              "signature": "8b2301217bc161517bba60f491584ac035b0064401145a07db3a5f9a82aefbe71527847f5c17bd20f68a9e044154ca3f291f57ef02361ced02895d2ded6ec806"
+              "agentId": "agent_fe8606f9c6dc60f3f1768ed9",
+              "count": 50,
+              "at": "2026-11-11T08:40:00Z",
+              "device": "dock-3-scanner",
+              "publicKey": "4508a07aa941707f3eb2db94c8897a80b2c1197476b6de213ac273df7d86c4ff",
+              "signature": "37d6b3fb69b93196be2a639eb4784cb2bcfa3cac5520820b27f99f437c20688be74772a7e9928a95b18e485cf6eb458c02d893bbbd65ecea7c4807d8d6ddb509"
             }
           }
         },
         "idempotency_key": "ignored-by-module",
-        "received_qty": 50
+        "received_qty": 50,
+        "terms": {
+          "v": 1,
+          "po": "1042",
+          "termsVersion": 3,
+          "buyer": "Astro Robotics Inc. (test vector)",
+          "supplierId": "haoyun",
+          "supplierAddress": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+          "supplierChain": "base",
+          "part": "Actuator motor",
+          "quantity": 50,
+          "unitCents": 126000,
+          "totalCents": 6300000,
+          "priceChangeBps": 500,
+          "withinCeiling": true,
+          "currency": "USD",
+          "settlement": {
+            "asset": "test",
+            "chain": "base",
+            "scale": 1000,
+            "units": "0"
+          },
+          "rulesHash": "test-vector",
+          "approvalsRequired": 2
+        },
+        "approvals": [
+          {
+            "approver": "Luca",
+            "accountId": "luca-test.testnet",
+            "publicKey": "fa4834147f6e690c3693eff61336046403cd8ae2a14f31b3c407358569239565",
+            "digest": "f53c304e6ff50466fa81bbe9adb5114c4356a0cb971511bdd0b3d0cc5ebe3e01",
+            "nonce": "vec-balance with no advance pays the full order, never above locked-l",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "scheme": "nep413",
+            "signature": "18e00985546a8bb4dbd2f3c88a738bade485a4f92efdf2f05cecab1a29934affa0bf4fe773fbc925fe409896911227bb8c0133466b8885a32fb3bc805850190d"
+          },
+          {
+            "approver": "Jordan",
+            "publicKey": "197f6b23e16c8532c6abc838facd5ea789be0c76b2920334039bfa8b3d368d61",
+            "digest": "f53c304e6ff50466fa81bbe9adb5114c4356a0cb971511bdd0b3d0cc5ebe3e01",
+            "nonce": "vec-balance with no advance pays the full order, never above locked-j",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "signature": "79af2ef21c5127d7ba3cbec7a085b612e59db44b04deda25c577e3b73ae4bf7697d1724066559b2f5e0bf0d35f1afa892ec13eed0b8d41455121e3ffd0fbfb07"
+          }
+        ]
       },
       "expect": {
         "ok": true,
@@ -760,7 +1643,53 @@
             "source": "simulated"
           }
         },
-        "idempotency_key": "ignored-by-module"
+        "idempotency_key": "ignored-by-module",
+        "terms": {
+          "v": 1,
+          "po": "1042",
+          "termsVersion": 3,
+          "buyer": "Astro Robotics Inc. (test vector)",
+          "supplierId": "haoyun",
+          "supplierAddress": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+          "supplierChain": "base",
+          "part": "Actuator motor",
+          "quantity": 50,
+          "unitCents": 126000,
+          "totalCents": 9999999,
+          "priceChangeBps": 500,
+          "withinCeiling": true,
+          "currency": "USD",
+          "settlement": {
+            "asset": "test",
+            "chain": "base",
+            "scale": 1000,
+            "units": "0"
+          },
+          "rulesHash": "test-vector",
+          "approvalsRequired": 2
+        },
+        "approvals": [
+          {
+            "approver": "Luca",
+            "accountId": "luca-test.testnet",
+            "publicKey": "fa4834147f6e690c3693eff61336046403cd8ae2a14f31b3c407358569239565",
+            "digest": "2cfb51ee8f206a5d1bc351de40cfbd968c8b9286e8fe8c7574fbf8e7bb4c46ad",
+            "nonce": "vec-locked is not ordered x unit-l",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "scheme": "nep413",
+            "signature": "0749b3880487ca86f8a60edfe595a1dd82198374bfe195bf10fe215549646d7bd193759e06f479136e226e1f09477de9e8d503075da3e525537abf5e83ffbf09"
+          },
+          {
+            "approver": "Jordan",
+            "publicKey": "197f6b23e16c8532c6abc838facd5ea789be0c76b2920334039bfa8b3d368d61",
+            "digest": "2cfb51ee8f206a5d1bc351de40cfbd968c8b9286e8fe8c7574fbf8e7bb4c46ad",
+            "nonce": "vec-locked is not ordered x unit-j",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "signature": "08d4038dd19c662fcb8b0afa13bc9ae34a8f78a86e055f836c1374c5da39f8701309f8ee46f8404d6772e1b0ea6d5323c90661e958431995d8df06502b491e04"
+          }
+        ]
       },
       "expect": {
         "ok": false,
@@ -793,7 +1722,53 @@
             "source": "simulated"
           }
         },
-        "idempotency_key": "ignored-by-module"
+        "idempotency_key": "ignored-by-module",
+        "terms": {
+          "v": 1,
+          "po": "1042",
+          "termsVersion": 3,
+          "buyer": "Astro Robotics Inc. (test vector)",
+          "supplierId": "haoyun",
+          "supplierAddress": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+          "supplierChain": "base",
+          "part": "Actuator motor",
+          "quantity": 1,
+          "unitCents": 3333,
+          "totalCents": 3333,
+          "priceChangeBps": 500,
+          "withinCeiling": true,
+          "currency": "USD",
+          "settlement": {
+            "asset": "test",
+            "chain": "base",
+            "scale": 1000,
+            "units": "0"
+          },
+          "rulesHash": "test-vector",
+          "approvalsRequired": 2
+        },
+        "approvals": [
+          {
+            "approver": "Luca",
+            "accountId": "luca-test.testnet",
+            "publicKey": "fa4834147f6e690c3693eff61336046403cd8ae2a14f31b3c407358569239565",
+            "digest": "5808a12c22217ecefe7b6c7be3b4dd8190a998a1a630c2fd84e7062a765bbff0",
+            "nonce": "vec-30 percent not exact to the cent-l",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "scheme": "nep413",
+            "signature": "dec5aeb5eed51ccde59ae8fe397ba091ca254c6c4e58d7ba9f22120dce2ae975de684032db1648ee04907a707896d436f6bfd3fbf2d4b09ce93685906e05d807"
+          },
+          {
+            "approver": "Jordan",
+            "publicKey": "197f6b23e16c8532c6abc838facd5ea789be0c76b2920334039bfa8b3d368d61",
+            "digest": "5808a12c22217ecefe7b6c7be3b4dd8190a998a1a630c2fd84e7062a765bbff0",
+            "nonce": "vec-30 percent not exact to the cent-j",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "signature": "a2d309fadc2f5a92948204c147377c0606ffcc0efea7812e5d192be136ee8e3ff43495bbd7d0fb2e7dc67286cd0e02466cc70f31c48e44a7599a1459e643480d"
+          }
+        ]
       },
       "expect": {
         "ok": false,
@@ -826,7 +1801,53 @@
             "source": "simulated"
           }
         },
-        "idempotency_key": "ignored-by-module"
+        "idempotency_key": "ignored-by-module",
+        "terms": {
+          "v": 1,
+          "po": "1042",
+          "termsVersion": 3,
+          "buyer": "Astro Robotics Inc. (test vector)",
+          "supplierId": "haoyun",
+          "supplierAddress": "0xdead",
+          "supplierChain": "base",
+          "part": "Actuator motor",
+          "quantity": 50,
+          "unitCents": 126000,
+          "totalCents": 6300000,
+          "priceChangeBps": 500,
+          "withinCeiling": true,
+          "currency": "USD",
+          "settlement": {
+            "asset": "test",
+            "chain": "base",
+            "scale": 1000,
+            "units": "0"
+          },
+          "rulesHash": "test-vector",
+          "approvalsRequired": 2
+        },
+        "approvals": [
+          {
+            "approver": "Luca",
+            "accountId": "luca-test.testnet",
+            "publicKey": "fa4834147f6e690c3693eff61336046403cd8ae2a14f31b3c407358569239565",
+            "digest": "79048fbede5f928f4fcaad80bf8c116e5b1dee71e7c7df5160c51a76ce701d78",
+            "nonce": "vec-bad recipient-l",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "scheme": "nep413",
+            "signature": "6ece85457605ed5f71261052c9ad34b5b1cc6a4936213a7fb7629a1a2671e10f4f8e09e20baa751f6d839e2ed229345fb35c668bff6c4b5f1705b0a2c5eaa60f"
+          },
+          {
+            "approver": "Jordan",
+            "publicKey": "197f6b23e16c8532c6abc838facd5ea789be0c76b2920334039bfa8b3d368d61",
+            "digest": "79048fbede5f928f4fcaad80bf8c116e5b1dee71e7c7df5160c51a76ce701d78",
+            "nonce": "vec-bad recipient-j",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "signature": "ef0623943339442ade61d31ba8cb53b6f417f8cf5bc57e8572f59934455cdaddd96b9fa812110fbded14058a5ab867b19f5bfe055b303402ffa2b22018fa8205"
+          }
+        ]
       },
       "expect": {
         "ok": false,
@@ -859,7 +1880,53 @@
             "source": "simulated"
           }
         },
-        "idempotency_key": "ignored-by-module"
+        "idempotency_key": "ignored-by-module",
+        "terms": {
+          "v": 1,
+          "po": "1042",
+          "termsVersion": 3,
+          "buyer": "Astro Robotics Inc. (test vector)",
+          "supplierId": "haoyun",
+          "supplierAddress": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+          "supplierChain": "base",
+          "part": "Actuator motor",
+          "quantity": 50,
+          "unitCents": 126000,
+          "totalCents": 6300000,
+          "priceChangeBps": 500,
+          "withinCeiling": true,
+          "currency": "USD",
+          "settlement": {
+            "asset": "test",
+            "chain": "base",
+            "scale": 1000,
+            "units": "0"
+          },
+          "rulesHash": "test-vector",
+          "approvalsRequired": 2
+        },
+        "approvals": [
+          {
+            "approver": "Luca",
+            "accountId": "luca-test.testnet",
+            "publicKey": "fa4834147f6e690c3693eff61336046403cd8ae2a14f31b3c407358569239565",
+            "digest": "f53c304e6ff50466fa81bbe9adb5114c4356a0cb971511bdd0b3d0cc5ebe3e01",
+            "nonce": "vec-percent over 100-l",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "scheme": "nep413",
+            "signature": "db517fa7a662546a226ec91dd35ced423edfbb8f848c611103a78cf09650cf9d1581d8cc74c5abd6c4fd2843ed9ad512683f4486930fb9a92130e48045ff0208"
+          },
+          {
+            "approver": "Jordan",
+            "publicKey": "197f6b23e16c8532c6abc838facd5ea789be0c76b2920334039bfa8b3d368d61",
+            "digest": "f53c304e6ff50466fa81bbe9adb5114c4356a0cb971511bdd0b3d0cc5ebe3e01",
+            "nonce": "vec-percent over 100-j",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "signature": "d2af223e9d0ebddb2bdf99b72af638c69d80f3e521bb1277d694dc401aae3024ecae8a637af51e4fbc05cc3316a6ae86909855f7a6f85f8fc4c8d53be57e760c"
+          }
+        ]
       },
       "expect": {
         "ok": false,
@@ -892,16 +1959,63 @@
             "count": 44,
             "source": "simulated",
             "attestation": {
-              "at": "2026-11-11T08:40:00Z",
-              "count": 44,
-              "device": "dock-3-scanner",
               "po": "1042",
-              "publicKey": "cb7f72a5c9f648acf4b989d5868d1129374da140a206eba6304bc4a43a594edc",
-              "signature": "3cba3dbde61037b64500d4be89637a9226a576f506efc0ac1846251cda557c37f123a1b3bece8498f8593245128adece098d3ba7c0c7f15a0d1a9c2ffe16f70e"
+              "agentId": "agent_fe8606f9c6dc60f3f1768ed9",
+              "count": 44,
+              "at": "2026-11-11T08:40:00Z",
+              "device": "dock-3-scanner",
+              "publicKey": "4508a07aa941707f3eb2db94c8897a80b2c1197476b6de213ac273df7d86c4ff",
+              "signature": "63d5d5006db1fca13dff66c8f01135fdee4c889fb85a98b5cb69705d95347c2fe582cb9464388ece65889687b161b2ef34e2dc33b52fcabfa830911b6d537a05"
             }
           }
         },
-        "idempotency_key": "ignored-by-module"
+        "idempotency_key": "ignored-by-module",
+        "terms": {
+          "v": 1,
+          "po": "1042",
+          "termsVersion": 3,
+          "buyer": "Astro Robotics Inc. (test vector)",
+          "supplierId": "haoyun",
+          "supplierAddress": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+          "supplierChain": "base",
+          "part": "Actuator motor",
+          "quantity": 50,
+          "unitCents": 126000,
+          "totalCents": 6300000,
+          "priceChangeBps": 500,
+          "withinCeiling": true,
+          "currency": "USD",
+          "settlement": {
+            "asset": "test",
+            "chain": "base",
+            "scale": 1000,
+            "units": "0"
+          },
+          "rulesHash": "test-vector",
+          "approvalsRequired": 2
+        },
+        "approvals": [
+          {
+            "approver": "Luca",
+            "accountId": "luca-test.testnet",
+            "publicKey": "fa4834147f6e690c3693eff61336046403cd8ae2a14f31b3c407358569239565",
+            "digest": "f53c304e6ff50466fa81bbe9adb5114c4356a0cb971511bdd0b3d0cc5ebe3e01",
+            "nonce": "vec-balance without received_qty-l",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "scheme": "nep413",
+            "signature": "423650b62e6a563e05479ed3ac73a4e3086c5c7e458f99ec1fddf0a35fde4043da810d9c4ec16f5e5d3273239dd310da9b8ecf0e4ceabccd5f4b5f6173c43e0b"
+          },
+          {
+            "approver": "Jordan",
+            "publicKey": "197f6b23e16c8532c6abc838facd5ea789be0c76b2920334039bfa8b3d368d61",
+            "digest": "f53c304e6ff50466fa81bbe9adb5114c4356a0cb971511bdd0b3d0cc5ebe3e01",
+            "nonce": "vec-balance without received_qty-j",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "signature": "d842844dee9f667e8c4e7dd46c4a60eedd68217812251159a488fd0b6fe34a5f1e1b3e385cc2a4f0f61bca278e2a3130eee7cf422d85279bd2c196332a027602"
+          }
+        ]
       },
       "expect": {
         "ok": false,
@@ -934,7 +2048,53 @@
             "source": "simulated"
           }
         },
-        "idempotency_key": "ignored-by-module"
+        "idempotency_key": "ignored-by-module",
+        "terms": {
+          "v": 1,
+          "po": "1042",
+          "termsVersion": 3,
+          "buyer": "Astro Robotics Inc. (test vector)",
+          "supplierId": "haoyun",
+          "supplierAddress": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+          "supplierChain": "base",
+          "part": "Actuator motor",
+          "quantity": 50,
+          "unitCents": 126000,
+          "totalCents": 6300000,
+          "priceChangeBps": 500,
+          "withinCeiling": true,
+          "currency": "USD",
+          "settlement": {
+            "asset": "test",
+            "chain": "base",
+            "scale": 1000,
+            "units": "0"
+          },
+          "rulesHash": "test-vector",
+          "approvalsRequired": 2
+        },
+        "approvals": [
+          {
+            "approver": "Luca",
+            "accountId": "luca-test.testnet",
+            "publicKey": "fa4834147f6e690c3693eff61336046403cd8ae2a14f31b3c407358569239565",
+            "digest": "f53c304e6ff50466fa81bbe9adb5114c4356a0cb971511bdd0b3d0cc5ebe3e01",
+            "nonce": "vec-unknown stage-l",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "scheme": "nep413",
+            "signature": "47c3545cfc40ce5bdcab378a0bd1faddf6add0acfba4ba08fc71a98cbac9d3c93c8e72f8f0749f16dac86f060a3613e12d638b7382607ca0f189ec27dad15b0e"
+          },
+          {
+            "approver": "Jordan",
+            "publicKey": "197f6b23e16c8532c6abc838facd5ea789be0c76b2920334039bfa8b3d368d61",
+            "digest": "f53c304e6ff50466fa81bbe9adb5114c4356a0cb971511bdd0b3d0cc5ebe3e01",
+            "nonce": "vec-unknown stage-j",
+            "issuedAt": 1800000000000,
+            "expiresAt": 1800003600000,
+            "signature": "e85d6c071d747434c2a271a71bee6ad900728afd65624f97f47f4905e1282e0b9ef0358a1cabeecfa6ff5730f461a463ae719d14a9779ccdf5d26fd7af75030c"
+          }
+        ]
       },
       "expect": {
         "ok": false,

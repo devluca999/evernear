@@ -175,3 +175,15 @@ export const checkApproverKeys = action({
     return out;
   },
 });
+
+/** The commit terms and the approvals a run consumed, for the release gate (v4 re-checks them in the enclave). */
+export const forRun = internalQuery({
+  args: { runId: v.id("liveRuns"), po: v.string(), supplierAddress: v.string(), quantity: v.number(), unitCents: v.number() },
+  handler: async (ctx, a) => {
+    const t = commitTerms(a);
+    if (!t) return null;
+    const digest = termsDigest(t);
+    const rows = (await ctx.db.query("commitApprovals").withIndex("by_run", (q) => q.eq("runId", a.runId)).collect()).filter((r) => r.status === "consumed" && r.digest === digest);
+    return { terms: t as unknown as Record<string, unknown>, approvals: rows.map(({ approver, publicKey, digest: d, nonce, issuedAt, expiresAt, signature, accountId, scheme }) => ({ approver, publicKey, digest: d, nonce, issuedAt, expiresAt, signature, ...(accountId ? { accountId } : {}), ...(scheme ? { scheme } : {}) })) };
+  },
+});

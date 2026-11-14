@@ -1,6 +1,6 @@
 {
   "generatedBy": "scripts/verify-proofs.mjs",
-  "checkedAt": "2026-11-14T03:07:32.205Z",
+  "checkedAt": "2026-11-14T03:35:20.168Z",
   "source": {
     "fixture": "fixtures/recorded/live-run.json",
     "runId": "jn758qn2qd645qnmvxj4h88e1h8hshee",
@@ -42,7 +42,7 @@
       "explorerUrl": null,
       "verification": {
         "method": "none available: Tidepool submit-intent id with no on-chain transaction (transaction_hash null in the recorded response)",
-        "checkedAt": "2026-11-14T03:07:32.205Z",
+        "checkedAt": "2026-11-14T03:35:20.168Z",
         "status": "not-independently-verifiable",
         "details": {
           "recordedStatus": "SUCCESS",
@@ -70,7 +70,7 @@
       "explorerUrl": null,
       "verification": {
         "method": "NEAR testnet RPC https://archival-rpc.testnet.near.org: tx (sender evernear-luca.testnet, from the recorded row), receipts and EVENT_JSON logs read",
-        "checkedAt": "2026-11-14T03:07:32.205Z",
+        "checkedAt": "2026-11-14T03:35:20.168Z",
         "status": "verified",
         "details": {
           "rpc": "https://archival-rpc.testnet.near.org",
@@ -120,7 +120,7 @@
       "explorerUrl": null,
       "verification": {
         "method": "none available: Tidepool submit-intent id with no on-chain transaction (transaction_hash null in the recorded response)",
-        "checkedAt": "2026-11-14T03:07:32.205Z",
+        "checkedAt": "2026-11-14T03:35:20.168Z",
         "status": "not-independently-verifiable",
         "details": {
           "recordedStatus": "SUCCESS",
@@ -148,7 +148,7 @@
       "explorerUrl": "https://testnet.nearblocks.io/txns/8JLEFyqqrgoPuWx3VxUYWeMVBfFxu6sQFP4mGgVfHRaf",
       "verification": {
         "method": "NEAR testnet RPC https://archival-rpc.testnet.near.org: tx (sender maker.tidepool-sandbox.testnet, from nearblocks), receipts and EVENT_JSON logs read",
-        "checkedAt": "2026-11-14T03:07:32.205Z",
+        "checkedAt": "2026-11-14T03:35:20.168Z",
         "status": "verified",
         "details": {
           "rpc": "https://archival-rpc.testnet.near.org",
@@ -248,7 +248,7 @@
       "explorerUrl": "https://testnet.nearblocks.io/txns/366nhBeJvx6Ch7kpx2ZR8ZchQvBDrxVhtPFe8J62ynC1",
       "verification": {
         "method": "NEAR testnet RPC https://archival-rpc.testnet.near.org: tx (sender maker.tidepool-sandbox.testnet, from nearblocks), receipts and EVENT_JSON logs read",
-        "checkedAt": "2026-11-14T03:07:32.205Z",
+        "checkedAt": "2026-11-14T03:35:20.168Z",
         "status": "verified",
         "details": {
           "rpc": "https://archival-rpc.testnet.near.org",
@@ -329,7 +329,7 @@
       "explorerUrl": null,
       "verification": {
         "method": "none: simulated carrier/customs/dock feed, not on any chain",
-        "checkedAt": "2026-11-14T03:07:32.205Z",
+        "checkedAt": "2026-11-14T03:35:20.168Z",
         "status": "simulated",
         "details": {
           "recorded": {
@@ -362,7 +362,7 @@
       "explorerUrl": null,
       "verification": {
         "method": "none: simulated carrier/customs/dock feed, not on any chain",
-        "checkedAt": "2026-11-14T03:07:32.205Z",
+        "checkedAt": "2026-11-14T03:35:20.168Z",
         "status": "simulated",
         "details": {
           "recorded": {
@@ -398,7 +398,7 @@
       "explorerUrl": "https://sepolia.basescan.org/tx/0x5d8dab61c8c5cffd8339041ec581d8b23faffc3fc1f291a914e170511935973b",
       "verification": {
         "method": "Base Sepolia JSON-RPC https://sepolia.base.org: eth_getTransactionReceipt + eth_getTransactionByHash, ERC-20 Transfer logs decoded",
-        "checkedAt": "2026-11-14T03:07:32.205Z",
+        "checkedAt": "2026-11-14T03:35:20.168Z",
         "status": "verified",
         "details": {
           "rpc": "https://sepolia.base.org",
@@ -444,7 +444,7 @@
           "explorerUrl": "https://testnet.nearblocks.io/txns/6qWRaBGAHNsk5N85HFxAoQHqPt7ok1rtpTza3fqj6nDr",
           "verification": {
             "method": "NEAR testnet RPC https://archival-rpc.testnet.near.org: tx (sender maker.tidepool-sandbox.testnet, from nearblocks), receipts and EVENT_JSON logs read",
-            "checkedAt": "2026-11-14T03:07:32.205Z",
+            "checkedAt": "2026-11-14T03:35:20.168Z",
             "status": "verified",
             "sender": "maker.tidepool-sandbox.testnet",
             "recipient": "verifier.tidepool-sandbox.testnet",
@@ -516,7 +516,7 @@
           "explorerUrl": "https://testnet.nearblocks.io/txns/3fQzuEroAQyrmeMhBbpirQ97JH7ML2DCNVmMxX7T6XLV",
           "verification": {
             "method": "NEAR testnet RPC https://archival-rpc.testnet.near.org: tx (sender evernear-luca.testnet, from the recorded row), receipts and EVENT_JSON logs read",
-            "checkedAt": "2026-11-14T03:07:32.205Z",
+            "checkedAt": "2026-11-14T03:35:20.168Z",
             "status": "verified",
             "sender": "evernear-luca.testnet",
             "recipient": "outlayer.testnet",
@@ -566,7 +566,7 @@
       "explorerUrl": null,
       "verification": {
         "method": "none: simulated carrier/customs/dock feed, not on any chain",
-        "checkedAt": "2026-11-14T03:07:32.205Z",
+        "checkedAt": "2026-11-14T03:35:20.168Z",
         "status": "simulated",
         "details": {
           "recorded": {
@@ -599,7 +599,7 @@
       "explorerUrl": null,
       "verification": {
         "method": "none: simulated carrier/customs/dock feed, not on any chain",
-        "checkedAt": "2026-11-14T03:07:32.205Z",
+        "checkedAt": "2026-11-14T03:35:20.168Z",
         "status": "simulated",
         "details": {
           "recorded": {
@@ -635,7 +635,7 @@
       "explorerUrl": null,
       "verification": {
         "method": "none: a refusal produces no transaction",
-        "checkedAt": "2026-11-14T03:07:32.205Z",
+        "checkedAt": "2026-11-14T03:35:20.168Z",
         "status": "no-tx",
         "details": {
           "recorded": {
@@ -670,7 +670,7 @@
       "explorerUrl": null,
       "verification": {
         "method": "none: a refusal produces no transaction",
-        "checkedAt": "2026-11-14T03:07:32.205Z",
+        "checkedAt": "2026-11-14T03:35:20.168Z",
         "status": "no-tx",
         "details": {
           "recorded": {
@@ -707,7 +707,7 @@
       "explorerUrl": null,
       "verification": {
         "method": "none: simulated carrier/customs/dock feed, not on any chain",
-        "checkedAt": "2026-11-14T03:07:32.205Z",
+        "checkedAt": "2026-11-14T03:35:20.168Z",
         "status": "simulated",
         "details": {
           "recorded": {
@@ -740,7 +740,7 @@
       "explorerUrl": null,
       "verification": {
         "method": "none: simulated carrier/customs/dock feed, not on any chain",
-        "checkedAt": "2026-11-14T03:07:32.205Z",
+        "checkedAt": "2026-11-14T03:35:20.168Z",
         "status": "simulated",
         "details": {
           "recorded": {
@@ -776,7 +776,7 @@
       "explorerUrl": "https://sepolia.basescan.org/tx/0x0fcba0506d7873c2fa9065d74309f703d349df3beb37c299c63a8e8536cd6045",
       "verification": {
         "method": "Base Sepolia JSON-RPC https://sepolia.base.org: eth_getTransactionReceipt + eth_getTransactionByHash, ERC-20 Transfer logs decoded",
-        "checkedAt": "2026-11-14T03:07:32.205Z",
+        "checkedAt": "2026-11-14T03:35:20.168Z",
         "status": "verified",
         "details": {
           "rpc": "https://sepolia.base.org",
@@ -822,7 +822,7 @@
           "explorerUrl": "https://testnet.nearblocks.io/txns/GJotyDGtSZbTBpyKTKREXgYLJ7u5H2BkDHmVf5zfCWis",
           "verification": {
             "method": "NEAR testnet RPC https://archival-rpc.testnet.near.org: tx (sender maker.tidepool-sandbox.testnet, from nearblocks), receipts and EVENT_JSON logs read",
-            "checkedAt": "2026-11-14T03:07:32.205Z",
+            "checkedAt": "2026-11-14T03:35:20.168Z",
             "status": "verified",
             "sender": "maker.tidepool-sandbox.testnet",
             "recipient": "verifier.tidepool-sandbox.testnet",
@@ -894,7 +894,7 @@
           "explorerUrl": "https://testnet.nearblocks.io/txns/9d8vrp3xstjBjcbpMmoMtnhwT73v8nHj5Wyo8m12AHTm",
           "verification": {
             "method": "NEAR testnet RPC https://archival-rpc.testnet.near.org: tx (sender evernear-luca.testnet, from the recorded row), receipts and EVENT_JSON logs read",
-            "checkedAt": "2026-11-14T03:07:32.205Z",
+            "checkedAt": "2026-11-14T03:35:20.168Z",
             "status": "verified",
             "sender": "evernear-luca.testnet",
             "recipient": "outlayer.testnet",
@@ -944,7 +944,7 @@
       "explorerUrl": null,
       "verification": {
         "method": "none available: Tidepool submit-intent id with no on-chain transaction (transaction_hash null in the recorded response)",
-        "checkedAt": "2026-11-14T03:07:32.205Z",
+        "checkedAt": "2026-11-14T03:35:20.168Z",
         "status": "not-independently-verifiable",
         "details": {
           "recordedStatus": "SUCCESS",
@@ -972,7 +972,7 @@
       "explorerUrl": null,
       "verification": {
         "method": "none available: Tidepool submit-intent id with no on-chain transaction (transaction_hash null in the recorded response)",
-        "checkedAt": "2026-11-14T03:07:32.205Z",
+        "checkedAt": "2026-11-14T03:35:20.168Z",
         "status": "not-independently-verifiable",
         "details": {
           "recordedStatus": "SUCCESS",
@@ -1003,7 +1003,7 @@
       "explorerUrl": "https://testnet.nearblocks.io/txns/4rrfjsTZxqEf2dcrSVFVUYfqfKjZddS576jrZyuxvdEM",
       "verification": {
         "method": "NEAR testnet RPC https://archival-rpc.testnet.near.org: tx (sender maker.tidepool-sandbox.testnet, from nearblocks), receipts and EVENT_JSON logs read",
-        "checkedAt": "2026-11-14T03:07:32.205Z",
+        "checkedAt": "2026-11-14T03:35:20.168Z",
         "status": "verified",
         "details": {
           "rpc": "https://archival-rpc.testnet.near.org",
@@ -1084,7 +1084,7 @@
       "explorerUrl": null,
       "verification": {
         "method": "none available: Tidepool submit-intent id with no on-chain transaction (transaction_hash null in the recorded response)",
-        "checkedAt": "2026-11-14T03:07:32.205Z",
+        "checkedAt": "2026-11-14T03:35:20.168Z",
         "status": "not-independently-verifiable",
         "details": {
           "recordedStatus": "SUCCESS",
@@ -1112,7 +1112,7 @@
       "explorerUrl": null,
       "verification": {
         "method": "none available: Tidepool submit-intent id with no on-chain transaction (transaction_hash null in the recorded response)",
-        "checkedAt": "2026-11-14T03:07:32.205Z",
+        "checkedAt": "2026-11-14T03:35:20.168Z",
         "status": "not-independently-verifiable",
         "details": {
           "recordedStatus": "SUCCESS",
@@ -1140,7 +1140,7 @@
       "explorerUrl": null,
       "verification": {
         "method": "none available: Tidepool submit-intent id with no on-chain transaction (transaction_hash null in the recorded response)",
-        "checkedAt": "2026-11-14T03:07:32.205Z",
+        "checkedAt": "2026-11-14T03:35:20.168Z",
         "status": "not-independently-verifiable",
         "details": {
           "recordedStatus": "SUCCESS",
@@ -1168,7 +1168,7 @@
       "explorerUrl": null,
       "verification": {
         "method": "none available: Tidepool submit-intent id with no on-chain transaction (transaction_hash null in the recorded response)",
-        "checkedAt": "2026-11-14T03:07:32.205Z",
+        "checkedAt": "2026-11-14T03:35:20.168Z",
         "status": "not-independently-verifiable",
         "details": {
           "recordedStatus": null,
@@ -1205,7 +1205,7 @@
         "explorerUrl": "https://testnet.nearblocks.io/txns/J8f6eQ9QqHu3KUdNNEfXtpPuzCKCXaJd4jbvxobyrEDy",
         "verification": {
           "method": "NEAR testnet RPC https://archival-rpc.testnet.near.org: tx (sender maker.tidepool-sandbox.testnet, from nearblocks), receipts and EVENT_JSON logs read",
-          "checkedAt": "2026-11-14T03:07:32.205Z",
+          "checkedAt": "2026-11-14T03:35:20.168Z",
           "status": "verified",
           "details": {
             "rpc": "https://archival-rpc.testnet.near.org",
@@ -1300,7 +1300,7 @@
         "explorerUrl": null,
         "verification": {
           "method": "This is an Intents intent hash, not a NEAR transaction hash; the notes record no NEAR tx hash for the lock. Not looked up as a tx.",
-          "checkedAt": "2026-11-14T03:07:32.205Z",
+          "checkedAt": "2026-11-14T03:35:20.168Z",
           "status": "not-independently-verifiable",
           "details": {
             "recordedIn": "docs/NOTES.md section 14, \"Live probe of our PO path, Nov 5 2026\""
@@ -1321,7 +1321,7 @@
         "explorerUrl": null,
         "verification": {
           "method": "none: recorded in project notes, no tx (synchronous 403); not independently verifiable",
-          "checkedAt": "2026-11-14T03:07:32.205Z",
+          "checkedAt": "2026-11-14T03:35:20.168Z",
           "status": "no-tx",
           "details": {
             "recordedIn": "docs/NOTES.md section 14, \"Live probe of our PO path, Nov 5 2026\"",
@@ -1347,7 +1347,7 @@
         "explorerUrl": "https://sepolia.basescan.org/tx/0x34da89551ea6036bc288b1726bbeb049a787a5f0adfd5079e7748f46cde206d7",
         "verification": {
           "method": "Base Sepolia JSON-RPC https://sepolia.base.org: eth_getTransactionReceipt + eth_getTransactionByHash, ERC-20 Transfer logs decoded",
-          "checkedAt": "2026-11-14T03:07:32.205Z",
+          "checkedAt": "2026-11-14T03:35:20.168Z",
           "status": "verified",
           "details": {
             "rpc": "https://sepolia.base.org",
@@ -1400,7 +1400,7 @@
         "explorerUrl": "https://testnet.nearblocks.io/txns/PjeJk6tLYS7woEAykkYa1HgfPVruEhAHAbmsZQTHu9B",
         "verification": {
           "method": "NEAR testnet RPC https://archival-rpc.testnet.near.org: tx (sender maker.tidepool-sandbox.testnet, from nearblocks), receipts and EVENT_JSON logs read",
-          "checkedAt": "2026-11-14T03:07:32.205Z",
+          "checkedAt": "2026-11-14T03:35:20.168Z",
           "status": "verified",
           "details": {
             "rpc": "https://archival-rpc.testnet.near.org",
@@ -1481,7 +1481,7 @@
         "explorerUrl": null,
         "verification": {
           "method": "none: the notes record SUCCESS but no tx hash",
-          "checkedAt": "2026-11-14T03:07:32.205Z",
+          "checkedAt": "2026-11-14T03:35:20.168Z",
           "status": "no-hash-recorded",
           "details": {
             "recordedIn": "docs/NOTES.md section 14, \"Live probe of our PO path, Nov 5 2026\""

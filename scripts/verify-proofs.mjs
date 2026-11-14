@@ -374,6 +374,12 @@ async function main() {
   await writeFile(OUT, JSON.stringify(out, null, 2) + "\n");
   console.log(`\nreconciliation: ${JSON.stringify(reconciliation)}`);
   console.log(`wrote ${OUT}`);
+  // Fail loudly: any recorded tx that read back different from the record, or money that does not reconcile.
+  const bad = entries.filter((e) => ["mismatch", "failed-on-chain"].includes(e.verification?.status));
+  if (bad.length || reconciliation.reconciles !== true) {
+    console.error(`VERIFY FAILED: ${bad.length} mismatched entries; reconciles=${reconciliation.reconciles}`);
+    process.exitCode = 1;
+  } else console.log("verify passed: every checkable tx matches its record and the money reconciles");
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });

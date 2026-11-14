@@ -1,0 +1,1495 @@
+{
+  "generatedBy": "scripts/verify-proofs.mjs",
+  "checkedAt": "2026-11-14T03:07:32.205Z",
+  "source": {
+    "fixture": "fixtures/recorded/live-run.json",
+    "runId": "jn758qn2qd645qnmvxj4h88e1h8hshee",
+    "deployment": "cheerful-rabbit-364",
+    "releasePath": "gate",
+    "startedAt": "2026-11-07T01:20:44.871Z"
+  },
+  "scale": "1:1,000; 6-decimal test USDC; raw units = commercial cents x 10",
+  "supplier": {
+    "id": "haoyun",
+    "receiveAddress": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+    "source": "seed/astro.ts"
+  },
+  "reconciliation": {
+    "commitRaw": "63000000",
+    "advanceRaw": "18900000",
+    "balanceRaw": "36540000",
+    "reclaimRaw": "7560000",
+    "sumOutRaw": "63000000",
+    "reconciles": true,
+    "note": "Amounts read from chain: commit and reclaim from NEAR testnet Intents events, advance and balance from Base Sepolia ERC-20 Transfer logs. null means that leg did not verify."
+  },
+  "entries": [
+    {
+      "label": "PO 1042 account: pays only the supplier or Astro, at most $63.00 (1:1,000 of $63,000.00)",
+      "stage": "commit-setup",
+      "kind": "policy",
+      "businessMeaning": "Open the PO 1042 escrow account on Tidepool with a policy: pay only the supplier or Astro, at most the PO total per transaction.",
+      "commercialCents": 6300000,
+      "commercialUsd": "63000.00",
+      "testnetUnits": {
+        "raw": "63000000",
+        "amount": "63.000000"
+      },
+      "network": "Tidepool (community-run testnet of the NEAR Intents Agent API)",
+      "sender": null,
+      "recipient": "agent_9ab195d10797557d177ca925",
+      "txId": "intent_d928c19645dd2164be722dab",
+      "explorerUrl": null,
+      "verification": {
+        "method": "none available: Tidepool submit-intent id with no on-chain transaction (transaction_hash null in the recorded response)",
+        "checkedAt": "2026-11-14T03:07:32.205Z",
+        "status": "not-independently-verifiable",
+        "details": {
+          "recordedStatus": "SUCCESS",
+          "type": "agent_create",
+          "transaction_hash": null
+        }
+      },
+      "codePath": "convex/near/escrow.ts#open",
+      "call": "POST /v1/submit-intent agent_create",
+      "recordedAt": "2026-11-07T01:21:02.849Z",
+      "classification": "provider-intent-id"
+    },
+    {
+      "label": "Release gate enrolled for PO 1042: the grant token was derived in OutLayer's enclave and only its hash left it",
+      "stage": "enroll",
+      "kind": "enclave",
+      "businessMeaning": "Enroll the release gate (OutLayer TEE worker) for PO 1042: the grant token is derived inside the enclave, only its hash leaves.",
+      "commercialCents": null,
+      "commercialUsd": null,
+      "testnetUnits": null,
+      "network": "NEAR testnet",
+      "sender": "evernear-luca.testnet",
+      "recipient": "outlayer.testnet",
+      "txId": "D7u85U3bUT8qy9JKMdoVnzTC992wp5qUE8j7aAZsqxjT",
+      "explorerUrl": null,
+      "verification": {
+        "method": "NEAR testnet RPC https://archival-rpc.testnet.near.org: tx (sender evernear-luca.testnet, from the recorded row), receipts and EVENT_JSON logs read",
+        "checkedAt": "2026-11-14T03:07:32.205Z",
+        "status": "verified",
+        "details": {
+          "rpc": "https://archival-rpc.testnet.near.org",
+          "signer": "evernear-luca.testnet",
+          "receiver": "outlayer.testnet",
+          "finalExecutionStatus": "FINAL",
+          "status": {
+            "SuccessValue": "eyJhZ2VudF9pZCI6ImFnZW50XzlhYjE5NWQxMDc5NzU1N2QxNzdjYTkyNSIsImdyYW50X2hhc2giOiI0ZGJhNDE3NTIwN2FiNWM1NzQ3NGNlZWM4MDVlMDBkZTM0ZTE0ODVhZjBjYjhhYThlYTkyYWI5YzliZmRkMTY1IiwibW9kZSI6ImVucm9sbCIsInB1YmxpY19rZXkiOiJiYjlmYzc1NzcwMmU1NzY1YjM4YzdiNjVkNmJiZDZkYWVjMDBkNmFlMDhjMWY3MDEwYWY4YTk4NThmNzk4ZjJiIn0="
+          },
+          "receiptFailures": [],
+          "methods": [
+            "request_execution"
+          ],
+          "tokenMovements": [],
+          "otherEvents": [
+            {
+              "standard": "near-outlayer",
+              "event": "execution_requested"
+            },
+            {
+              "standard": "near-outlayer",
+              "event": "execution_completed"
+            }
+          ],
+          "earlierErrors": [
+            "tx at https://rpc.testnet.near.org: {\"name\":\"HANDLER_ERROR\",\"cause\":{\"info\":{\"requested_transaction_hash\":\"D7u85U3bUT8qy9JKMdoVnzTC992wp5qUE8j7aAZsqxjT\"},\"name\":\"UNKNOWN_TRANSACTION\"},\"code\":-32000,\"message\":\"Server error\",\"data\":\"Transaction D7u85U3bUT8qy9JKMdoVnzTC992wp5qUE8j7aAZsqxjT doesn't exist\"}"
+          ]
+        }
+      },
+      "codePath": "convex/near/escrow.ts#enroll",
+      "call": "outlayer run --wasm (request_execution on outlayer.testnet, signed by evernear-luca.testnet)",
+      "recordedAt": "2026-11-07T01:21:02.893Z",
+      "classification": "real-testnet-verified"
+    },
+    {
+      "label": "Grant issued to the release gate for PO 1042: only its enclave can derive the token",
+      "stage": "grant",
+      "kind": "policy",
+      "businessMeaning": "Issue the payout grant to the release gate only. Evernear's server never holds it.",
+      "commercialCents": null,
+      "commercialUsd": null,
+      "testnetUnits": null,
+      "network": "Tidepool (community-run testnet of the NEAR Intents Agent API)",
+      "sender": "e6c1d43a7d90094dbeabf630c06687f0b1c24cea68830ae4123c3b5df014616b",
+      "recipient": "agent_9ab195d10797557d177ca925",
+      "txId": "intent_5cc0c0de1957ba19dbe2aca6",
+      "explorerUrl": null,
+      "verification": {
+        "method": "none available: Tidepool submit-intent id with no on-chain transaction (transaction_hash null in the recorded response)",
+        "checkedAt": "2026-11-14T03:07:32.205Z",
+        "status": "not-independently-verifiable",
+        "details": {
+          "recordedStatus": "SUCCESS",
+          "type": "grant_issue",
+          "transaction_hash": null
+        }
+      },
+      "codePath": "convex/near/escrow.ts#grant",
+      "call": "POST /v1/submit-intent grant_issue",
+      "recordedAt": "2026-11-07T01:21:02.923Z",
+      "classification": "provider-intent-id"
+    },
+    {
+      "label": "Treasury swapped test USDC into Base Sepolia USDC",
+      "stage": "swap",
+      "kind": "swap",
+      "businessMeaning": "Treasury funding step: swap NEAR-side test USDC into Base Sepolia test USDC (omft) inside NEAR Intents, so the commit can be paid in the payout asset.",
+      "commercialCents": null,
+      "commercialUsd": null,
+      "testnetUnits": null,
+      "network": "NEAR testnet",
+      "sender": "maker.tidepool-sandbox.testnet",
+      "recipient": "verifier.tidepool-sandbox.testnet",
+      "txId": "8JLEFyqqrgoPuWx3VxUYWeMVBfFxu6sQFP4mGgVfHRaf",
+      "explorerUrl": "https://testnet.nearblocks.io/txns/8JLEFyqqrgoPuWx3VxUYWeMVBfFxu6sQFP4mGgVfHRaf",
+      "verification": {
+        "method": "NEAR testnet RPC https://archival-rpc.testnet.near.org: tx (sender maker.tidepool-sandbox.testnet, from nearblocks), receipts and EVENT_JSON logs read",
+        "checkedAt": "2026-11-14T03:07:32.205Z",
+        "status": "verified",
+        "details": {
+          "rpc": "https://archival-rpc.testnet.near.org",
+          "signer": "maker.tidepool-sandbox.testnet",
+          "receiver": "verifier.tidepool-sandbox.testnet",
+          "finalExecutionStatus": "FINAL",
+          "status": {
+            "SuccessValue": ""
+          },
+          "receiptFailures": [],
+          "methods": [
+            "execute_intents"
+          ],
+          "tokenMovements": [
+            {
+              "standard": "dip4",
+              "event": "token_diff",
+              "token": "nep141:base-0x38d81431b9f76d9699af7517040d5221d9dea252.tp-omft.testnet",
+              "account": "maker.tidepool-sandbox.testnet",
+              "amountRaw": "-62999620",
+              "amount": "-62.999620"
+            },
+            {
+              "standard": "dip4",
+              "event": "token_diff",
+              "token": "nep141:usdc.tidepool-sandbox.testnet",
+              "account": "maker.tidepool-sandbox.testnet",
+              "amountRaw": "63005921",
+              "amount": "63.005921"
+            },
+            {
+              "standard": "dip4",
+              "event": "token_diff",
+              "token": "nep141:base-0x38d81431b9f76d9699af7517040d5221d9dea252.tp-omft.testnet",
+              "account": "1e8dd17b4671e0cf935248a5ea38b4094703efdad7d16bb1db6b4c5e770e2df3",
+              "amountRaw": "62999620",
+              "amount": "62.999620"
+            },
+            {
+              "standard": "dip4",
+              "event": "token_diff",
+              "token": "nep141:usdc.tidepool-sandbox.testnet",
+              "account": "1e8dd17b4671e0cf935248a5ea38b4094703efdad7d16bb1db6b4c5e770e2df3",
+              "amountRaw": "-63005921",
+              "amount": "-63.005921"
+            },
+            {
+              "standard": "nep245",
+              "event": "mt_transfer",
+              "token": "nep141:usdc.tidepool-sandbox.testnet",
+              "from": "1e8dd17b4671e0cf935248a5ea38b4094703efdad7d16bb1db6b4c5e770e2df3",
+              "to": "maker.tidepool-sandbox.testnet",
+              "amountRaw": "63005921",
+              "amount": "63.005921"
+            },
+            {
+              "standard": "nep245",
+              "event": "mt_transfer",
+              "token": "nep141:base-0x38d81431b9f76d9699af7517040d5221d9dea252.tp-omft.testnet",
+              "from": "maker.tidepool-sandbox.testnet",
+              "to": "1e8dd17b4671e0cf935248a5ea38b4094703efdad7d16bb1db6b4c5e770e2df3",
+              "amountRaw": "62999620",
+              "amount": "62.999620"
+            }
+          ],
+          "otherEvents": [
+            {
+              "standard": "dip4",
+              "event": "intents_executed"
+            }
+          ],
+          "earlierErrors": [
+            "tx at https://rpc.testnet.near.org: {\"name\":\"HANDLER_ERROR\",\"cause\":{\"info\":{\"requested_transaction_hash\":\"8JLEFyqqrgoPuWx3VxUYWeMVBfFxu6sQFP4mGgVfHRaf\"},\"name\":\"UNKNOWN_TRANSACTION\"},\"code\":-32000,\"message\":\"Server error\",\"data\":\"Transaction 8JLEFyqqrgoPuWx3VxUYWeMVBfFxu6sQFP4mGgVfHRaf doesn't exist\"}"
+          ]
+        }
+      },
+      "codePath": "convex/near/escrow.ts#fund",
+      "call": "POST /v1/agents/{id}/swap",
+      "recordedAt": "2026-11-07T01:21:08.199Z",
+      "classification": "real-testnet-verified"
+    },
+    {
+      "label": "Committed for PO 1042: $63.00 (1:1,000 of $63,000.00)",
+      "stage": "commit",
+      "kind": "escrow",
+      "businessMeaning": "Commit the PO total: move $63,000 (scaled $63.00) from Astro's treasury account into the PO 1042 escrow account.",
+      "commercialCents": 6300000,
+      "commercialUsd": "63000.00",
+      "testnetUnits": {
+        "raw": "63000000",
+        "amount": "63.000000"
+      },
+      "network": "NEAR testnet",
+      "sender": "maker.tidepool-sandbox.testnet",
+      "recipient": "verifier.tidepool-sandbox.testnet",
+      "txId": "366nhBeJvx6Ch7kpx2ZR8ZchQvBDrxVhtPFe8J62ynC1",
+      "explorerUrl": "https://testnet.nearblocks.io/txns/366nhBeJvx6Ch7kpx2ZR8ZchQvBDrxVhtPFe8J62ynC1",
+      "verification": {
+        "method": "NEAR testnet RPC https://archival-rpc.testnet.near.org: tx (sender maker.tidepool-sandbox.testnet, from nearblocks), receipts and EVENT_JSON logs read",
+        "checkedAt": "2026-11-14T03:07:32.205Z",
+        "status": "verified",
+        "details": {
+          "rpc": "https://archival-rpc.testnet.near.org",
+          "signer": "maker.tidepool-sandbox.testnet",
+          "receiver": "verifier.tidepool-sandbox.testnet",
+          "finalExecutionStatus": "FINAL",
+          "status": {
+            "SuccessValue": ""
+          },
+          "receiptFailures": [],
+          "methods": [
+            "execute_intents"
+          ],
+          "tokenMovements": [
+            {
+              "standard": "dip4",
+              "event": "transfer",
+              "token": "nep141:base-0x38d81431b9f76d9699af7517040d5221d9dea252.tp-omft.testnet",
+              "from": "1e8dd17b4671e0cf935248a5ea38b4094703efdad7d16bb1db6b4c5e770e2df3",
+              "to": "a93551f550a56e968c8b397622b429e9274e349635411c33721ac0cf7204455a",
+              "amountRaw": "63000000",
+              "amount": "63.000000"
+            },
+            {
+              "standard": "nep245",
+              "event": "mt_transfer",
+              "token": "nep141:base-0x38d81431b9f76d9699af7517040d5221d9dea252.tp-omft.testnet",
+              "from": "1e8dd17b4671e0cf935248a5ea38b4094703efdad7d16bb1db6b4c5e770e2df3",
+              "to": "a93551f550a56e968c8b397622b429e9274e349635411c33721ac0cf7204455a",
+              "amountRaw": "63000000",
+              "amount": "63.000000"
+            }
+          ],
+          "expected": {
+            "amountRaw": "63000000",
+            "recipient": "a93551f550a56e968c8b397622b429e9274e349635411c33721ac0cf7204455a",
+            "amount": "63.000000"
+          },
+          "checks": {
+            "txSuccess": true,
+            "transferMatchesExpected": true
+          },
+          "otherEvents": [
+            {
+              "standard": "dip4",
+              "event": "intents_executed"
+            }
+          ],
+          "earlierErrors": [
+            "tx at https://rpc.testnet.near.org: {\"name\":\"HANDLER_ERROR\",\"cause\":{\"info\":{\"requested_transaction_hash\":\"366nhBeJvx6Ch7kpx2ZR8ZchQvBDrxVhtPFe8J62ynC1\"},\"name\":\"UNKNOWN_TRANSACTION\"},\"code\":-32000,\"message\":\"Server error\",\"data\":\"Transaction 366nhBeJvx6Ch7kpx2ZR8ZchQvBDrxVhtPFe8J62ynC1 doesn't exist\"}"
+          ]
+        }
+      },
+      "codePath": "convex/near/escrow.ts#lock",
+      "call": "POST /v1/agents/{id}/transfer",
+      "recordedAt": "2026-11-07T01:21:08.234Z",
+      "classification": "real-testnet-verified",
+      "intentsTransfer": {
+        "from": "1e8dd17b4671e0cf935248a5ea38b4094703efdad7d16bb1db6b4c5e770e2df3",
+        "to": "a93551f550a56e968c8b397622b429e9274e349635411c33721ac0cf7204455a",
+        "token": "nep141:base-0x38d81431b9f76d9699af7517040d5221d9dea252.tp-omft.testnet",
+        "amountRaw": "63000000",
+        "amount": "63.000000"
+      }
+    },
+    {
+      "label": "Signal: bill of lading issued for PO 1042 (simulated feed)",
+      "stage": "signal",
+      "kind": "signal",
+      "businessMeaning": "Release condition input: bill_of_lading (simulated feed).",
+      "commercialCents": null,
+      "commercialUsd": null,
+      "testnetUnits": null,
+      "network": "offchain (simulated)",
+      "sender": null,
+      "recipient": null,
+      "txId": "sim-bol",
+      "explorerUrl": null,
+      "verification": {
+        "method": "none: simulated carrier/customs/dock feed, not on any chain",
+        "checkedAt": "2026-11-14T03:07:32.205Z",
+        "status": "simulated",
+        "details": {
+          "recorded": {
+            "at": "2026-11-05T13:40:00Z",
+            "event": "bill_of_lading",
+            "id": "sim-bol",
+            "po": "1042",
+            "ref": "AWB 784-SIMULATED",
+            "source": "simulated"
+          }
+        }
+      },
+      "codePath": "scenarios/tracking.ts#signal",
+      "call": "tracking.events (simulated carrier and customs feed)",
+      "recordedAt": "2026-11-07T01:21:23.784Z",
+      "classification": "simulated-offchain-signal"
+    },
+    {
+      "label": "Signal: export cleared for PO 1042 (simulated feed)",
+      "stage": "signal",
+      "kind": "signal",
+      "businessMeaning": "Release condition input: export_cleared (simulated feed).",
+      "commercialCents": null,
+      "commercialUsd": null,
+      "testnetUnits": null,
+      "network": "offchain (simulated)",
+      "sender": null,
+      "recipient": null,
+      "txId": "sim-export",
+      "explorerUrl": null,
+      "verification": {
+        "method": "none: simulated carrier/customs/dock feed, not on any chain",
+        "checkedAt": "2026-11-14T03:07:32.205Z",
+        "status": "simulated",
+        "details": {
+          "recorded": {
+            "at": "2026-11-05T20:15:00Z",
+            "event": "export_cleared",
+            "id": "sim-export",
+            "po": "1042",
+            "ref": "CN export entry, simulated",
+            "source": "simulated"
+          }
+        }
+      },
+      "codePath": "scenarios/tracking.ts#signal",
+      "call": "tracking.events (simulated carrier and customs feed)",
+      "recordedAt": "2026-11-07T01:21:23.836Z",
+      "classification": "simulated-offchain-signal"
+    },
+    {
+      "label": "Advance paid to Haoyun on Base Sepolia for PO 1042: $18.90 (1:1,000 of $18,900.00). Sent by the release gate in OutLayer's enclave; Evernear's server holds no grant that can pay",
+      "stage": "advance",
+      "kind": "payout",
+      "businessMeaning": "Advance: 30% of $63,000 = $18,900 to Haoyun after bill of lading and export clearance.",
+      "commercialCents": 1890000,
+      "commercialUsd": "18900.00",
+      "testnetUnits": {
+        "raw": "18900000",
+        "amount": "18.900000"
+      },
+      "network": "Base Sepolia (chain 84532)",
+      "sender": "0x2e6ad9e6d59bb4585ea0e6762c3b637dde29dad2",
+      "recipient": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+      "txId": "0x5d8dab61c8c5cffd8339041ec581d8b23faffc3fc1f291a914e170511935973b",
+      "explorerUrl": "https://sepolia.basescan.org/tx/0x5d8dab61c8c5cffd8339041ec581d8b23faffc3fc1f291a914e170511935973b",
+      "verification": {
+        "method": "Base Sepolia JSON-RPC https://sepolia.base.org: eth_getTransactionReceipt + eth_getTransactionByHash, ERC-20 Transfer logs decoded",
+        "checkedAt": "2026-11-14T03:07:32.205Z",
+        "status": "verified",
+        "details": {
+          "rpc": "https://sepolia.base.org",
+          "txStatus": "success",
+          "blockNumber": 55463052,
+          "txFrom": "0x55f2c8044d790e1b8369508c31c756c0c2ca0e93",
+          "txTo": "0x2e6ad9e6d59bb4585ea0e6762c3b637dde29dad2",
+          "transfers": [
+            {
+              "token": "0x38d81431b9f76d9699af7517040d5221d9dea252",
+              "from": "0x2e6ad9e6d59bb4585ea0e6762c3b637dde29dad2",
+              "to": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+              "amountRaw": "18900000",
+              "amount": "18.900000"
+            }
+          ],
+          "tokenDecimals": 6,
+          "transferSenderIsContract": true,
+          "expected": {
+            "recipient": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+            "amountRaw": "18900000",
+            "amount": "18.900000",
+            "token": "0x38d81431b9f76d9699af7517040d5221d9dea252"
+          },
+          "checks": {
+            "txStatusSuccess": true,
+            "transferToExpectedRecipient": true,
+            "amountEqualsExpected": true,
+            "tokenEqualsExpected": true,
+            "allMatchInOneTransfer": true,
+            "tokenDecimalsIs6": true
+          }
+        }
+      },
+      "codePath": "convex/near/escrow.ts#release",
+      "call": "outlayer run --wasm (request_execution on outlayer.testnet, signed by evernear-luca.testnet), then POST /v1/agents/{id}/withdraw from the enclave",
+      "recordedAt": "2026-11-07T01:21:23.856Z",
+      "classification": "real-testnet-verified",
+      "related": [
+        {
+          "role": "NEAR testnet leg: ft_withdraw intent on the Tidepool verifier that burns the omft and triggers the Base Sepolia send",
+          "txId": "6qWRaBGAHNsk5N85HFxAoQHqPt7ok1rtpTza3fqj6nDr",
+          "explorerUrl": "https://testnet.nearblocks.io/txns/6qWRaBGAHNsk5N85HFxAoQHqPt7ok1rtpTza3fqj6nDr",
+          "verification": {
+            "method": "NEAR testnet RPC https://archival-rpc.testnet.near.org: tx (sender maker.tidepool-sandbox.testnet, from nearblocks), receipts and EVENT_JSON logs read",
+            "checkedAt": "2026-11-14T03:07:32.205Z",
+            "status": "verified",
+            "sender": "maker.tidepool-sandbox.testnet",
+            "recipient": "verifier.tidepool-sandbox.testnet",
+            "details": {
+              "rpc": "https://archival-rpc.testnet.near.org",
+              "signer": "maker.tidepool-sandbox.testnet",
+              "receiver": "verifier.tidepool-sandbox.testnet",
+              "finalExecutionStatus": "FINAL",
+              "status": {
+                "SuccessValue": ""
+              },
+              "receiptFailures": [],
+              "methods": [
+                "execute_intents"
+              ],
+              "tokenMovements": [
+                {
+                  "standard": "dip4",
+                  "event": "ft_withdraw",
+                  "token": "base-0x38d81431b9f76d9699af7517040d5221d9dea252.tp-omft.testnet",
+                  "from": "a93551f550a56e968c8b397622b429e9274e349635411c33721ac0cf7204455a",
+                  "to": "tidepool-sandbox.testnet",
+                  "amountRaw": "18900000",
+                  "amount": "18.900000",
+                  "memo": "WITHDRAW_TO:0x2003975a521c6fa45238dbc402c9e4adcb8863e0"
+                },
+                {
+                  "standard": "nep245",
+                  "event": "mt_burn",
+                  "token": "nep141:base-0x38d81431b9f76d9699af7517040d5221d9dea252.tp-omft.testnet",
+                  "from": "a93551f550a56e968c8b397622b429e9274e349635411c33721ac0cf7204455a",
+                  "to": null,
+                  "amountRaw": "18900000",
+                  "amount": "18.900000"
+                },
+                {
+                  "standard": "nep141",
+                  "event": "ft_transfer",
+                  "from": "verifier.tidepool-sandbox.testnet",
+                  "to": "tidepool-sandbox.testnet",
+                  "amountRaw": "18900000",
+                  "amount": "18.900000",
+                  "memo": "WITHDRAW_TO:0x2003975a521c6fa45238dbc402c9e4adcb8863e0"
+                }
+              ],
+              "expected": {
+                "amountRaw": "18900000",
+                "amount": "18.900000"
+              },
+              "checks": {
+                "txSuccess": true,
+                "transferMatchesExpected": true
+              },
+              "otherEvents": [
+                {
+                  "standard": "dip4",
+                  "event": "intents_executed"
+                }
+              ],
+              "earlierErrors": [
+                "tx at https://rpc.testnet.near.org: {\"name\":\"HANDLER_ERROR\",\"cause\":{\"info\":{\"requested_transaction_hash\":\"6qWRaBGAHNsk5N85HFxAoQHqPt7ok1rtpTza3fqj6nDr\"},\"name\":\"UNKNOWN_TRANSACTION\"},\"code\":-32000,\"message\":\"Server error\",\"data\":\"Transaction 6qWRaBGAHNsk5N85HFxAoQHqPt7ok1rtpTza3fqj6nDr doesn't exist\"}"
+              ]
+            }
+          }
+        },
+        {
+          "role": "OutLayer testnet: request_execution of the release gate WASM (signed by evernear-luca.testnet)",
+          "txId": "3fQzuEroAQyrmeMhBbpirQ97JH7ML2DCNVmMxX7T6XLV",
+          "explorerUrl": "https://testnet.nearblocks.io/txns/3fQzuEroAQyrmeMhBbpirQ97JH7ML2DCNVmMxX7T6XLV",
+          "verification": {
+            "method": "NEAR testnet RPC https://archival-rpc.testnet.near.org: tx (sender evernear-luca.testnet, from the recorded row), receipts and EVENT_JSON logs read",
+            "checkedAt": "2026-11-14T03:07:32.205Z",
+            "status": "verified",
+            "sender": "evernear-luca.testnet",
+            "recipient": "outlayer.testnet",
+            "details": {
+              "rpc": "https://archival-rpc.testnet.near.org",
+              "signer": "evernear-luca.testnet",
+              "receiver": "outlayer.testnet",
+              "finalExecutionStatus": "FINAL",
+              "status": {
+                "SuccessValue": "eyJhZ2VudF9pZCI6ImFnZW50XzlhYjE5NWQxMDc5NzU1N2QxNzdjYTkyNSIsImFtb3VudF9jZW50cyI6MTg5MDAwMCwiZXZpZGVuY2Vfc2hhMjU2IjoiMDZjY2YyMGE3NjJhNWQ3MWViYzQ1NDM3Mzg5YWQ5NjlhOGNjNzE0MmU5ODEzODg0ZjI3YjFlOTkxYzFkMWU0NiIsImhlbGRfY2VudHMiOjQ0MTAwMDAsIm9rIjp0cnVlLCJwbyI6IjEwNDIiLCJwdWJsaWNfa2V5IjoiYmI5ZmM3NTc3MDJlNTc2NWIzOGM3YjY1ZDZiYmQ2ZGFlYzAwZDZhZTA4YzFmNzAxMGFmOGE5ODU4Zjc5OGYyYiIsInNpZ25hbHMiOlsic2ltLWJvbCIsInNpbS1leHBvcnQiXSwic2lnbmF0dXJlIjoiYWY4MTllOTNlNzk5N2NhYmNjYjI1MGIyNTMwMTJjN2EzY2YwZDhhZTY1OTExZjY4Nzg0YTljZGQ0ZDE1YTcyZTA5ZWViMDhlOTAwZDgzNDYwNDMxNGQyMDRkOTBkMTkxNTU5MjY4ZWE1YmNlNGYyNjg1MzJhNDdiMDlkYTJjMGYiLCJzdGFnZSI6ImFkdmFuY2UiLCJ0byI6IjB4MjAwMzk3NWE1MjFjNmZhNDUyMzhkYmM0MDJjOWU0YWRjYjg4NjNlMCIsInR4Ijp7ImNvcnJlbGF0aW9uX2lkIjoiZXhlY19mOGJlMGU5MzYwZDc4N2JkYjM5MGE5YWMiLCJodHRwX3N0YXR1cyI6MjAyLCJzdGF0dXMiOiJQUk9DRVNTSU5HIn19"
+              },
+              "receiptFailures": [],
+              "methods": [
+                "request_execution"
+              ],
+              "tokenMovements": [],
+              "otherEvents": [
+                {
+                  "standard": "near-outlayer",
+                  "event": "execution_requested"
+                },
+                {
+                  "standard": "near-outlayer",
+                  "event": "execution_completed"
+                }
+              ],
+              "earlierErrors": [
+                "tx at https://rpc.testnet.near.org: {\"name\":\"HANDLER_ERROR\",\"cause\":{\"info\":{\"requested_transaction_hash\":\"3fQzuEroAQyrmeMhBbpirQ97JH7ML2DCNVmMxX7T6XLV\"},\"name\":\"UNKNOWN_TRANSACTION\"},\"code\":-32000,\"message\":\"Server error\",\"data\":\"Transaction 3fQzuEroAQyrmeMhBbpirQ97JH7ML2DCNVmMxX7T6XLV doesn't exist\"}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "Signal: import customs cleared for PO 1042 (simulated feed)",
+      "stage": "signal",
+      "kind": "signal",
+      "businessMeaning": "Release condition input: import_cleared (simulated feed).",
+      "commercialCents": null,
+      "commercialUsd": null,
+      "testnetUnits": null,
+      "network": "offchain (simulated)",
+      "sender": null,
+      "recipient": null,
+      "txId": "sim-import",
+      "explorerUrl": null,
+      "verification": {
+        "method": "none: simulated carrier/customs/dock feed, not on any chain",
+        "checkedAt": "2026-11-14T03:07:32.205Z",
+        "status": "simulated",
+        "details": {
+          "recorded": {
+            "at": "2026-11-11T06:50:00Z",
+            "event": "import_cleared",
+            "id": "sim-import",
+            "po": "1042",
+            "ref": "US CBP entry, simulated",
+            "source": "simulated"
+          }
+        }
+      },
+      "codePath": "scenarios/tracking.ts#signal",
+      "call": "tracking.events (simulated carrier and customs feed)",
+      "recordedAt": "2026-11-07T01:21:34.007Z",
+      "classification": "simulated-offchain-signal"
+    },
+    {
+      "label": "Signal: dock count attested for PO 1042 (simulated feed)",
+      "stage": "signal",
+      "kind": "signal",
+      "businessMeaning": "Release condition input: dock_count (simulated feed).",
+      "commercialCents": null,
+      "commercialUsd": null,
+      "testnetUnits": null,
+      "network": "offchain (simulated)",
+      "sender": null,
+      "recipient": null,
+      "txId": "dock-1042",
+      "explorerUrl": null,
+      "verification": {
+        "method": "none: simulated carrier/customs/dock feed, not on any chain",
+        "checkedAt": "2026-11-14T03:07:32.205Z",
+        "status": "simulated",
+        "details": {
+          "recorded": {
+            "at": "2026-11-07T01:21:33.990Z",
+            "count": 44,
+            "event": "dock_count",
+            "id": "dock-1042",
+            "po": "1042",
+            "source": "simulated"
+          }
+        }
+      },
+      "codePath": "scenarios/tracking.ts#signal",
+      "call": "dock check count",
+      "recordedAt": "2026-11-07T01:21:34.101Z",
+      "classification": "simulated-offchain-signal"
+    },
+    {
+      "label": "Balance refused before any call: address_not_allowed",
+      "stage": "refused-offlist",
+      "kind": "refusal",
+      "businessMeaning": "Same off-list balance attempt refused locally by Evernear's deterministic release rule (engine/escrow.ts) before any network call: address_not_allowed.",
+      "commercialCents": 3654000,
+      "commercialUsd": "36540.00",
+      "testnetUnits": {
+        "raw": "36540000",
+        "amount": "36.540000"
+      },
+      "network": "none (refused in Evernear's engine before any call)",
+      "sender": null,
+      "recipient": "0x000000000000000000000000000000000000dead",
+      "txId": "none",
+      "explorerUrl": null,
+      "verification": {
+        "method": "none: a refusal produces no transaction",
+        "checkedAt": "2026-11-14T03:07:32.205Z",
+        "status": "no-tx",
+        "details": {
+          "recorded": {
+            "missing": [],
+            "reason": "address_not_allowed",
+            "stage": "balance",
+            "status": "refused",
+            "to": "0x000000000000000000000000000000000000dead"
+          }
+        }
+      },
+      "codePath": "convex/near/escrow.ts#release",
+      "call": "engine/escrow.ts releaseStage",
+      "recordedAt": "2026-11-07T01:21:34.177Z",
+      "classification": "refusal-no-tx"
+    },
+    {
+      "label": "PO 1042 account refused a withdraw to 0x000000000000000000000000000000000000dead from Evernear's server, which holds no grant on it: refused",
+      "stage": "refused-offlist",
+      "kind": "refusal",
+      "businessMeaning": "Attempted $36,540 withdraw to an off-list address (0x...dead), sent from Evernear's server, which holds no grant on the account. Refused by Tidepool at the grant layer (403 grant_invalid).",
+      "commercialCents": 3654000,
+      "commercialUsd": "36540.00",
+      "testnetUnits": {
+        "raw": "36540000",
+        "amount": "36.540000"
+      },
+      "network": "Tidepool (community-run testnet), HTTP 403",
+      "sender": "Evernear's server, without a grant",
+      "recipient": "0x000000000000000000000000000000000000dead",
+      "txId": "none",
+      "explorerUrl": null,
+      "verification": {
+        "method": "none: a refusal produces no transaction",
+        "checkedAt": "2026-11-14T03:07:32.205Z",
+        "status": "no-tx",
+        "details": {
+          "recorded": {
+            "code": "grant_invalid",
+            "layer": "grant",
+            "request": {
+              "amount": "36540000",
+              "asset": "nep141:base-0x38d81431b9f76d9699af7517040d5221d9dea252.tp-omft.testnet",
+              "chain": "base",
+              "recipient": "0x000000000000000000000000000000000000dead"
+            },
+            "sent_by": "Evernear's server, without a grant",
+            "status": 403
+          }
+        }
+      },
+      "codePath": "convex/near/escrow.ts#policyRefusal",
+      "call": "POST /v1/agents/{id}/withdraw",
+      "recordedAt": "2026-11-07T01:21:34.640Z",
+      "classification": "refusal-no-tx"
+    },
+    {
+      "label": "Signal: import customs cleared for PO 1042 (simulated feed)",
+      "stage": "signal",
+      "kind": "signal",
+      "businessMeaning": "Release condition input: import_cleared (simulated feed).",
+      "commercialCents": null,
+      "commercialUsd": null,
+      "testnetUnits": null,
+      "network": "offchain (simulated)",
+      "sender": null,
+      "recipient": null,
+      "txId": "sim-import",
+      "explorerUrl": null,
+      "verification": {
+        "method": "none: simulated carrier/customs/dock feed, not on any chain",
+        "checkedAt": "2026-11-14T03:07:32.205Z",
+        "status": "simulated",
+        "details": {
+          "recorded": {
+            "at": "2026-11-11T06:50:00Z",
+            "event": "import_cleared",
+            "id": "sim-import",
+            "po": "1042",
+            "ref": "US CBP entry, simulated",
+            "source": "simulated"
+          }
+        }
+      },
+      "codePath": "scenarios/tracking.ts#signal",
+      "call": "tracking.events (simulated carrier and customs feed)",
+      "recordedAt": "2026-11-07T01:21:49.839Z",
+      "classification": "simulated-offchain-signal"
+    },
+    {
+      "label": "Signal: dock count attested for PO 1042 (simulated feed)",
+      "stage": "signal",
+      "kind": "signal",
+      "businessMeaning": "Release condition input: dock_count (simulated feed).",
+      "commercialCents": null,
+      "commercialUsd": null,
+      "testnetUnits": null,
+      "network": "offchain (simulated)",
+      "sender": null,
+      "recipient": null,
+      "txId": "dock-1042",
+      "explorerUrl": null,
+      "verification": {
+        "method": "none: simulated carrier/customs/dock feed, not on any chain",
+        "checkedAt": "2026-11-14T03:07:32.205Z",
+        "status": "simulated",
+        "details": {
+          "recorded": {
+            "at": "2026-11-07T01:21:35.719Z",
+            "count": 44,
+            "event": "dock_count",
+            "id": "dock-1042",
+            "po": "1042",
+            "source": "simulated"
+          }
+        }
+      },
+      "codePath": "scenarios/tracking.ts#signal",
+      "call": "dock check count",
+      "recordedAt": "2026-11-07T01:21:49.883Z",
+      "classification": "simulated-offchain-signal"
+    },
+    {
+      "label": "Balance paid to Haoyun on Base Sepolia for PO 1042: $36.54 (1:1,000 of $36,540.00). Sent by the release gate in OutLayer's enclave; Evernear's server holds no grant that can pay",
+      "stage": "balance",
+      "kind": "payout",
+      "businessMeaning": "Balance for the 44 motors delivered: 44 x $1,260 = $55,440 less the $18,900 advance = $36,540, after import clearance and dock count.",
+      "commercialCents": 3654000,
+      "commercialUsd": "36540.00",
+      "testnetUnits": {
+        "raw": "36540000",
+        "amount": "36.540000"
+      },
+      "network": "Base Sepolia (chain 84532)",
+      "sender": "0x2e6ad9e6d59bb4585ea0e6762c3b637dde29dad2",
+      "recipient": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+      "txId": "0x0fcba0506d7873c2fa9065d74309f703d349df3beb37c299c63a8e8536cd6045",
+      "explorerUrl": "https://sepolia.basescan.org/tx/0x0fcba0506d7873c2fa9065d74309f703d349df3beb37c299c63a8e8536cd6045",
+      "verification": {
+        "method": "Base Sepolia JSON-RPC https://sepolia.base.org: eth_getTransactionReceipt + eth_getTransactionByHash, ERC-20 Transfer logs decoded",
+        "checkedAt": "2026-11-14T03:07:32.205Z",
+        "status": "verified",
+        "details": {
+          "rpc": "https://sepolia.base.org",
+          "txStatus": "success",
+          "blockNumber": 55463183,
+          "txFrom": "0x55f2c8044d790e1b8369508c31c756c0c2ca0e93",
+          "txTo": "0x2e6ad9e6d59bb4585ea0e6762c3b637dde29dad2",
+          "transfers": [
+            {
+              "token": "0x38d81431b9f76d9699af7517040d5221d9dea252",
+              "from": "0x2e6ad9e6d59bb4585ea0e6762c3b637dde29dad2",
+              "to": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+              "amountRaw": "36540000",
+              "amount": "36.540000"
+            }
+          ],
+          "tokenDecimals": 6,
+          "transferSenderIsContract": true,
+          "expected": {
+            "recipient": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+            "amountRaw": "36540000",
+            "amount": "36.540000",
+            "token": "0x38d81431b9f76d9699af7517040d5221d9dea252"
+          },
+          "checks": {
+            "txStatusSuccess": true,
+            "transferToExpectedRecipient": true,
+            "amountEqualsExpected": true,
+            "tokenEqualsExpected": true,
+            "allMatchInOneTransfer": true,
+            "tokenDecimalsIs6": true
+          }
+        }
+      },
+      "codePath": "convex/near/escrow.ts#release",
+      "call": "outlayer run --wasm (request_execution on outlayer.testnet, signed by evernear-luca.testnet), then POST /v1/agents/{id}/withdraw from the enclave",
+      "recordedAt": "2026-11-07T01:21:49.908Z",
+      "classification": "real-testnet-verified",
+      "related": [
+        {
+          "role": "NEAR testnet leg: ft_withdraw intent on the Tidepool verifier that burns the omft and triggers the Base Sepolia send",
+          "txId": "GJotyDGtSZbTBpyKTKREXgYLJ7u5H2BkDHmVf5zfCWis",
+          "explorerUrl": "https://testnet.nearblocks.io/txns/GJotyDGtSZbTBpyKTKREXgYLJ7u5H2BkDHmVf5zfCWis",
+          "verification": {
+            "method": "NEAR testnet RPC https://archival-rpc.testnet.near.org: tx (sender maker.tidepool-sandbox.testnet, from nearblocks), receipts and EVENT_JSON logs read",
+            "checkedAt": "2026-11-14T03:07:32.205Z",
+            "status": "verified",
+            "sender": "maker.tidepool-sandbox.testnet",
+            "recipient": "verifier.tidepool-sandbox.testnet",
+            "details": {
+              "rpc": "https://archival-rpc.testnet.near.org",
+              "signer": "maker.tidepool-sandbox.testnet",
+              "receiver": "verifier.tidepool-sandbox.testnet",
+              "finalExecutionStatus": "FINAL",
+              "status": {
+                "SuccessValue": ""
+              },
+              "receiptFailures": [],
+              "methods": [
+                "execute_intents"
+              ],
+              "tokenMovements": [
+                {
+                  "standard": "dip4",
+                  "event": "ft_withdraw",
+                  "token": "base-0x38d81431b9f76d9699af7517040d5221d9dea252.tp-omft.testnet",
+                  "from": "a93551f550a56e968c8b397622b429e9274e349635411c33721ac0cf7204455a",
+                  "to": "tidepool-sandbox.testnet",
+                  "amountRaw": "36540000",
+                  "amount": "36.540000",
+                  "memo": "WITHDRAW_TO:0x2003975a521c6fa45238dbc402c9e4adcb8863e0"
+                },
+                {
+                  "standard": "nep245",
+                  "event": "mt_burn",
+                  "token": "nep141:base-0x38d81431b9f76d9699af7517040d5221d9dea252.tp-omft.testnet",
+                  "from": "a93551f550a56e968c8b397622b429e9274e349635411c33721ac0cf7204455a",
+                  "to": null,
+                  "amountRaw": "36540000",
+                  "amount": "36.540000"
+                },
+                {
+                  "standard": "nep141",
+                  "event": "ft_transfer",
+                  "from": "verifier.tidepool-sandbox.testnet",
+                  "to": "tidepool-sandbox.testnet",
+                  "amountRaw": "36540000",
+                  "amount": "36.540000",
+                  "memo": "WITHDRAW_TO:0x2003975a521c6fa45238dbc402c9e4adcb8863e0"
+                }
+              ],
+              "expected": {
+                "amountRaw": "36540000",
+                "amount": "36.540000"
+              },
+              "checks": {
+                "txSuccess": true,
+                "transferMatchesExpected": true
+              },
+              "otherEvents": [
+                {
+                  "standard": "dip4",
+                  "event": "intents_executed"
+                }
+              ],
+              "earlierErrors": [
+                "tx at https://rpc.testnet.near.org: {\"name\":\"HANDLER_ERROR\",\"cause\":{\"info\":{\"requested_transaction_hash\":\"GJotyDGtSZbTBpyKTKREXgYLJ7u5H2BkDHmVf5zfCWis\"},\"name\":\"UNKNOWN_TRANSACTION\"},\"code\":-32000,\"message\":\"Server error\",\"data\":\"Transaction GJotyDGtSZbTBpyKTKREXgYLJ7u5H2BkDHmVf5zfCWis doesn't exist\"}"
+              ]
+            }
+          }
+        },
+        {
+          "role": "OutLayer testnet: request_execution of the release gate WASM (signed by evernear-luca.testnet)",
+          "txId": "9d8vrp3xstjBjcbpMmoMtnhwT73v8nHj5Wyo8m12AHTm",
+          "explorerUrl": "https://testnet.nearblocks.io/txns/9d8vrp3xstjBjcbpMmoMtnhwT73v8nHj5Wyo8m12AHTm",
+          "verification": {
+            "method": "NEAR testnet RPC https://archival-rpc.testnet.near.org: tx (sender evernear-luca.testnet, from the recorded row), receipts and EVENT_JSON logs read",
+            "checkedAt": "2026-11-14T03:07:32.205Z",
+            "status": "verified",
+            "sender": "evernear-luca.testnet",
+            "recipient": "outlayer.testnet",
+            "details": {
+              "rpc": "https://archival-rpc.testnet.near.org",
+              "signer": "evernear-luca.testnet",
+              "receiver": "outlayer.testnet",
+              "finalExecutionStatus": "FINAL",
+              "status": {
+                "SuccessValue": "eyJhZ2VudF9pZCI6ImFnZW50XzlhYjE5NWQxMDc5NzU1N2QxNzdjYTkyNSIsImFtb3VudF9jZW50cyI6MzY1NDAwMCwiZXZpZGVuY2Vfc2hhMjU2IjoiYThkYTZlYmVlZjM4OGMzYTFlMjM5ZGU3Y2ZjYTlhMjZkYWNkNDM3MWY3MzdkYWIzYzdhNTk1ZDZjZWZhYjVlMyIsImhlbGRfY2VudHMiOjc1NjAwMCwib2siOnRydWUsInBvIjoiMTA0MiIsInB1YmxpY19rZXkiOiJiYjlmYzc1NzcwMmU1NzY1YjM4YzdiNjVkNmJiZDZkYWVjMDBkNmFlMDhjMWY3MDEwYWY4YTk4NThmNzk4ZjJiIiwic2lnbmFscyI6WyJzaW0taW1wb3J0IiwiZG9jay0xMDQyIl0sInNpZ25hdHVyZSI6ImRkNDk2YmUzYjYwMDJjZWViYTVkZTIxNjgxMzViNDViNDlkNmE3MjAwODM4ZDM5YTBjNzlhMDU2Yjk2YjFlMDVmYjFiNzUyYTk2NGMzNWZjZDNlMWIzZmY0YmU5YjAxNzAzM2EyYTA5MWRkZTJkOGQxZWU3ZDk1ZmJmMTVjYzAyIiwic3RhZ2UiOiJiYWxhbmNlIiwidG8iOiIweDIwMDM5NzVhNTIxYzZmYTQ1MjM4ZGJjNDAyYzllNGFkY2I4ODYzZTAiLCJ0eCI6eyJjb3JyZWxhdGlvbl9pZCI6ImV4ZWNfNzMxNDgzNDJiNDQzZGFhZjdjOGE2OGJhIiwiaHR0cF9zdGF0dXMiOjIwMiwic3RhdHVzIjoiUFJPQ0VTU0lORyJ9fQ=="
+              },
+              "receiptFailures": [],
+              "methods": [
+                "request_execution"
+              ],
+              "tokenMovements": [],
+              "otherEvents": [
+                {
+                  "standard": "near-outlayer",
+                  "event": "execution_requested"
+                },
+                {
+                  "standard": "near-outlayer",
+                  "event": "execution_completed"
+                }
+              ],
+              "earlierErrors": [
+                "tx at https://rpc.testnet.near.org: {\"name\":\"HANDLER_ERROR\",\"cause\":{\"info\":{\"requested_transaction_hash\":\"9d8vrp3xstjBjcbpMmoMtnhwT73v8nHj5Wyo8m12AHTm\"},\"name\":\"UNKNOWN_TRANSACTION\"},\"code\":-32000,\"message\":\"Server error\",\"data\":\"Transaction 9d8vrp3xstjBjcbpMmoMtnhwT73v8nHj5Wyo8m12AHTm doesn't exist\"}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "PO 1042 account may now pay only Astro: the supplier's destination removed before the held part moves",
+      "stage": "owner-only",
+      "kind": "policy",
+      "businessMeaning": "Policy revision 2: the supplier destination is removed; the account may now pay only Astro.",
+      "commercialCents": null,
+      "commercialUsd": null,
+      "testnetUnits": null,
+      "network": "Tidepool (community-run testnet of the NEAR Intents Agent API)",
+      "sender": null,
+      "recipient": null,
+      "txId": "intent_47d74e68eaf99aceb75de7f7",
+      "explorerUrl": null,
+      "verification": {
+        "method": "none available: Tidepool submit-intent id with no on-chain transaction (transaction_hash null in the recorded response)",
+        "checkedAt": "2026-11-14T03:07:32.205Z",
+        "status": "not-independently-verifiable",
+        "details": {
+          "recordedStatus": "SUCCESS",
+          "type": "policy_update",
+          "transaction_hash": null
+        }
+      },
+      "codePath": "convex/near/escrow.ts#ownerOnly",
+      "call": "POST /v1/submit-intent policy_update",
+      "recordedAt": "2026-11-07T01:21:54.166Z",
+      "classification": "provider-intent-id"
+    },
+    {
+      "label": "Grant issued to Evernear for PO 1042: it can only return money to Astro",
+      "stage": "owner-only",
+      "kind": "policy",
+      "businessMeaning": "Grant to Evernear that can only return money to Astro (under the owner-only policy).",
+      "commercialCents": null,
+      "commercialUsd": null,
+      "testnetUnits": null,
+      "network": "Tidepool (community-run testnet of the NEAR Intents Agent API)",
+      "sender": "e6c1d43a7d90094dbeabf630c06687f0b1c24cea68830ae4123c3b5df014616b",
+      "recipient": "agent_9ab195d10797557d177ca925",
+      "txId": "intent_9969e3f4e4c1899d9b7d1deb",
+      "explorerUrl": null,
+      "verification": {
+        "method": "none available: Tidepool submit-intent id with no on-chain transaction (transaction_hash null in the recorded response)",
+        "checkedAt": "2026-11-14T03:07:32.205Z",
+        "status": "not-independently-verifiable",
+        "details": {
+          "recordedStatus": "SUCCESS",
+          "type": "grant_issue",
+          "transaction_hash": null
+        }
+      },
+      "codePath": "convex/near/escrow.ts#grant",
+      "call": "POST /v1/submit-intent grant_issue",
+      "recordedAt": "2026-11-07T01:21:54.205Z",
+      "classification": "provider-intent-id"
+    },
+    {
+      "label": "Held part returned to Astro for PO 1042: $7.56 (1:1,000 of $7,560.00)",
+      "stage": "reclaim",
+      "kind": "reclaim",
+      "businessMeaning": "Return the held part to Astro: 6 motors not delivered x $1,260 = $7,560.",
+      "commercialCents": 756000,
+      "commercialUsd": "7560.00",
+      "testnetUnits": {
+        "raw": "7560000",
+        "amount": "7.560000"
+      },
+      "network": "NEAR testnet",
+      "sender": "maker.tidepool-sandbox.testnet",
+      "recipient": "verifier.tidepool-sandbox.testnet",
+      "txId": "4rrfjsTZxqEf2dcrSVFVUYfqfKjZddS576jrZyuxvdEM",
+      "explorerUrl": "https://testnet.nearblocks.io/txns/4rrfjsTZxqEf2dcrSVFVUYfqfKjZddS576jrZyuxvdEM",
+      "verification": {
+        "method": "NEAR testnet RPC https://archival-rpc.testnet.near.org: tx (sender maker.tidepool-sandbox.testnet, from nearblocks), receipts and EVENT_JSON logs read",
+        "checkedAt": "2026-11-14T03:07:32.205Z",
+        "status": "verified",
+        "details": {
+          "rpc": "https://archival-rpc.testnet.near.org",
+          "signer": "maker.tidepool-sandbox.testnet",
+          "receiver": "verifier.tidepool-sandbox.testnet",
+          "finalExecutionStatus": "FINAL",
+          "status": {
+            "SuccessValue": ""
+          },
+          "receiptFailures": [],
+          "methods": [
+            "execute_intents"
+          ],
+          "tokenMovements": [
+            {
+              "standard": "dip4",
+              "event": "transfer",
+              "token": "nep141:base-0x38d81431b9f76d9699af7517040d5221d9dea252.tp-omft.testnet",
+              "from": "a93551f550a56e968c8b397622b429e9274e349635411c33721ac0cf7204455a",
+              "to": "1e8dd17b4671e0cf935248a5ea38b4094703efdad7d16bb1db6b4c5e770e2df3",
+              "amountRaw": "7560000",
+              "amount": "7.560000"
+            },
+            {
+              "standard": "nep245",
+              "event": "mt_transfer",
+              "token": "nep141:base-0x38d81431b9f76d9699af7517040d5221d9dea252.tp-omft.testnet",
+              "from": "a93551f550a56e968c8b397622b429e9274e349635411c33721ac0cf7204455a",
+              "to": "1e8dd17b4671e0cf935248a5ea38b4094703efdad7d16bb1db6b4c5e770e2df3",
+              "amountRaw": "7560000",
+              "amount": "7.560000"
+            }
+          ],
+          "expected": {
+            "amountRaw": "7560000",
+            "recipient": "1e8dd17b4671e0cf935248a5ea38b4094703efdad7d16bb1db6b4c5e770e2df3",
+            "amount": "7.560000"
+          },
+          "checks": {
+            "txSuccess": true,
+            "transferMatchesExpected": true
+          },
+          "otherEvents": [
+            {
+              "standard": "dip4",
+              "event": "intents_executed"
+            }
+          ],
+          "earlierErrors": [
+            "tx at https://rpc.testnet.near.org: {\"name\":\"HANDLER_ERROR\",\"cause\":{\"info\":{\"requested_transaction_hash\":\"4rrfjsTZxqEf2dcrSVFVUYfqfKjZddS576jrZyuxvdEM\"},\"name\":\"UNKNOWN_TRANSACTION\"},\"code\":-32000,\"message\":\"Server error\",\"data\":\"Transaction 4rrfjsTZxqEf2dcrSVFVUYfqfKjZddS576jrZyuxvdEM doesn't exist\"}"
+          ]
+        }
+      },
+      "codePath": "convex/near/escrow.ts#reclaim",
+      "call": "POST /v1/agents/{id}/transfer",
+      "recordedAt": "2026-11-07T01:21:54.227Z",
+      "classification": "real-testnet-verified",
+      "intentsTransfer": {
+        "from": "a93551f550a56e968c8b397622b429e9274e349635411c33721ac0cf7204455a",
+        "to": "1e8dd17b4671e0cf935248a5ea38b4094703efdad7d16bb1db6b4c5e770e2df3",
+        "token": "nep141:base-0x38d81431b9f76d9699af7517040d5221d9dea252.tp-omft.testnet",
+        "amountRaw": "7560000",
+        "amount": "7.560000"
+      }
+    },
+    {
+      "label": "A grant on the PO 1042 account revoked",
+      "stage": "revoke",
+      "kind": "policy",
+      "businessMeaning": "Revoke grant grant_91f2f637e925263ace97bceb on the PO 1042 account.",
+      "commercialCents": null,
+      "commercialUsd": null,
+      "testnetUnits": null,
+      "network": "Tidepool (community-run testnet of the NEAR Intents Agent API)",
+      "sender": null,
+      "recipient": null,
+      "txId": "intent_aa68177ff63ed3a023441c8d",
+      "explorerUrl": null,
+      "verification": {
+        "method": "none available: Tidepool submit-intent id with no on-chain transaction (transaction_hash null in the recorded response)",
+        "checkedAt": "2026-11-14T03:07:32.205Z",
+        "status": "not-independently-verifiable",
+        "details": {
+          "recordedStatus": "SUCCESS",
+          "type": "grant_revoke",
+          "transaction_hash": null
+        }
+      },
+      "codePath": "convex/near/escrow.ts#close",
+      "call": "POST /v1/submit-intent grant_revoke",
+      "recordedAt": "2026-11-07T01:21:55.491Z",
+      "classification": "provider-intent-id"
+    },
+    {
+      "label": "A grant on the PO 1042 account revoked",
+      "stage": "revoke",
+      "kind": "policy",
+      "businessMeaning": "Revoke grant grant_f2033585fb02b56a391252cc on the PO 1042 account.",
+      "commercialCents": null,
+      "commercialUsd": null,
+      "testnetUnits": null,
+      "network": "Tidepool (community-run testnet of the NEAR Intents Agent API)",
+      "sender": null,
+      "recipient": null,
+      "txId": "intent_54c0b4b4045161dc924bf508",
+      "explorerUrl": null,
+      "verification": {
+        "method": "none available: Tidepool submit-intent id with no on-chain transaction (transaction_hash null in the recorded response)",
+        "checkedAt": "2026-11-14T03:07:32.205Z",
+        "status": "not-independently-verifiable",
+        "details": {
+          "recordedStatus": "SUCCESS",
+          "type": "grant_revoke",
+          "transaction_hash": null
+        }
+      },
+      "codePath": "convex/near/escrow.ts#close",
+      "call": "POST /v1/submit-intent grant_revoke",
+      "recordedAt": "2026-11-07T01:21:55.515Z",
+      "classification": "provider-intent-id"
+    },
+    {
+      "label": "PO 1042 account frozen for good",
+      "stage": "freeze",
+      "kind": "freeze",
+      "businessMeaning": "Freeze the PO 1042 account permanently (policy revision 3).",
+      "commercialCents": null,
+      "commercialUsd": null,
+      "testnetUnits": null,
+      "network": "Tidepool (community-run testnet of the NEAR Intents Agent API)",
+      "sender": null,
+      "recipient": null,
+      "txId": "intent_20a10fdc0b02ebae8b5cd80a",
+      "explorerUrl": null,
+      "verification": {
+        "method": "none available: Tidepool submit-intent id with no on-chain transaction (transaction_hash null in the recorded response)",
+        "checkedAt": "2026-11-14T03:07:32.205Z",
+        "status": "not-independently-verifiable",
+        "details": {
+          "recordedStatus": "SUCCESS",
+          "type": "agent_freeze",
+          "transaction_hash": null
+        }
+      },
+      "codePath": "convex/near/escrow.ts#close",
+      "call": "POST /v1/submit-intent agent_freeze",
+      "recordedAt": "2026-11-07T01:21:55.556Z",
+      "classification": "provider-intent-id"
+    },
+    {
+      "label": "Wallet closed: PO 1042 frozen, grant revoked, kept as the order's receipt",
+      "stage": "close",
+      "kind": "wallet",
+      "businessMeaning": "Close summary: account frozen, grants revoked, balance 0, kept as the order's receipt.",
+      "commercialCents": null,
+      "commercialUsd": null,
+      "testnetUnits": null,
+      "network": "Tidepool (community-run testnet of the NEAR Intents Agent API)",
+      "sender": null,
+      "recipient": "agent_9ab195d10797557d177ca925",
+      "txId": "intent_20a10fdc0b02ebae8b5cd80a",
+      "explorerUrl": null,
+      "verification": {
+        "method": "none available: Tidepool submit-intent id with no on-chain transaction (transaction_hash null in the recorded response)",
+        "checkedAt": "2026-11-14T03:07:32.205Z",
+        "status": "not-independently-verifiable",
+        "details": {
+          "recordedStatus": null,
+          "type": null,
+          "transaction_hash": null
+        }
+      },
+      "codePath": "convex/near/escrow.ts#close",
+      "call": "POST /v1/submit-intent grant_revoke, agent_freeze",
+      "recordedAt": "2026-11-07T01:21:55.581Z",
+      "classification": "provider-intent-id"
+    }
+  ],
+  "probe-nov5": {
+    "scenario": "Older deal, separate from PO 1042: $38.00 locked / $34.20 paid / $3.80 returned (1:1,000 of $38,000 / $34,200 / $3,800)",
+    "source": "docs/NOTES.md section 14, \"Live probe of our PO path, Nov 5 2026\"",
+    "poAccount": "agent_fe8606f9c6dc60f3f1768ed9",
+    "omitted": [
+      {
+        "what": "docs/MORNING.md Nov 5 Convex run Base tx 0xa1ca4983cccd01c2f40f3565c453ebb44668... ",
+        "why": "only a truncated prefix exists in the repo and git history; the full hash was not found, so it is not verified or listed"
+      }
+    ],
+    "entries": [
+      {
+        "label": "Treasury swap: 45 NEAR USDC into Base USDC (notes record 44.9955 out)",
+        "businessMeaning": "Funding step for the probe, not a payment.",
+        "commercialCents": null,
+        "testnetUnits": null,
+        "network": "NEAR testnet",
+        "sender": "maker.tidepool-sandbox.testnet",
+        "recipient": "verifier.tidepool-sandbox.testnet",
+        "txId": "J8f6eQ9QqHu3KUdNNEfXtpPuzCKCXaJd4jbvxobyrEDy",
+        "explorerUrl": "https://testnet.nearblocks.io/txns/J8f6eQ9QqHu3KUdNNEfXtpPuzCKCXaJd4jbvxobyrEDy",
+        "verification": {
+          "method": "NEAR testnet RPC https://archival-rpc.testnet.near.org: tx (sender maker.tidepool-sandbox.testnet, from nearblocks), receipts and EVENT_JSON logs read",
+          "checkedAt": "2026-11-14T03:07:32.205Z",
+          "status": "verified",
+          "details": {
+            "rpc": "https://archival-rpc.testnet.near.org",
+            "signer": "maker.tidepool-sandbox.testnet",
+            "receiver": "verifier.tidepool-sandbox.testnet",
+            "finalExecutionStatus": "FINAL",
+            "status": {
+              "SuccessValue": ""
+            },
+            "receiptFailures": [],
+            "methods": [
+              "execute_intents"
+            ],
+            "tokenMovements": [
+              {
+                "standard": "dip4",
+                "event": "token_diff",
+                "token": "nep141:base-0x38d81431b9f76d9699af7517040d5221d9dea252.tp-omft.testnet",
+                "account": "maker.tidepool-sandbox.testnet",
+                "amountRaw": "-44995500",
+                "amount": "-44.995500"
+              },
+              {
+                "standard": "dip4",
+                "event": "token_diff",
+                "token": "nep141:usdc.tidepool-sandbox.testnet",
+                "account": "maker.tidepool-sandbox.testnet",
+                "amountRaw": "45000000",
+                "amount": "45.000000"
+              },
+              {
+                "standard": "dip4",
+                "event": "token_diff",
+                "token": "nep141:base-0x38d81431b9f76d9699af7517040d5221d9dea252.tp-omft.testnet",
+                "account": "1e8dd17b4671e0cf935248a5ea38b4094703efdad7d16bb1db6b4c5e770e2df3",
+                "amountRaw": "44995500",
+                "amount": "44.995500"
+              },
+              {
+                "standard": "dip4",
+                "event": "token_diff",
+                "token": "nep141:usdc.tidepool-sandbox.testnet",
+                "account": "1e8dd17b4671e0cf935248a5ea38b4094703efdad7d16bb1db6b4c5e770e2df3",
+                "amountRaw": "-45000000",
+                "amount": "-45.000000"
+              },
+              {
+                "standard": "nep245",
+                "event": "mt_transfer",
+                "token": "nep141:usdc.tidepool-sandbox.testnet",
+                "from": "1e8dd17b4671e0cf935248a5ea38b4094703efdad7d16bb1db6b4c5e770e2df3",
+                "to": "maker.tidepool-sandbox.testnet",
+                "amountRaw": "45000000",
+                "amount": "45.000000"
+              },
+              {
+                "standard": "nep245",
+                "event": "mt_transfer",
+                "token": "nep141:base-0x38d81431b9f76d9699af7517040d5221d9dea252.tp-omft.testnet",
+                "from": "maker.tidepool-sandbox.testnet",
+                "to": "1e8dd17b4671e0cf935248a5ea38b4094703efdad7d16bb1db6b4c5e770e2df3",
+                "amountRaw": "44995500",
+                "amount": "44.995500"
+              }
+            ],
+            "otherEvents": [
+              {
+                "standard": "dip4",
+                "event": "intents_executed"
+              }
+            ],
+            "earlierErrors": [
+              "tx at https://rpc.testnet.near.org: {\"name\":\"HANDLER_ERROR\",\"cause\":{\"info\":{\"requested_transaction_hash\":\"J8f6eQ9QqHu3KUdNNEfXtpPuzCKCXaJd4jbvxobyrEDy\"},\"name\":\"UNKNOWN_TRANSACTION\"},\"code\":-32000,\"message\":\"Server error\",\"data\":\"Transaction J8f6eQ9QqHu3KUdNNEfXtpPuzCKCXaJd4jbvxobyrEDy doesn't exist\"}"
+            ]
+          }
+        },
+        "codePath": "docs/NOTES.md section 14, \"Live probe of our PO path, Nov 5 2026\"",
+        "classification": "real-testnet-verified"
+      },
+      {
+        "label": "Lock: treasury transferred 38.000000 Base USDC into PO account agent_fe8606f9c6dc60f3f1768ed9",
+        "businessMeaning": "Commit for the older $38,000 scenario, scaled to $38.00.",
+        "commercialCents": 3800000,
+        "testnetUnits": {
+          "raw": "38000000",
+          "amount": "38.000000"
+        },
+        "network": "Tidepool / NEAR testnet",
+        "sender": "treasury agent_bd29fdad161bb80b3b07599c",
+        "recipient": "agent_fe8606f9c6dc60f3f1768ed9",
+        "txId": "DB11Cg1ibKAgb1TUxRHZPzCT11BpL7GWqnX4xKi1FarE",
+        "explorerUrl": null,
+        "verification": {
+          "method": "This is an Intents intent hash, not a NEAR transaction hash; the notes record no NEAR tx hash for the lock. Not looked up as a tx.",
+          "checkedAt": "2026-11-14T03:07:32.205Z",
+          "status": "not-independently-verifiable",
+          "details": {
+            "recordedIn": "docs/NOTES.md section 14, \"Live probe of our PO path, Nov 5 2026\""
+          }
+        },
+        "codePath": "docs/NOTES.md section 14, \"Live probe of our PO path, Nov 5 2026\"",
+        "classification": "provider-intent-id"
+      },
+      {
+        "label": "Withdraw to 0x000000000000000000000000000000000000dead with a valid grant: 403 policy_destination_denied, layer policy",
+        "businessMeaning": "Off-list destination refused by the account's destination allowlist while the caller held a valid grant.",
+        "commercialCents": null,
+        "testnetUnits": null,
+        "network": "Tidepool (community-run testnet), HTTP 403",
+        "sender": "grant holder on agent_fe8606f9c6dc60f3f1768ed9",
+        "recipient": "0x000000000000000000000000000000000000dead",
+        "txId": "none",
+        "explorerUrl": null,
+        "verification": {
+          "method": "none: recorded in project notes, no tx (synchronous 403); not independently verifiable",
+          "checkedAt": "2026-11-14T03:07:32.205Z",
+          "status": "no-tx",
+          "details": {
+            "recordedIn": "docs/NOTES.md section 14, \"Live probe of our PO path, Nov 5 2026\"",
+            "code": "policy_destination_denied",
+            "layer": "policy"
+          }
+        },
+        "codePath": "docs/NOTES.md section 14, \"Live probe of our PO path, Nov 5 2026\"",
+        "classification": "refusal-no-tx"
+      },
+      {
+        "label": "Same grant, withdraw 34.200000 to Haoyun on Base Sepolia",
+        "businessMeaning": "Paid to the allowlisted supplier with the same grant that was refused for 0x...dead.",
+        "commercialCents": 3420000,
+        "testnetUnits": {
+          "raw": "34200000",
+          "amount": "34.200000"
+        },
+        "network": "Base Sepolia (chain 84532)",
+        "sender": "0x2e6ad9e6d59bb4585ea0e6762c3b637dde29dad2",
+        "recipient": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+        "txId": "0x34da89551ea6036bc288b1726bbeb049a787a5f0adfd5079e7748f46cde206d7",
+        "explorerUrl": "https://sepolia.basescan.org/tx/0x34da89551ea6036bc288b1726bbeb049a787a5f0adfd5079e7748f46cde206d7",
+        "verification": {
+          "method": "Base Sepolia JSON-RPC https://sepolia.base.org: eth_getTransactionReceipt + eth_getTransactionByHash, ERC-20 Transfer logs decoded",
+          "checkedAt": "2026-11-14T03:07:32.205Z",
+          "status": "verified",
+          "details": {
+            "rpc": "https://sepolia.base.org",
+            "txStatus": "success",
+            "blockNumber": 54956069,
+            "txFrom": "0x55f2c8044d790e1b8369508c31c756c0c2ca0e93",
+            "txTo": "0x2e6ad9e6d59bb4585ea0e6762c3b637dde29dad2",
+            "transfers": [
+              {
+                "token": "0x38d81431b9f76d9699af7517040d5221d9dea252",
+                "from": "0x2e6ad9e6d59bb4585ea0e6762c3b637dde29dad2",
+                "to": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+                "amountRaw": "34200000",
+                "amount": "34.200000"
+              }
+            ],
+            "tokenDecimals": 6,
+            "transferSenderIsContract": true,
+            "expected": {
+              "recipient": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+              "amountRaw": "34200000",
+              "amount": "34.200000",
+              "token": "0x38d81431b9f76d9699af7517040d5221d9dea252"
+            },
+            "checks": {
+              "txStatusSuccess": true,
+              "transferToExpectedRecipient": true,
+              "amountEqualsExpected": true,
+              "tokenEqualsExpected": true,
+              "allMatchInOneTransfer": true,
+              "tokenDecimalsIs6": true
+            }
+          }
+        },
+        "codePath": "docs/NOTES.md section 14, \"Live probe of our PO path, Nov 5 2026\"",
+        "classification": "real-testnet-verified"
+      },
+      {
+        "label": "NEAR leg of the 34.20 withdraw (ft_withdraw on the Tidepool verifier)",
+        "businessMeaning": "Burns the omft on NEAR testnet and triggers the Base Sepolia send.",
+        "commercialCents": 3420000,
+        "testnetUnits": {
+          "raw": "34200000",
+          "amount": "34.200000"
+        },
+        "network": "NEAR testnet",
+        "sender": "maker.tidepool-sandbox.testnet",
+        "recipient": "verifier.tidepool-sandbox.testnet",
+        "txId": "PjeJk6tLYS7woEAykkYa1HgfPVruEhAHAbmsZQTHu9B",
+        "explorerUrl": "https://testnet.nearblocks.io/txns/PjeJk6tLYS7woEAykkYa1HgfPVruEhAHAbmsZQTHu9B",
+        "verification": {
+          "method": "NEAR testnet RPC https://archival-rpc.testnet.near.org: tx (sender maker.tidepool-sandbox.testnet, from nearblocks), receipts and EVENT_JSON logs read",
+          "checkedAt": "2026-11-14T03:07:32.205Z",
+          "status": "verified",
+          "details": {
+            "rpc": "https://archival-rpc.testnet.near.org",
+            "signer": "maker.tidepool-sandbox.testnet",
+            "receiver": "verifier.tidepool-sandbox.testnet",
+            "finalExecutionStatus": "FINAL",
+            "status": {
+              "SuccessValue": ""
+            },
+            "receiptFailures": [],
+            "methods": [
+              "execute_intents"
+            ],
+            "tokenMovements": [
+              {
+                "standard": "dip4",
+                "event": "ft_withdraw",
+                "token": "base-0x38d81431b9f76d9699af7517040d5221d9dea252.tp-omft.testnet",
+                "from": "81d22ef739397067855f8bda2d5de55410db06c0e94782900667ab229db67216",
+                "to": "tidepool-sandbox.testnet",
+                "amountRaw": "34200000",
+                "amount": "34.200000",
+                "memo": "WITHDRAW_TO:0x2003975a521c6fa45238dbc402c9e4adcb8863e0"
+              },
+              {
+                "standard": "nep245",
+                "event": "mt_burn",
+                "token": "nep141:base-0x38d81431b9f76d9699af7517040d5221d9dea252.tp-omft.testnet",
+                "from": "81d22ef739397067855f8bda2d5de55410db06c0e94782900667ab229db67216",
+                "to": null,
+                "amountRaw": "34200000",
+                "amount": "34.200000"
+              },
+              {
+                "standard": "nep141",
+                "event": "ft_transfer",
+                "from": "verifier.tidepool-sandbox.testnet",
+                "to": "tidepool-sandbox.testnet",
+                "amountRaw": "34200000",
+                "amount": "34.200000",
+                "memo": "WITHDRAW_TO:0x2003975a521c6fa45238dbc402c9e4adcb8863e0"
+              }
+            ],
+            "expected": {
+              "amountRaw": "34200000",
+              "amount": "34.200000"
+            },
+            "checks": {
+              "txSuccess": true,
+              "transferMatchesExpected": true
+            },
+            "otherEvents": [
+              {
+                "standard": "dip4",
+                "event": "intents_executed"
+              }
+            ],
+            "earlierErrors": [
+              "tx at https://rpc.testnet.near.org: {\"name\":\"HANDLER_ERROR\",\"cause\":{\"info\":{\"requested_transaction_hash\":\"PjeJk6tLYS7woEAykkYa1HgfPVruEhAHAbmsZQTHu9B\"},\"name\":\"UNKNOWN_TRANSACTION\"},\"code\":-32000,\"message\":\"Server error\",\"data\":\"Transaction PjeJk6tLYS7woEAykkYa1HgfPVruEhAHAbmsZQTHu9B doesn't exist\"}"
+            ]
+          }
+        },
+        "codePath": "docs/NOTES.md section 14, \"Live probe of our PO path, Nov 5 2026\"",
+        "classification": "real-testnet-verified"
+      },
+      {
+        "label": "Transfer 3.800000 back to the treasury",
+        "businessMeaning": "Held part returned in the older scenario.",
+        "commercialCents": 380000,
+        "testnetUnits": {
+          "raw": "3800000",
+          "amount": "3.800000"
+        },
+        "network": "Tidepool / NEAR testnet",
+        "sender": "agent_fe8606f9c6dc60f3f1768ed9",
+        "recipient": "treasury agent_bd29fdad161bb80b3b07599c",
+        "txId": null,
+        "explorerUrl": null,
+        "verification": {
+          "method": "none: the notes record SUCCESS but no tx hash",
+          "checkedAt": "2026-11-14T03:07:32.205Z",
+          "status": "no-hash-recorded",
+          "details": {
+            "recordedIn": "docs/NOTES.md section 14, \"Live probe of our PO path, Nov 5 2026\""
+          }
+        },
+        "codePath": "docs/NOTES.md section 14, \"Live probe of our PO path, Nov 5 2026\"",
+        "classification": "real-testnet-unverifiable"
+      }
+    ]
+  }
+}

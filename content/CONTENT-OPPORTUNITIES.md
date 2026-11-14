@@ -84,3 +84,27 @@ Status scale: idea · script ready · capture ready · editing · verified · ex
 - **First comment:** The receipts: docs/hackathon/PAYMENT-PROOFS.md in the repo, or run `npm run verify:proofs`.
 - **Technical references:** NEAR Intents Agent API (Tidepool community testnet), OutLayer TEE release gate, Base Sepolia.
 - Posting is outward: Luca publishes.
+
+## Rendered (content/remotion, data from payment-proofs.json)
+
+| Composition | Size | File (not committed, regenerate with `npm run render:*` in content/remotion) | Status |
+|---|---|---|---|
+| JudgeCut | 1920x1080 | out/JudgeCut.mp4 | exported; hashes shown in full, refusal labelled grant layer |
+| ShortShipment | 1080x1920 | out/ShortShipment.mp4 | exported |
+| ApprovalGate | 1080x1920 | out/ApprovalGate.mp4 | exported; approval refusals labelled "from the test suite, not yet on the live deployment" |
+| Thumbnails + PromoSquare | stills | out/*.png (committed) | exported |
+
+Review each video once before posting; posting is Luca's call.
+
+## Posting package: ApprovalGate (#1)
+
+- **Title:** What our AI couldn't do with $63,000
+- **Hooks:** "We gave an AI a $63,000 purchasing decision. Here's what it couldn't do." / "One signature isn't enough. Two signatures on different terms aren't either." / "Our agent negotiates. It can't approve itself."
+- **X:** Our procurement agent finds, compares and negotiates. It cannot commit $63,000 on its own: two people must sign the exact terms, and changing the price by $60 voids their signatures. 18 attack tests, `npm run attack`. Built at NEAR HACKATHON @NEARProtocol #NEARHackathon
+- **Instagram / TikTok:** AI can negotiate the deal. It still needs two humans to sign the exact terms before money moves. #NEARHackathon #AIagents
+- **First comment:** The tests: tests/commitAuthorization.test.ts. Honest limit: enforced by our backend, not by the chain.
+
+## Posting package: JudgeCut (judge / long-form)
+
+- **Title:** EverNEAR: pay only for what arrives, and prove it
+- **Description:** A 50-motor order, 44 delivered: commit, advance, balance and return on testnet with every hash shown in full, the refusal layer named, and what is still simulated stated on screen. Receipts: docs/hackathon/PAYMENT-PROOFS.md; `npm run verify:proofs`.

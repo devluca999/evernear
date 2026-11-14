@@ -1,0 +1,42 @@
+{
+  "name": "evernear-remotion",
+  "version": "1.0.0",
+  "description": "EverNEAR demo videos (Remotion), data-driven from the repo",
+  "repository": {},
+  "license": "UNLICENSED",
+  "engines": {
+    "node": "^20.19.0 || ^22.13.0 || >=24"
+  },
+  "private": true,
+  "dependencies": {
+    "@remotion/cli": "4.0.543",
+    "@remotion/google-fonts": "4.0.543",
+    "@remotion/transitions": "4.0.543",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "remotion": "4.0.543"
+  },
+  "devDependencies": {
+    "@remotion/eslint-config-flat": "4.0.543",
+    "@types/react": "19.3.0",
+    "@types/web": "0.0.166",
+    "eslint": "10.12.0",
+    "prettier": "3.8.1",
+    "typescript": "5.9.3"
+  },
+  "scripts": {
+    "dev": "remotion studio",
+    "build": "remotion bundle",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src && tsc --noEmit",
+    "test": "node --test test/*.spec.mjs",
+    "stills": "for id in PromoSquare JudgeCutThumb ShortShipmentThumb ApprovalGateThumb; do remotion still $id out/$id.png; done",
+    "render:judge": "remotion render JudgeCut out/JudgeCut.mp4 --codec=h264",
+    "render:short": "remotion render ShortShipment out/ShortShipment.mp4 --codec=h264",
+    "render:approval": "remotion render ApprovalGate out/ApprovalGate.mp4 --codec=h264",
+    "upgrade": "remotion upgrade"
+  },
+  "allowScripts": {
+    "esbuild": false
+  }
+}

@@ -1,0 +1,10 @@
+node_modules
+dist
+.DS_Store
+.env
+
+# Renders: videos are ignored; thumbnails (out/*.png, each under 500KB) are tracked.
+# The root .gitignore ignores every out/ folder, so re-include this one first.
+!out/
+out/*
+!out/*.png

@@ -76,7 +76,8 @@ Astro, its customers and suppliers; supplier replies; shipment signals; the dock
 - `npx vitest run`: 457 passed (was 408 before this branch).
 - `cargo test` in worker/release-gate: 25 passed.
 - `npx tsc --noEmit`, `npx eslint convex engine tests scripts`, `npm run check:ip`: clean.
-- `npm run attack`: 42 passed. `npm run verify:proofs`: every recorded tx verified on public RPCs.
+- `DEMO_MODE=1 node scripts/demo.mjs --check` from a fresh clone with no `.env.local`: passed.
+- `npm run attack`: 44 passed. `npm run verify:proofs`: every recorded tx verified on public RPCs.
 
 ## Content readiness
 

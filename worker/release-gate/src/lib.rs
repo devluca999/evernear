@@ -33,6 +33,12 @@ pub const MAX_OUTPUT_BYTES: usize = 900;
 /// build, so a caller cannot ask for a bigger advance; a rule change is a new build and a new grant.
 pub const ADVANCE_PERCENT: u64 = 30;
 
+/// v3: the receiving dock devices whose signed count the balance is paid on, pinned in the build
+/// (the same keys as the deployment's DOCK_DEVICE_KEYS). A new device is a new build and a new grant.
+pub const PINNED_DOCK_DEVICES: [(&str, &str); 1] = [("dock-3-scanner", "cb7f72a5c9f648acf4b989d5868d1129374da140a206eba6304bc4a43a594edc")];
+/// The bytes a dock device signs: this prefix, then canonical JSON of {at, count, device, po}.
+pub const DOCK_PREFIX: &str = "evernear-dock-count:v1:";
+
 pub const ADVANCE_SIGNALS: [&str; 2] = ["bill_of_lading", "export_cleared"];
 pub const BALANCE_SIGNALS: [&str; 2] = ["import_cleared", "dock_count"];
 
@@ -523,6 +529,35 @@ pub fn check_against_chain(r: &ReleaseInput, c: &ChainState) -> Result<(), &'sta
     Ok(())
 }
 
+// ---------- v3: the signed dock count ----------
+
+/// The balance is paid only on a dock count signed by a pinned receiving device, for this PO, equal to
+/// the count the amount is computed from. Evidence received from a known device, not a physical fact.
+pub fn check_dock_attestation(r: &ReleaseInput) -> Result<(), &'static str> {
+    use ed25519_dalek::{Signature, Verifier, VerifyingKey};
+    let a = r.signals.get("dock_count").and_then(|d| d.get("attestation")).ok_or("dock_unsigned")?;
+    let field = |k: &str| a.get(k).and_then(Value::as_str);
+    let (device, key, sig, po, at) = (field("device"), field("publicKey"), field("signature"), field("po"), field("at"));
+    let (Some(device), Some(key), Some(sig), Some(po), Some(at)) = (device, key, sig, po, at) else { return Err("dock_unsigned") };
+    let count = a.get("count").and_then(Value::as_u64).ok_or("dock_unsigned")?;
+    let pinned = PINNED_DOCK_DEVICES.iter().find(|(d, _)| *d == device).ok_or("dock_unknown_device")?;
+    if !pinned.1.eq_ignore_ascii_case(key) {
+        return Err("dock_unknown_device");
+    }
+    let pk: [u8; 32] = hex::decode(pinned.1).ok().and_then(|b| b.try_into().ok()).ok_or("dock_unknown_device")?;
+    let sig: [u8; 64] = hex::decode(sig).ok().and_then(|b| b.try_into().ok()).ok_or("dock_bad_signature")?;
+    let msg = format!("{DOCK_PREFIX}{}", canonical(&json!({"at": at, "count": count, "device": device, "po": po})));
+    VerifyingKey::from_bytes(&pk).map_err(|_| "dock_unknown_device")?
+        .verify(msg.as_bytes(), &Signature::from_bytes(&sig)).map_err(|_| "dock_bad_signature")?;
+    if po != r.po {
+        return Err("dock_wrong_po");
+    }
+    if Some(count) != r.received_qty {
+        return Err("dock_count_mismatch");
+    }
+    Ok(())
+}
+
 // ---------- the run ----------
 
 fn sign_result(host: &dyn Host, mut result: Map<String, Value>) -> String {
@@ -596,6 +631,11 @@ pub fn release(host: &dyn Host, r: &ReleaseInput) -> String {
         Decision::Refuse { reason, missing } => return sign_result(host, refusal(r, reason, missing, None)),
         Decision::Release { amount_cents, held_cents, signal_ids } => (amount_cents, held_cents, signal_ids),
     };
+    if r.stage == "balance" {
+        if let Err(reason) = check_dock_attestation(r) {
+            return sign_result(host, refusal(r, reason, vec![], None));
+        }
+    }
     let Some(api_key) = host.env(API_KEY_ENV).filter(|k| !k.is_empty()) else {
         return sign_result(host, refusal(r, "api_key_missing", vec![], None));
     };

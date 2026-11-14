@@ -26,7 +26,11 @@ Amounts are integer cents. The module refuses rather than rounds (`inexact_amoun
 - **One payment per stage.** The module sends its own `idempotency-key`, `rg1-<stage>-` + the first 32 hex of sha256(`evernear-release-gate:v1:idem:<agent_id>:<po>:<stage>`). Tidepool replays a repeated key with the same body and refuses it with another body (`idempotency_conflict`). The input's `idempotency_key` is accepted and ignored. Test: `idempotency_vectors`.
 - **The API key comes only from the env** (`AGENT_API_KEY`, an OutLayer secret), never from the input. Test: `api_key_comes_only_from_env`.
 
-## v2 (uploaded Nov 14, live on the deployment): it reads the order account instead of trusting the caller
+## v3 (uploaded Nov 14, live on the deployment): the balance needs a signed dock count
+
+v3 = v2 plus one check inside the enclave: the balance is paid only when the dock count carries a signature from a receiving device pinned in the build (`PINNED_DOCK_DEVICES`, the same key as the deployment's `DOCK_DEVICE_KEYS`), over `evernear-dock-count:v1:` + canonical {at, count, device, po}, for this PO and equal to `received_qty`. Refusals: `dock_unsigned`, `dock_unknown_device`, `dock_bad_signature`, `dock_wrong_po`, `dock_count_mismatch`. So a compromised backend can no longer pay a balance on a count it made up; it would need the dock device's key. A signature shows which device reported the count, not that the motors are on the dock. Freshness is checked by the server (`convex/dock.ts`), not here (no clock in the module). sha256 `e60577955c36e09dd078c102704d13c0e27ef33c10635f0257d70883ea887c14`, result key `815975ba…8076`. On chain: a balance with an unsigned count for the closed Nov 6 wallet was refused `dock_unsigned`, signed, nothing sent (tx [`8S4uYwhT…`](https://testnet.nearblocks.io/txns/8S4uYwhTjER6BibGyM6gJ6qFHtc6R6d8DCMJ4WaZLqh1), [fixture](../../fixtures/recorded/gate-v3-unsigned-dock-probe.json)). Tests: `v3_*` in [`src/tests.rs`](src/tests.rs); the shared vectors' balance cases carry a signed count.
+
+## v2 (uploaded Nov 14; superseded by v3, which includes it): it reads the order account instead of trusting the caller
 
 The v1 build (`04f6d241…`, Nov 6, used for the recorded run) takes the committed total, the amount already released and the recipient from its caller. v2 (sha256 `dd90ce689d45c3dcddceb9b92fd42563b0edaad9ab7b974c9a41cd75cbfa8955` with rustc 1.99.1; rebuild to confirm) reads them from Tidepool before it pays:
 

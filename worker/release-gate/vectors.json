@@ -70,7 +70,15 @@
             "id": "dock-1042",
             "at": "2026-11-21T10:00:00Z",
             "count": 44,
-            "source": "simulated"
+            "source": "simulated",
+            "attestation": {
+              "at": "2026-11-11T08:40:00Z",
+              "count": 44,
+              "device": "dock-3-scanner",
+              "po": "1042",
+              "publicKey": "cb7f72a5c9f648acf4b989d5868d1129374da140a206eba6304bc4a43a594edc",
+              "signature": "3cba3dbde61037b64500d4be89637a9226a576f506efc0ac1846251cda557c37f123a1b3bece8498f8593245128adece098d3ba7c0c7f15a0d1a9c2ffe16f70e"
+            }
           }
         },
         "idempotency_key": "ignored-by-module",
@@ -148,7 +156,15 @@
             "id": "dock-1042",
             "at": "2026-11-21T10:00:00Z",
             "count": 44,
-            "source": "simulated"
+            "source": "simulated",
+            "attestation": {
+              "at": "2026-11-11T08:40:00Z",
+              "count": 44,
+              "device": "dock-3-scanner",
+              "po": "1042",
+              "publicKey": "cb7f72a5c9f648acf4b989d5868d1129374da140a206eba6304bc4a43a594edc",
+              "signature": "3cba3dbde61037b64500d4be89637a9226a576f506efc0ac1846251cda557c37f123a1b3bece8498f8593245128adece098d3ba7c0c7f15a0d1a9c2ffe16f70e"
+            }
           }
         },
         "idempotency_key": "ignored-by-module",
@@ -370,7 +386,15 @@
             "id": "dock-1042",
             "at": "2026-11-21T10:00:00Z",
             "count": 44,
-            "source": "simulated"
+            "source": "simulated",
+            "attestation": {
+              "at": "2026-11-11T08:40:00Z",
+              "count": 44,
+              "device": "dock-3-scanner",
+              "po": "1042",
+              "publicKey": "cb7f72a5c9f648acf4b989d5868d1129374da140a206eba6304bc4a43a594edc",
+              "signature": "3cba3dbde61037b64500d4be89637a9226a576f506efc0ac1846251cda557c37f123a1b3bece8498f8593245128adece098d3ba7c0c7f15a0d1a9c2ffe16f70e"
+            }
           }
         },
         "idempotency_key": "ignored-by-module",
@@ -471,7 +495,15 @@
             "id": "dock-1042",
             "at": "2026-11-21T10:00:00Z",
             "count": 51,
-            "source": "simulated"
+            "source": "simulated",
+            "attestation": {
+              "at": "2026-11-11T08:40:00Z",
+              "count": 51,
+              "device": "dock-3-scanner",
+              "po": "1042",
+              "publicKey": "cb7f72a5c9f648acf4b989d5868d1129374da140a206eba6304bc4a43a594edc",
+              "signature": "a98fbab36fcd6f260ff8f3ac72a47b09f3159ff10f43cd9682a695984ab73a8cebedec894b531d866f5b3690df855ab4dbe9e54aa34f3018327a51b6a2ffc70d"
+            }
           }
         },
         "idempotency_key": "ignored-by-module",
@@ -506,7 +538,15 @@
             "id": "dock-1042",
             "at": "2026-11-21T10:00:00Z",
             "count": 44,
-            "source": "simulated"
+            "source": "simulated",
+            "attestation": {
+              "at": "2026-11-11T08:40:00Z",
+              "count": 44,
+              "device": "dock-3-scanner",
+              "po": "1042",
+              "publicKey": "cb7f72a5c9f648acf4b989d5868d1129374da140a206eba6304bc4a43a594edc",
+              "signature": "3cba3dbde61037b64500d4be89637a9226a576f506efc0ac1846251cda557c37f123a1b3bece8498f8593245128adece098d3ba7c0c7f15a0d1a9c2ffe16f70e"
+            }
           }
         },
         "idempotency_key": "ignored-by-module",
@@ -541,7 +581,15 @@
             "id": "dock-1042",
             "at": "2026-11-21T10:00:00Z",
             "count": 10,
-            "source": "simulated"
+            "source": "simulated",
+            "attestation": {
+              "at": "2026-11-11T08:40:00Z",
+              "count": 10,
+              "device": "dock-3-scanner",
+              "po": "1042",
+              "publicKey": "cb7f72a5c9f648acf4b989d5868d1129374da140a206eba6304bc4a43a594edc",
+              "signature": "f865609233cb0e08fe2719ba641bc103547b77a825ad4f9e5b8ee4d26a0efb2a5b6a31b14480750583d0721e14bb5402af5a6267e71ebd8345ed859101dad406"
+            }
           }
         },
         "idempotency_key": "ignored-by-module",
@@ -576,7 +624,15 @@
             "id": "dock-1042",
             "at": "2026-11-21T10:00:00Z",
             "count": 44,
-            "source": "simulated"
+            "source": "simulated",
+            "attestation": {
+              "at": "2026-11-11T08:40:00Z",
+              "count": 44,
+              "device": "dock-3-scanner",
+              "po": "1042",
+              "publicKey": "cb7f72a5c9f648acf4b989d5868d1129374da140a206eba6304bc4a43a594edc",
+              "signature": "3cba3dbde61037b64500d4be89637a9226a576f506efc0ac1846251cda557c37f123a1b3bece8498f8593245128adece098d3ba7c0c7f15a0d1a9c2ffe16f70e"
+            }
           }
         },
         "idempotency_key": "ignored-by-module",
@@ -611,7 +667,15 @@
             "id": "dock-1042",
             "at": "2026-11-21T10:00:00Z",
             "count": 44,
-            "source": "simulated"
+            "source": "simulated",
+            "attestation": {
+              "at": "2026-11-11T08:40:00Z",
+              "count": 44,
+              "device": "dock-3-scanner",
+              "po": "1042",
+              "publicKey": "cb7f72a5c9f648acf4b989d5868d1129374da140a206eba6304bc4a43a594edc",
+              "signature": "3cba3dbde61037b64500d4be89637a9226a576f506efc0ac1846251cda557c37f123a1b3bece8498f8593245128adece098d3ba7c0c7f15a0d1a9c2ffe16f70e"
+            }
           }
         },
         "idempotency_key": "ignored-by-module",
@@ -646,7 +710,15 @@
             "id": "dock-1042",
             "at": "2026-11-21T10:00:00Z",
             "count": 50,
-            "source": "simulated"
+            "source": "simulated",
+            "attestation": {
+              "at": "2026-11-11T08:40:00Z",
+              "count": 50,
+              "device": "dock-3-scanner",
+              "po": "1042",
+              "publicKey": "cb7f72a5c9f648acf4b989d5868d1129374da140a206eba6304bc4a43a594edc",
+              "signature": "8b2301217bc161517bba60f491584ac035b0064401145a07db3a5f9a82aefbe71527847f5c17bd20f68a9e044154ca3f291f57ef02361ced02895d2ded6ec806"
+            }
           }
         },
         "idempotency_key": "ignored-by-module",
@@ -818,7 +890,15 @@
             "id": "dock-1042",
             "at": "2026-11-21T10:00:00Z",
             "count": 44,
-            "source": "simulated"
+            "source": "simulated",
+            "attestation": {
+              "at": "2026-11-11T08:40:00Z",
+              "count": 44,
+              "device": "dock-3-scanner",
+              "po": "1042",
+              "publicKey": "cb7f72a5c9f648acf4b989d5868d1129374da140a206eba6304bc4a43a594edc",
+              "signature": "3cba3dbde61037b64500d4be89637a9226a576f506efc0ac1846251cda557c37f123a1b3bece8498f8593245128adece098d3ba7c0c7f15a0d1a9c2ffe16f70e"
+            }
           }
         },
         "idempotency_key": "ignored-by-module"

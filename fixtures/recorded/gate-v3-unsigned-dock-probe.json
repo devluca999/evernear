@@ -1,0 +1,45 @@
+{
+  "_note": "Release gate v3 on OutLayer testnet, Nov 14: a balance request for the closed PO 1042 wallet with a dock count NOT signed by the pinned dock device. Refused inside the enclave before any Tidepool call (dock_unsigned), signed; nothing sent.",
+  "network": "NEAR testnet (OutLayer)",
+  "signer": "evernear-luca.testnet",
+  "contract": "outlayer.testnet",
+  "tx": "8S4uYwhTjER6BibGyM6gJ6qFHtc6R6d8DCMJ4WaZLqh1",
+  "explorer": "https://testnet.nearblocks.io/txns/8S4uYwhTjER6BibGyM6gJ6qFHtc6R6d8DCMJ4WaZLqh1",
+  "wasm_url": "https://test.fastfs.io/evernear-luca.testnet/outlayer.testnet/e60577955c36e09dd078c102704d13c0e27ef33c10635f0257d70883ea887c14.wasm",
+  "wasm_sha256": "e60577955c36e09dd078c102704d13c0e27ef33c10635f0257d70883ea887c14",
+  "input": {
+    "mode": "release",
+    "stage": "balance",
+    "po": "1042",
+    "agent_id": "agent_9ab195d10797557d177ca925",
+    "to": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+    "unit_cents": 126000,
+    "ordered_qty": 50,
+    "locked_cents": 6300000,
+    "released_cents": 1890000,
+    "advance_percent": 30,
+    "received_qty": 44,
+    "signals": {
+      "import_cleared": {
+        "id": "sim-import",
+        "at": "2026-11-11T06:50:00Z"
+      },
+      "dock_count": {
+        "id": "dock-1042",
+        "at": "2026-11-11T08:40:00Z",
+        "count": 44
+      }
+    }
+  },
+  "output": {
+    "agent_id": "agent_9ab195d10797557d177ca925",
+    "evidence_sha256": "50a566c7b1e2b1b98352d539857b444b92e273049fae5864d2b7501ab178af32",
+    "missing": [],
+    "ok": false,
+    "po": "1042",
+    "public_key": "815975ba71b9036547951f84434e908ec81b4439bf53b1cb0494de1715158076",
+    "reason": "dock_unsigned",
+    "signature": "ed3a87550d201a3f78ec67a4aaa08dfd3208bc95254b393cb6699e9f72631fe032277ee618e0c0f940385b4494034baa203f86f4d5c1303a69933c68a83b8a02",
+    "stage": "balance"
+  }
+}

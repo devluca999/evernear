@@ -543,3 +543,34 @@ fn v2_dust_from_outside_does_not_block_a_release() {
         assert_eq!(out["ok"], true, "{extra}: {out}");
     }
 }
+
+// ---------- v3: the balance needs a dock count signed by a pinned device ----------
+
+#[test]
+fn v3_balance_needs_a_pinned_dock_signature() {
+    let refuse = |edit: &dyn Fn(&mut Value)| -> String {
+        let mut input = case("balance at $1260");
+        edit(&mut input);
+        let host = MockHost::accepting();
+        let out = run_case(&host, &input);
+        assert_eq!(out["ok"], false, "{out}");
+        verify(&out);
+        assert!(host.sent.borrow().is_empty());
+        out["reason"].as_str().unwrap().to_string()
+    };
+    assert_eq!(refuse(&|i| { i["signals"]["dock_count"].as_object_mut().unwrap().remove("attestation"); }), "dock_unsigned");
+    assert_eq!(refuse(&|i| i["signals"]["dock_count"]["attestation"]["count"] = json!(50)), "dock_bad_signature");
+    assert_eq!(refuse(&|i| i["signals"]["dock_count"]["attestation"]["device"] = json!("someone-else")), "dock_unknown_device");
+    assert_eq!(refuse(&|i| i["signals"]["dock_count"]["attestation"]["publicKey"] = json!("ab".repeat(32))), "dock_unknown_device");
+    // A count signed for another PO.
+    assert_eq!(refuse(&|i| { i["po"] = json!("1043"); }), "dock_wrong_po");
+    // The signed attestation itself is good: the case pays.
+    let host = MockHost::accepting();
+    assert_eq!(run_case(&host, &case("balance at $1260"))["ok"], true);
+}
+
+#[test]
+fn v3_advance_does_not_need_a_dock_count() {
+    let host = MockHost::accepting();
+    assert_eq!(run_case(&host, &case("advance at $1260"))["ok"], true);
+}

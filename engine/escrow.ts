@@ -33,7 +33,7 @@ export interface Escrow {
   lifecycle: Lifecycle;
 }
 
-export type Refusal = { ok: false; reason: "address_not_allowed" | "past_deadline" | "over_balance" | "closed" | "not_due" | "missing_signal" | "already_released" | "nothing_due" | "not_exact"; missing?: SignalId[] };
+export type Refusal = { ok: false; reason: "address_not_allowed" | "past_deadline" | "over_balance" | "closed" | "not_due" | "missing_signal" | "already_released" | "nothing_due" | "not_exact" | "bad_quantity"; missing?: SignalId[] };
 
 export function createEscrow(i: { supplier: string; owner: string; lockedCents: number; deadlineMs: number }): Escrow {
   return { ...i, releasedCents: 0, reclaimedCents: 0, closed: false, lifecycle: i.lockedCents > 0 ? "funded" : "created" };
@@ -74,7 +74,10 @@ export function releaseStage(e: Escrow, r: { stage: Stage; to: string; signals: 
     if ((e.lockedCents * R.advancePercent) % 100 !== 0) return { ok: false, reason: "not_exact" };
     amountCents = (e.lockedCents * R.advancePercent) / 100;
   } else {
-    amountCents = (r.receivedQty ?? 0) * r.unitCents - e.releasedCents;
+    // Quantities and prices are whole numbers: a fractional, negative, NaN or over-ordered count is refused, never rounded.
+    const q = r.receivedQty ?? 0;
+    if (!Number.isSafeInteger(q) || q < 0 || !Number.isSafeInteger(r.unitCents) || r.unitCents <= 0 || q * r.unitCents > e.lockedCents) return { ok: false, reason: "bad_quantity" };
+    amountCents = q * r.unitCents - e.releasedCents;
     if (amountCents <= 0) return { ok: false, reason: "nothing_due" };
   }
   if (amountCents > balance(e)) return { ok: false, reason: "over_balance" };

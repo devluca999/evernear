@@ -77,7 +77,7 @@ describe("two-stage release rules", () => {
         const total = b.ok ? b.escrow.releasedCents : e.releasedCents;
         expect(total, `received ${received}`).toBeLessThanOrEqual(cents(63_000));
         if (b.ok) expect(b.escrow.releasedCents).toBe(received * PO.revisedUnitCents);
-        else expect(["nothing_due", "over_balance"]).toContain(b.reason);
+        else expect(["nothing_due", "over_balance", "bad_quantity"]).toContain(b.reason);
       }
     }
   });

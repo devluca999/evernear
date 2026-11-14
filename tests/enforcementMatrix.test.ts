@@ -99,7 +99,7 @@ describe("release enforcement matrix", () => {
     const p = await provider();
     expect(await p.withdraw(p.validGrant, HAOYUN, 63_000_001n)).toMatchObject({ ok: false, code: "policy_transaction_limit_exceeded", layer: "policy" });
     expect(gateDecide(gateInput({ stage: "balance", released_cents: 0, received_qty: 51, signals: { import_cleared: { id: "i", at: "x" }, dock_count: { id: "d", at: "x", count: 51 } } }))).toMatchObject({ ok: false, reason: "received_over_ordered" });
-    expect(engine({ ...funded(), releasedCents: 1_890_000 }, { stage: "balance", signals: [...BAL], receivedQty: 51 })).toMatchObject({ ok: false, reason: "over_balance" });
+    expect(engine({ ...funded(), releasedCents: 1_890_000 }, { stage: "balance", signals: [...BAL], receivedQty: 51 })).toMatchObject({ ok: false, reason: "bad_quantity" });
   });
   it("10. valid grant but missing milestone evidence: engine and gate refuse and name what is missing", () => {
     expect(engine(funded(), { signals: ["bill_of_lading"] })).toMatchObject({ ok: false, reason: "missing_signal", missing: ["export_cleared"] });

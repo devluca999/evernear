@@ -46,3 +46,75 @@ test("receipts used by the video are verified entries with explorer URLs", () =>
     assert.ok(e.explorerUrl && e.explorerUrl.includes(e.txId), stage);
   }
 });
+
+// ---- PartialShipment / JudgeDemo facts ----------------------------------------------------------
+const readiness = read("docs/hackathon/READINESS.md");
+const proofsMd = read("docs/hackathon/PAYMENT-PROOFS.md");
+const approvalRun = JSON.parse(read("fixtures/recorded/approval-gated-run.json"));
+const gateV2 = JSON.parse(read("fixtures/recorded/gate-v2-frozen-probe.json"));
+
+test("real testnet approval refusals: 0 and 1 approvals refused, agent count 5 before and after", () => {
+  assert.equal(approvalRun.zeroApprovals.reason, "not_enough_approvals");
+  assert.equal(approvalRun.oneApproval.reason, "not_enough_approvals");
+  assert.equal(approvalRun.agentsUsedBefore, 5);
+  assert.equal(approvalRun.agentsUsedAfter, 5);
+  assert.equal(approvalRun.quotaUnchanged, true);
+  assert.match(approvalRun.approvers, /rehearsal keys, not people/);
+  assert.deepEqual(approvalRun.rows.filter((r) => r.kind === "refusal").map((r) => r.response.valid), [0, 1]);
+  assert.ok(approvalRun.rows.every((r) => r.hash === "none" && r.response.total_cents === 6_300_000));
+  assert.match(proofsMd, /The full approval-gated run .* was not run/);
+  assert.match(data, /Test suite only: the full approval-gated testnet run has not been done/);
+});
+
+test("commit receipt is the Nov 6 run, before the approval check existed", () => {
+  assert.match(gateV2._note, /Nov 6 run/);
+  assert.match(data, /RECORDED_RUN_LABEL = "Nov 6"/);
+  assert.match(readiness, /Live commit did not check approvals/);
+  assert.equal(proofs.entries.find((e) => e.stage === "commit").txId, "366nhBeJvx6Ch7kpx2ZR8ZchQvBDrxVhtPFe8J62ynC1");
+});
+
+test("gate v2 refused a frozen account on chain with a signed account_frozen", () => {
+  assert.equal(gateV2.tx, "4qXdn52ZYn6Xwhy5KeXxL3fFqzaaWojp4nyaZcxkp2vH");
+  assert.equal(gateV2.output.ok, false);
+  assert.equal(gateV2.output.reason, "account_frozen");
+  assert.equal(gateV2.signature_valid, true);
+  assert.ok(gateV2.explorer.includes(gateV2.tx));
+  assert.match(gateV2._note, /Nov 14/);
+  assert.match(trust, /not yet exercised on a paying order/);
+});
+
+test("reconciliation 18.90 + 36.54 + 7.56 = 63.00 comes from chain reads in payment-proofs.json", () => {
+  const r = proofs.reconciliation;
+  assert.equal(Number(r.advanceRaw) + Number(r.balanceRaw) + Number(r.reclaimRaw), Number(r.commitRaw));
+  assert.equal(r.sumOutRaw, r.commitRaw);
+  assert.match(readiness, /18\.90 \+ 36\.54 \+ 7\.56 = 63\.00 read from chain/);
+});
+
+test("agent autonomy rows are quoted from READINESS.md", async () => {
+  const rows = [...data.matchAll(/\{ step: "([^"]+)", cls: "([^"]+)"/g)];
+  assert.ok(rows.length >= 8);
+  for (const [, step, cls] of rows) assert.ok(readiness.includes(`| ${step} | ${cls} |`), step);
+  assert.ok(readiness.includes("No step lets a model choose an amount, an address or whether money moves."));
+});
+
+test("still simulated / trusted quotes match the docs", () => {
+  const sim = data.match(/STILL_SIMULATED_DOC =\s*"([^"]+)"/)[1];
+  assert.ok(readiness.includes(sim));
+  assert.match(trust, /could skip approvals and commit; could make the gate overpay Haoyun up to the order total/);
+  assert.match(trust, /keeps the gate's grant and signing key bound to the wasm hash/);
+  assert.match(trust, /when devices are pinned/);
+  assert.match(trust, /without pinned devices the scenario's 44 is used and labelled unsigned/);
+  assert.match(trust, /the deployed gate does not check it yet/);
+  const dock = proofs.entries.find((e) => e.txId === "dock-1042");
+  assert.equal(dock.verification.status, "simulated");
+});
+
+test("npm run attack has 49 test cases (counted in its three files)", () => {
+  const pkg = JSON.parse(read("package.json"));
+  const files = pkg.scripts.attack.match(/\S+\.test\.ts/g);
+  assert.equal(files.length, 3);
+  const n = files.reduce((a, f) => a + (read(f).match(/^\s*(?:it|test)\(/gm) ?? []).length, 0);
+  assert.equal(n, 49);
+  assert.match(data, /cases: 49,/);
+  assert.ok(pkg.scripts["verify:proofs"]);
+});

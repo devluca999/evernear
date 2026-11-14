@@ -11,8 +11,10 @@ This folder is self-contained: its own `package.json`, `node_modules` and lint s
 | `JudgeCut` | 1920x1080 | 89 s | Full story for judges: hook, PO, approval gate (refused with one signature, then two), wallet, simulated milestones, advance receipt, dock count, balance receipt, returned receipt, grant-layer refusal, trust boundaries and what remains simulated, end card |
 | `ShortShipment` | 1080x1920 | 39 s | Social cut of the same story. Payoff: "Your AI can execute the purchase. The payment rules still protect your money." |
 | `ApprovalGate` | 1080x1920 | 30 s | "We gave an AI a $63,000 purchasing decision. Here's what it couldn't do." |
+| `PartialShipment` | 1080x1920 | ~42 s | Single release/refund vs a purchase order with milestones: 44 of 50 arrive, $55,440 paid, $7,560 returned, real testnet receipts. Payoff: "AI can handle procurement. It doesn't get to invent the payment rules." |
+| `JudgeDemo` | 1920x1080 | ~205 s | Eight acts around PO 1042: problem, agent autonomy, financial authorization (real testnet approval refusals), advance, dock count, balance + return + reconciliation, adversarial (grant, destination, gate v2 frozen), independent verification and what is still simulated or trusted |
 | `PromoSquare` | 1080x1080 still | | Promo image |
-| `JudgeCutThumb`, `ShortShipmentThumb`, `ApprovalGateThumb` | stills | | Thumbnails |
+| `JudgeCutThumb`, `ShortShipmentThumb`, `ApprovalGateThumb`, `PartialShipmentThumb`, `JudgeDemoThumb` | stills | | Thumbnails |
 
 (The dollar figure in the `ApprovalGate` title is computed, like every other figure.)
 
@@ -30,7 +32,11 @@ npm run stills       # out/*.png
 npm run render:judge # out/JudgeCut.mp4 (h264)
 npm run render:short # out/ShortShipment.mp4
 npm run render:approval
+npm run render:partial    # out/PartialShipment.mp4
+npm run render:judgedemo  # out/JudgeDemo.mp4
 ```
+
+Regenerate, fact-check and export workflow, and how to drop in an app screen recording: [CAPTURE.md](CAPTURE.md).
 
 If renders time out with `Waiting for root component to load`, the downloaded `chrome-headless-shell` is not painting on this machine (seen on macOS here). Point Remotion at an installed Chrome instead; `remotion.config.ts` reads this variable:
 
@@ -48,7 +54,8 @@ Nothing on screen is typed into a scene. `src/data.ts` imports the repo's own fi
 | `policy/astro.json` | approvals required, auto-approve limit, advance percent, which signals unlock advance and balance |
 | `engine/money.ts` | testnet scale (1:1,000) |
 | `docs/hackathon/payment-proofs.json` | the only source of tx hashes, explorer URLs, senders, recipients, recorded testnet amounts, the simulated signal records and the refusal records |
-| `docs/hackathon/ENFORCEMENT-MATRIX.md`, `TRUST-MODEL.md` | refusal codes and layers, trust boundaries (quoted in `src/data.ts`; `test/facts.spec.mjs` fails if the docs stop saying so) |
+| `fixtures/recorded/approval-gated-run.json`, `gate-v2-frozen-probe.json` | real testnet approval refusals; gate v2 frozen-account refusal |
+| `docs/hackathon/ENFORCEMENT-MATRIX.md`, `TRUST-MODEL.md`, `READINESS.md` | refusal codes and layers, trust boundaries (quoted in `src/data.ts`; `test/facts.spec.mjs` fails if the docs stop saying so) |
 
 Amounts are computed in integer cents by `src/amounts.ts` (`computeSettlement`): total = qty x unit, advance = total x advance% (refused if not whole cents), balance = received x unit - advance, returned = total - paid. `test/amounts.spec.mjs` checks the result against `reconciliation` in `payment-proofs.json` (63.00 / 18.90 / 36.54 / 7.56 test USDC).
 
@@ -60,5 +67,7 @@ Every composition takes one prop, `receivedQty` (default `null` = seed value). C
 - **Wallet**: a NEAR Intents Agent API account on Tidepool, a community-run testnet, not NEAR infrastructure. Its destination policy is enforced by Tidepool's server, not on chain.
 - **Refusal scene**: the recorded gate-path withdraw to `0x...dead` was refused at the **grant** layer (`grant_invalid`, the server holds no grant). The destination allowlist refusal (`policy_destination_denied`) happened on a different, Nov 5 server-path account and is only mentioned as a separate event.
 - **Approvals**: `not_enough_approvals` comes from the test suite (`tests/commitAuthorization.test.ts`). The matrix says commit approval has not yet been run against the live deployment; the scene says so.
+- **Approvals on real testnet** (`JudgeDemo` act 3): `fixtures/recorded/approval-gated-run.json` refused a commit with 0 and with 1 approval on the real Tidepool testnet key (in process, Nov 14); the key's agent count stayed 5, so no wallet was opened. Approvals were two in-memory rehearsal keys, not people, and not the hosted deployment. Two approvals followed by a commit has not been run on testnet; the commit receipt is the Nov 6 run, before the check existed.
+- **Release gate v2** (`JudgeDemo` act 7): signed `account_frozen` refusal on chain (`fixtures/recorded/gate-v2-frozen-probe.json`). The advance and balance were paid through gate v1.
 - **Simulated**: carrier, customs and dock-count signals (tagged "Simulated feed" on screen), the company, supplier and people, and the amounts (testnet at 1:1,000).
 - No explorer screenshots, no invented success screens.

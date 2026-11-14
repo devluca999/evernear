@@ -41,3 +41,29 @@ export const ApprovalGateThumb: React.FC<StoryProps> = ({ receivedQty }) => {
     </Settled>
   );
 };
+
+export const PartialShipmentThumb: React.FC<StoryProps> = ({ receivedQty }) => {
+  const s = useMemo(() => buildStory({ receivedQty }), [receivedQty]);
+  return (
+    <Settled>
+      <HookScene
+        story={s}
+        line={`${s.po.receivedQty} of ${s.po.orderedQty} arrived. A single release pays ${formatUsd(s.comparison.binaryReleaseAllCents)}.`}
+        sub={`A milestone PO pays ${formatUsd(s.comparison.milestonePaidCents)} and returns ${formatUsd(s.settlement.returnedCents)}.`}
+      />
+    </Settled>
+  );
+};
+
+export const JudgeDemoThumb: React.FC<StoryProps> = ({ receivedQty }) => {
+  const s = useMemo(() => buildStory({ receivedQty }), [receivedQty]);
+  return (
+    <Settled>
+      <HookScene
+        story={s}
+        line="AI can handle procurement. It doesn't get to invent the payment rules."
+        sub={`One PO, eight acts: approvals refused on testnet, ${s.testnet.advance} + ${s.testnet.balance} + ${s.testnet.returned} = ${s.testnet.total} read from chain.`}
+      />
+    </Settled>
+  );
+};

@@ -76,3 +76,14 @@ test("refuses bad input", () => {
   assert.throws(() => computeSettlement({ orderedQty: 50, unitCents: 1.5, receivedQty: 1, advancePercent: 30 }));
   assert.throws(() => computeSettlement({ orderedQty: 1, unitCents: 1, receivedQty: 1, advancePercent: 30 }));
 });
+
+test("single escrow vs milestone PO (PartialShipment comparison)", async () => {
+  const { compareWithBinaryEscrow } = await import("../src/amounts.ts");
+  const c = compareWithBinaryEscrow(story());
+  assert.equal(formatUsd(c.binaryReleaseAllCents), "$63,000");
+  assert.equal(c.binaryRefundAllCents, 0);
+  assert.equal(formatUsd(c.milestonePaidCents), "$55,440");
+  assert.equal(formatUsd(c.overpaidByReleaseAllCents), "$7,560");
+  assert.equal(formatUsd(story().advanceCents), "$18,900");
+  assert.equal(formatUsd(story().balanceCents), "$36,540");
+});

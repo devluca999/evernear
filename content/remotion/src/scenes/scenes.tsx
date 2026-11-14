@@ -64,7 +64,7 @@ export const recordedTestnet = (s: Story) => {
   return { paid: `${advance.amountTestUsdc} + ${balance.amountTestUsdc}`, returned: returned.amountTestUsdc };
 };
 
-const receiptProps = (r: Receipt) => ({
+export const receiptProps = (r: Receipt) => ({
   title: r.title,
   meaning: r.meaning,
   chain: r.network,
@@ -106,7 +106,7 @@ export const HookScene: React.FC<S & { line?: string; sub?: string }> = ({ story
   );
 };
 
-export const POScene: React.FC<S & { withAgent?: boolean; caption?: string }> = ({ story, withAgent = true, caption }) => {
+export const POScene: React.FC<S & { withAgent?: boolean; caption?: string; eyebrow?: string }> = ({ story, withAgent = true, caption, eyebrow }) => {
   const { u, layout } = useLayout();
   const s = story;
   const po = (
@@ -126,7 +126,7 @@ export const POScene: React.FC<S & { withAgent?: boolean; caption?: string }> = 
     />
   );
   return (
-    <SceneFrame eyebrow="Step 1 · The agent drafts the order" headline={`An AI agent chose ${s.supplier.name} for ${formatUsd(s.settlement.orderTotalCents)}.`} caption={caption}>
+    <SceneFrame eyebrow={eyebrow ?? "Step 1 · The agent drafts the order"} headline={`An AI agent chose ${s.supplier.name} for ${formatUsd(s.settlement.orderTotalCents)}.`} caption={caption}>
       {withAgent && layout === "wide" ? (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 36 * u, alignItems: "start" }}>
           {po}
@@ -171,7 +171,7 @@ export const ApprovalScene: React.FC<S & { splitAt: number; caption?: string }> 
   );
 };
 
-export const WalletScene: React.FC<S & { withReceipt?: boolean; caption?: string }> = ({ story, withReceipt = true, caption }) => {
+export const WalletScene: React.FC<S & { withReceipt?: boolean; caption?: string; eyebrow?: string }> = ({ story, withReceipt = true, caption, eyebrow }) => {
   const { u, layout } = useLayout();
   const s = story;
   const wallet = (
@@ -189,7 +189,7 @@ export const WalletScene: React.FC<S & { withReceipt?: boolean; caption?: string
   );
   return (
     <SceneFrame
-      eyebrow="Step 3 · Money is committed, not paid"
+      eyebrow={eyebrow ?? "Step 3 · Money is committed, not paid"}
       headline={`${formatUsd(s.settlement.orderTotalCents)} moves into a wallet for this one order.`}
       caption={caption ?? "Recorded Nov 6, before the signature check existed."}
     >
@@ -205,12 +205,12 @@ export const WalletScene: React.FC<S & { withReceipt?: boolean; caption?: string
   );
 };
 
-export const MilestonesScene: React.FC<S & { caption?: string }> = ({ story, caption }) => {
+export const MilestonesScene: React.FC<S & { caption?: string; eyebrow?: string }> = ({ story, caption, eyebrow }) => {
   const { u } = useLayout();
   const s = story;
   return (
     <SceneFrame
-      eyebrow="Step 4 · The goods leave the factory"
+      eyebrow={eyebrow ?? "Step 4 · The goods leave the factory"}
       headline={`${s.policy.advanceRequires.join(" + ")} unlock the ${s.policy.advancePercent}% advance.`}
       caption={caption ?? "Shipment signals in this demo come from a simulated carrier and customs feed."}
       contentWidth={1150}
@@ -230,7 +230,7 @@ export const ReceiptScene: React.FC<S & { receipt: Receipt; eyebrow: string; hea
   );
 };
 
-export const DockScene: React.FC<S & { caption?: string }> = ({ story, caption }) => {
+export const DockScene: React.FC<S & { caption?: string; eyebrow?: string }> = ({ story, caption, eyebrow }) => {
   const { u, layout } = useLayout();
   const s = story;
   const dock = s.signals.find((x) => x.event === "dock_count");
@@ -244,7 +244,7 @@ export const DockScene: React.FC<S & { caption?: string }> = ({ story, caption }
   );
   return (
     <SceneFrame
-      eyebrow="Step 5 · The dock counts the boxes"
+      eyebrow={eyebrow ?? "Step 5 · The dock counts the boxes"}
       headline={`${s.po.receivedQty} of ${s.po.orderedQty} arrived. The balance pays for ${s.po.receivedQty}.`}
       caption={
         caption ??

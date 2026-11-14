@@ -98,3 +98,24 @@ export function formatUsd(cents: number): string {
 }
 
 export const formatInt = (n: number): string => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+
+export type BinaryComparison = {
+  /** A single escrow released in full pays the whole order, whatever arrived. */
+  readonly binaryReleaseAllCents: number;
+  /** Refunded in full, the supplier gets nothing and the delivered goods go to a dispute. */
+  readonly binaryRefundAllCents: number;
+  /** Milestone PO: advance + balance, i.e. what arrived. */
+  readonly milestonePaidCents: number;
+  /** What release-all overpays compared with the milestone PO (the missing units). */
+  readonly overpaidByReleaseAllCents: number;
+};
+
+/** One escrow with two outcomes vs the milestone PO, from the same settlement. */
+export function compareWithBinaryEscrow(s: Settlement): BinaryComparison {
+  return {
+    binaryReleaseAllCents: s.orderTotalCents,
+    binaryRefundAllCents: 0,
+    milestonePaidCents: s.paidCents,
+    overpaidByReleaseAllCents: s.orderTotalCents - s.paidCents,
+  };
+}

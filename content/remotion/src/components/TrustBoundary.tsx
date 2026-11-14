@@ -10,14 +10,16 @@ export type TrustBoundaryProps = Sized & {
   readonly stillSimulated?: readonly string[];
   readonly delay?: number;
   readonly columns?: 1 | 2;
+  readonly title?: string;
+  readonly simulatedTitle?: string;
 };
 
-export const TrustBoundary: React.FC<TrustBoundaryProps> = ({ u = 1, delay = 0, boundaries, stillSimulated = [], columns = 2 }) => {
+export const TrustBoundary: React.FC<TrustBoundaryProps> = ({ u = 1, delay = 0, boundaries, stillSimulated = [], columns = 2, title = "Who enforces what", simulatedTitle = "What remains simulated" }) => {
   const t = useT(delay);
   return (
     <div style={{ display: "grid", gridTemplateColumns: columns === 2 ? "1.15fr 1fr" : "1fr", gap: 28 * u, width: "100%" }}>
       <Card u={u} style={enter(t, 0)}>
-        <Micro u={u}>Who enforces what</Micro>
+        <Micro u={u}>{title}</Micro>
         <div style={{ display: "flex", flexDirection: "column", marginTop: 12 * u }}>
           {boundaries.map((b, i) => (
             <div
@@ -40,7 +42,7 @@ export const TrustBoundary: React.FC<TrustBoundaryProps> = ({ u = 1, delay = 0, 
       </Card>
       {stillSimulated.length ? (
         <Card u={u} style={{ border: `${1.5 * u}px dashed ${color.muted}`, ...enter(t, 14) }}>
-          <Micro u={u}>What remains simulated</Micro>
+          <Micro u={u}>{simulatedTitle}</Micro>
           <div style={{ display: "flex", flexDirection: "column", gap: 16 * u, marginTop: 16 * u }}>
             {stillSimulated.map((x, i) => (
               <div key={x} style={{ fontSize: 25 * u, lineHeight: 1.35, color: color.text, display: "flex", gap: 12 * u, ...enter(t, 20 + i * 6) }}>

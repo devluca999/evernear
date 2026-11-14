@@ -3,14 +3,18 @@
 //   policy/astro.json                     approvals required, advance %, release signals
 //   engine/money.ts                       testnet scale (1:1,000)
 //   docs/hackathon/payment-proofs.json    the ONLY source of tx hashes and explorer URLs
-//   docs/hackathon/ENFORCEMENT-MATRIX.md, TRUST-MODEL.md
+//   fixtures/recorded/approval-gated-run.json   real testnet approval refusals (Nov 14)
+//   fixtures/recorded/gate-v2-frozen-probe.json release gate v2 signed refusal on chain (Nov 14)
+//   docs/hackathon/ENFORCEMENT-MATRIX.md, TRUST-MODEL.md, READINESS.md
 //                                         refusal and trust facts below (test/facts.spec.mjs checks
 //                                         that each quoted code appears in those documents)
 import { PO, astro, suppliers, offers, policy as seedPolicy, MOTOR_PART, MOTOR_BASE_CENTS, NEED_BY } from "../../../seed/astro";
 import { TESTNET_SCALE } from "../../../engine/money";
 import rules from "../../../policy/astro.json";
 import proofsJson from "../../../docs/hackathon/payment-proofs.json";
-import { computeSettlement, formatTestUsdc, toTestnetRaw, type Settlement } from "./amounts";
+import approvalRunJson from "../../../fixtures/recorded/approval-gated-run.json";
+import gateV2Json from "../../../fixtures/recorded/gate-v2-frozen-probe.json";
+import { compareWithBinaryEscrow, computeSettlement, formatTestUsdc, toTestnetRaw, type Settlement } from "./amounts";
 
 export const PROOFS_DOC = "docs/hackathon/PAYMENT-PROOFS.md";
 
@@ -36,7 +40,7 @@ type Proofs = {
   checkedAt: string;
   scale: string;
   source: { runId: string; deployment: string; releasePath: string; startedAt: string };
-  reconciliation: { commitRaw: string; advanceRaw: string; balanceRaw: string; reclaimRaw: string; reconciles: boolean };
+  reconciliation: { commitRaw: string; advanceRaw: string; balanceRaw: string; reclaimRaw: string; sumOutRaw: string; reconciles: boolean; note: string };
   entries: ProofEntry[];
   "probe-nov5": { scenario: string; source: string; poAccount: string; entries: ProofEntry[] };
 };
@@ -199,7 +203,65 @@ export function buildStory(o: StoryOverrides = {}) {
   const approvers = [astro.buyer, astro.fullNames[astro.secondApprover] ?? astro.secondApprover];
   if (approvers.length < rules.approvers_required) throw new Error("fewer approvers than required");
 
+  // Real testnet approval refusals (in process, real Tidepool key, rehearsal approver keys).
+  const ar = approvalRunJson;
+  const refusalRows = ar.rows.filter((r) => r.kind === "refusal");
+  for (const r of refusalRows) {
+    if (r.response.total_cents !== settlement.orderTotalCents) {
+      throw new Error("approval-gated-run.json refused a different total than the PO");
+    }
+    if (r.response.supplier !== supplier.receiveAddress) throw new Error("approval-gated-run.json names another supplier address");
+  }
+  const approvalRun = {
+    date: shortDate(ar.at),
+    host: ar.host,
+    approvers: ar.approvers,
+    attempts: refusalRows.map((r) => ({ valid: r.response.valid, required: r.response.required, reason: r.response.reason, hash: r.hash })),
+    zeroReason: ar.zeroApprovals.reason,
+    oneReason: ar.oneApproval.reason,
+    agentsBefore: ar.agentsUsedBefore,
+    agentsAfter: ar.agentsUsedAfter,
+    walletOpened: !(ar.quotaUnchanged && ar.agentsUsedBefore === ar.agentsUsedAfter),
+    digest: refusalRows[0]?.response.digest ?? "",
+    source: "fixtures/recorded/approval-gated-run.json",
+  };
+
+  // Release gate v2: signed refusal for the frozen PO account, on chain.
+  const gv = gateV2Json;
+  const gateV2 = {
+    tx: gv.tx,
+    explorerUrl: gv.explorer,
+    network: gv.network,
+    signer: gv.signer,
+    contract: gv.contract,
+    stage: gv.input.stage,
+    po: gv.input.po,
+    reason: gv.output.reason,
+    ok: gv.output.ok,
+    signatureValid: gv.signature_valid,
+    publicKey: gv.output.public_key,
+    wasmSha256: gv.wasm_sha256,
+    date: GATE_V2_DATE,
+    source: "fixtures/recorded/gate-v2-frozen-probe.json",
+  };
+
+  // Reconciliation read from chain (payment-proofs.json), not recomputed.
+  const rc = proofs.reconciliation;
+  const reconciliation = {
+    advance: formatTestUsdc(Number(rc.advanceRaw)),
+    balance: formatTestUsdc(Number(rc.balanceRaw)),
+    returned: formatTestUsdc(Number(rc.reclaimRaw)),
+    sumOut: formatTestUsdc(Number(rc.sumOutRaw)),
+    commit: formatTestUsdc(Number(rc.commitRaw)),
+    reconciles: rc.reconciles && rc.sumOutRaw === rc.commitRaw,
+    note: rc.note,
+  };
+
   return {
+    comparison: compareWithBinaryEscrow(settlement),
+    approvalRun,
+    gateV2,
+    reconciliation,
     buyer: { name: astro.name, short: astro.name.replace(/ Inc\.$/, ""), city: astro.city },
     approvers,
     supplier: { name: supplier.name, city: supplier.city, country: supplier.country, address: supplier.receiveAddress, chain: supplier.receiveChain },
@@ -296,3 +358,68 @@ export const stillSimulated = (s: { scaleLabel: string; receivedQty: number; par
     "Approval refusals: from the test suite, not yet on the live deployment",
     `A TEE proves the code ran on its input, not that ${s.receivedQty} ${s.part.toLowerCase()}s arrived`,
   ] as const;
+
+// ---- facts for PartialShipment and JudgeDemo (verified by test/facts.spec.mjs) ------------------
+
+/** The recorded money run is called "the Nov 6 run" in the docs (its UTC start is Nov 7 01:20). */
+export const RECORDED_RUN_LABEL = "Nov 6";
+/** The commit receipt predates the approval check (READINESS: "Live commit did not check approvals"). */
+export const COMMIT_RECORDED_NOTE = `Recorded ${RECORDED_RUN_LABEL}, before the approval check existed.`;
+/** PAYMENT-PROOFS.md: "The full approval-gated run (...) was not run". */
+export const TWO_SIGNATURES_SEEN = "Test suite only: the full approval-gated testnet run has not been done";
+/** The order wallet is a provider account with a policy, not a contract (TRUST-MODEL.md B3). */
+export const WALLET_RULES_NOTE = "Rules enforced by the wallet provider, not a smart contract";
+/** gate-v2-frozen-probe.json _note: "Release gate v2 on OutLayer testnet, Nov 14". */
+export const GATE_V2_DATE = "Nov 14";
+/** TRUST-MODEL.md B4: gate v2 is live on the deployment but has not yet paid an order. */
+export const GATE_V2_SCOPE = "Gate v2 is live on the deployment; it has not yet been exercised on a paying order. The advance and balance above went through gate v1.";
+
+/** TRUST-MODEL.md, "Evidence received is not a fact established". */
+export const DOCK_SIGNING = {
+  capability: "Dock count: signed by a pinned device; the server enforces it when devices are configured",
+  recorded: "The recorded run's 44 was a simulated, unsigned count",
+  gap: "A signed count shows who reported it, not that it is true; the deployed gate does not check the signature yet",
+} as const;
+
+export type AutonomyKind = "deterministic" | "real" | "simulated" | "human" | "fixed";
+/** READINESS.md, "Agent autonomy, step by step": step and class quoted from the table. */
+export const AUTONOMY: readonly { step: string; cls: string; kind: AutonomyKind; tag: string }[] = [
+  { step: "Requirement intake (50 short)", cls: "Deterministic business logic on fixed demo data", kind: "fixed", tag: "Deterministic" },
+  { step: "Supplier search and fitment", cls: "Deterministic business logic", kind: "deterministic", tag: "Deterministic" },
+  { step: "Reading quotes and documents", cls: "Real external integration (NEAR AI Cloud private inference) where keys are set; replay otherwise", kind: "real", tag: "Real / replay" },
+  { step: "Negotiation", cls: "Deterministic counter inside the 5% ceiling; supplier replies are simulated but conditional on the counter, through the real inbound email path", kind: "simulated", tag: "Det. + simulated replies" },
+  { step: "Recommendation (Haoyun all-50 at $1,260)", cls: "Deterministic rule (meets date and ceiling)", kind: "deterministic", tag: "Deterministic" },
+  { step: "Approvals", cls: "**Human-controlled action**: ed25519 signatures from approver devices (live); simulated taps in replay", kind: "human", tag: "Human" },
+  { step: "Milestone monitoring", cls: "**Mocked third-party response** (simulated carrier/customs feed)", kind: "simulated", tag: "Simulated" },
+  { step: "Dock count", cls: "**Fixed demonstration data** (44)", kind: "fixed", tag: "Fixed demo data" },
+  { step: "Release decision and amount", cls: "Deterministic, in engine and in the OutLayer gate", kind: "deterministic", tag: "Deterministic" },
+];
+/** READINESS.md, closing line of the autonomy table. */
+export const AUTONOMY_RULE = "No step lets a model choose an amount, an address or whether money moves.";
+
+/** READINESS.md, "What remains simulated" (quoted). */
+export const STILL_SIMULATED_DOC =
+  "Astro, its customers and suppliers; supplier replies; shipment signals; the dock count; the attested dock-check worker (not deployed); the approvals and pre-money steps in replay mode; Astro's owner key is held by the backend in this demo.";
+
+/** TRUST-MODEL.md, "Trusted parties, in order of what they could do if dishonest" (condensed). */
+export const TRUSTED_PARTIES = [
+  { who: "Astro's owner key", could: "anything: change policy, unfreeze, withdraw. By design, it is the buyer's money." },
+  { who: "Evernear's backend", could: "holds Astro's testnet owner key in this demo: could skip approvals and commit; could make the gate overpay Haoyun up to the order total." },
+  { who: "Tidepool", could: "community-run testnet, not NEAR infrastructure: enforces grants, policy and idempotency on its server." },
+  { who: "OutLayer TEE", could: "keeps the gate's grant and signing key bound to the wasm hash." },
+  { who: "Evidence sources", could: "simulated." },
+] as const;
+
+/** Root package.json "attack" script; 49 cases counted by running it on 2026-11-13 (READINESS.md still says 44). */
+export const ATTACK = {
+  command: "npm run attack",
+  cases: 49,
+  countedOn: "run Nov 13",
+  files: ["tests/commitAuthorization.test.ts", "tests/enforcementMatrix.test.ts", "engine/__tests__/approvals.test.ts"],
+} as const;
+
+/** scripts/verify-proofs.mjs header. */
+export const VERIFY = {
+  command: "npm run verify:proofs",
+  does: "Re-reads every recorded transaction on public testnet RPCs (Base Sepolia, NEAR testnet), checks amounts, recipients and the gate's ed25519 signatures, and writes docs/hackathon/payment-proofs.json. No keys, no writes to any chain.",
+} as const;

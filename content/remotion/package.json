@@ -30,10 +30,12 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src && tsc --noEmit",
     "test": "node --test test/*.spec.mjs",
-    "stills": "for id in PromoSquare JudgeCutThumb ShortShipmentThumb ApprovalGateThumb; do remotion still $id out/$id.png; done",
+    "stills": "for id in PromoSquare JudgeCutThumb ShortShipmentThumb ApprovalGateThumb PartialShipmentThumb JudgeDemoThumb; do remotion still $id out/$id.png; done",
     "render:judge": "remotion render JudgeCut out/JudgeCut.mp4 --codec=h264",
     "render:short": "remotion render ShortShipment out/ShortShipment.mp4 --codec=h264",
     "render:approval": "remotion render ApprovalGate out/ApprovalGate.mp4 --codec=h264",
+    "render:partial": "remotion render PartialShipment out/PartialShipment.mp4 --codec=h264 --timeout=120000",
+    "render:judgedemo": "remotion render JudgeDemo out/JudgeDemo.mp4 --codec=h264 --timeout=120000",
     "upgrade": "remotion upgrade"
   },
   "allowScripts": {

@@ -44,7 +44,7 @@ Not yet run against the live deployment: approver keys must be provisioned first
 | 10 | Missing milestone evidence | engine and gate | `missing_signal(s)` | engine + gate twin (+ Rust) | Refusal proof rows in the app; no testnet call is made |
 | 11 | Tampered evidence | gate; server dock-count signature check when devices are pinned | `count_mismatch`, `dock_bad_signature`, `dock_wrong_po`, `dock_unsigned`, `dock_stale` | gate twin + server ([escrow.test.ts](../../tests/near/escrow.test.ts) "signed dock count") | **Gap remains**: a pinned device that reports a false count is paid; and the deployed gate does not check the signature itself |
 | 12 | Reused evidence (second advance / balance) | engine, gate, idempotency | `already_released`, `nothing_due` | engine + gate twin | No |
-| 13 | Wrong policy version | engine reads [`policy/astro.json`](../../policy/astro.json) | n/a | engine | **Gap**: the deployed gate takes `advance_percent` from its caller (pinned by test) |
+| 13 | Wrong policy version | engine reads [`policy/astro.json`](../../policy/astro.json); gate v2 pins `ADVANCE_PERCENT` | `percent_not_policy` | engine + gate twin + Rust v2 | Deployed v1 still takes it from the caller; v2 built, not uploaded |
 | 14 | Correct authorization, evidence, recipient | (pays) | | all | **Yes**: $18.90 and $36.54 to Haoyun on Base Sepolia, read from chain |
 | 15 | Repeat payout after success | engine; balance reconcile; idempotency | `already_released`, `state_mismatch` | engine + simulated provider | No |
 | 16 | After deadline or settlement | engine | `past_deadline`, `closed` | engine | No |

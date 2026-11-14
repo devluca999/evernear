@@ -78,3 +78,14 @@ describe("release gate twin: shared vectors", () => {
     expect(canonical({ b: 1, a: [true, "x", { d: null, c: 2 }] })).toBe('{"a":[true,"x",{"c":2,"d":null}],"b":1}');
   });
 });
+
+describe("gate v2 pins the advance percent the buyer's rules set", () => {
+  it("TS twin, Rust build and policy/astro.json agree", async () => {
+    const { readFileSync } = await import("node:fs");
+    const rules = JSON.parse(readFileSync("policy/astro.json", "utf8"));
+    const rust = readFileSync("worker/release-gate/src/lib.rs", "utf8");
+    const { GATE_ADVANCE_PERCENT } = await import("../releaseGate");
+    expect(GATE_ADVANCE_PERCENT).toBe(rules.escrow.advance_percent);
+    expect(rust).toContain(`pub const ADVANCE_PERCENT: u64 = ${rules.escrow.advance_percent};`);
+  });
+});

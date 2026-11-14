@@ -121,8 +121,8 @@ describe("release enforcement matrix", () => {
     expect(engine(bal.escrow, { stage: "balance", signals: [...BAL], receivedQty: 44 })).toMatchObject({ ok: false, reason: "nothing_due" });
     expect(gateDecide(gateInput({ released_cents: 1_890_000 }))).toMatchObject({ ok: false, reason: "already_released" });
   });
-  it("13. wrong policy version: the engine reads the release rules from policy/astro.json; the gate trusts the caller's advance_percent (pinned gap)", () => {
-    expect(gateDecide(gateInput({ advance_percent: 100 }))).toMatchObject({ ok: true, amount_cents: LOCKED });
+  it("13. wrong policy version: the engine reads the release rules from policy/astro.json; gate v2 pins the advance percent in its build", () => {
+    expect(gateDecide(gateInput({ advance_percent: 100 }))).toMatchObject({ ok: false, reason: "percent_not_policy" });
     const r = engine(funded());
     expect(r).toMatchObject({ ok: true, amountCents: 1_890_000 });
   });

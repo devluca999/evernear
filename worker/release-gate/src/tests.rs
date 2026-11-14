@@ -14,12 +14,34 @@ struct MockHost {
     api_key: Option<String>,
     response: Result<HttpResponse, String>,
     sent: RefCell<Vec<HttpRequest>>,
+    /// The release input of the current run: by default the mock order account agrees with it.
+    hint: RefCell<Option<Value>>,
+    /// Overrides for the order account's policy and balances answers (v2 tests).
+    policy_body: RefCell<Option<Value>>,
+    balances_body: RefCell<Option<Value>>,
+    gets: RefCell<Vec<String>>,
+}
+
+/// The Tidepool policy answer for an order account: allowlist with one withdraw address and the owner, cap = locked.
+fn policy_answer(locked_cents: u64, to: &str) -> Value {
+    json!({"wallet_id": "w", "revision": 1, "status": "APPLIED", "policy": {"frozen": false, "actions": ["transfer", "withdraw"],
+        "limits": {"per_transaction": {ASSET: cents_to_base_units(locked_cents)}},
+        "destinations": {"mode": "only", "list": [{"action": "withdraw", "chain": "base", "address": to, "memo": null}, {"action": "transfer", "address": "astro"}]}}})
+}
+fn balances_answer(held_cents: u64) -> Value {
+    json!({"near_account_id": "x", "balances": [{"asset_id": ASSET, "balance_raw": cents_to_base_units(held_cents)}]})
 }
 
 impl MockHost {
     fn accepting() -> Self {
         let body = br#"{"correlation_id":"corr_123","agent_id":"agent_fe8606f9c6dc60f3f1768ed9","status":"QUEUED","failure_code":null,"details":{"intent_hash":"ih_1","tx_hash":null}}"#;
-        MockHost { api_key: Some(API_KEY.into()), response: Ok(HttpResponse { status: 202, body: body.to_vec() }), sent: RefCell::new(vec![]) }
+        MockHost { api_key: Some(API_KEY.into()), response: Ok(HttpResponse { status: 202, body: body.to_vec() }), sent: RefCell::new(vec![]),
+            hint: RefCell::new(None), policy_body: RefCell::new(None), balances_body: RefCell::new(None), gets: RefCell::new(vec![]) }
+    }
+    /// Runs the module, letting the mock order account agree with the input unless overridden.
+    fn run(&self, input: &str) -> String {
+        *self.hint.borrow_mut() = serde_json::from_str(input).ok();
+        run(self, input)
     }
 }
 
@@ -52,6 +74,20 @@ impl Host for MockHost {
         self.sent.borrow_mut().push(request.clone());
         self.response.clone()
     }
+    fn get(&self, request: &HttpRequest) -> Result<HttpResponse, String> {
+        check_url(&request.url)?;
+        self.gets.borrow_mut().push(request.url.clone());
+        let h = self.hint.borrow().clone().unwrap_or(Value::Null);
+        let locked = h["locked_cents"].as_u64().unwrap_or(0);
+        let released = h["released_cents"].as_u64().unwrap_or(0).min(locked);
+        let to = h["to"].as_str().unwrap_or("0x0000000000000000000000000000000000000000").to_string();
+        let body = if request.url.ends_with("/policy") {
+            self.policy_body.borrow().clone().unwrap_or_else(|| policy_answer(locked, &to))
+        } else {
+            self.balances_body.borrow().clone().unwrap_or_else(|| balances_answer(locked - released))
+        };
+        Ok(HttpResponse { status: 200, body: body.to_string().into_bytes() })
+    }
 }
 
 fn vectors() -> Value {
@@ -70,7 +106,7 @@ fn verify(out: &Value) {
 }
 
 fn run_case(host: &MockHost, input: &Value) -> Value {
-    let raw = run(host, &input.to_string());
+    let raw = host.run(&input.to_string());
     assert!(raw.len() <= MAX_OUTPUT_BYTES, "output is {} bytes", raw.len());
     serde_json::from_str(&raw).unwrap()
 }
@@ -236,7 +272,7 @@ fn enroll_never_outputs_the_token() {
 #[test]
 fn release_output_never_contains_token_or_api_key() {
     let host = MockHost::accepting();
-    let raw = run(&host, &case("advance at $1260").to_string());
+    let raw = host.run(&case("advance at $1260").to_string());
     assert!(!raw.contains("ngt_"));
     assert!(!raw.contains(API_KEY));
 }
@@ -345,7 +381,7 @@ fn worst_case_output_fits_on_chain() {
     input["po"] = json!("p".repeat(48));
     input["signals"]["bill_of_lading"]["id"] = json!("b".repeat(48));
     input["signals"]["export_cleared"]["id"] = json!("e".repeat(48));
-    let raw = run(&host, &input.to_string());
+    let raw = host.run(&input.to_string());
     let out: Value = serde_json::from_str(&raw).unwrap();
     assert_eq!(out["ok"], true);
     println!("worst case output: {} bytes", raw.len());
@@ -357,7 +393,7 @@ fn worst_case_output_fits_on_chain() {
 #[test]
 fn typical_output_size() {
     let host = MockHost::accepting();
-    let raw = run(&host, &case("balance at $1320").to_string());
+    let raw = host.run(&case("balance at $1320").to_string());
     println!("typical success output: {} bytes\n{raw}", raw.len());
     assert!(raw.len() <= MAX_OUTPUT_BYTES);
 }
@@ -384,6 +420,8 @@ fn signature_vector() {
     assert_eq!(out["public_key"], sc["public_key_hex"]);
 }
 
+/// v1 bound, kept for the record: `decide` alone still trusts the caller's `released_cents`.
+/// v2 (`release`) now reads the order account and refuses a mismatch: see the v2_ tests below.
 /// Pins the honest bound on caller-supplied state (README, "What it does not guarantee"):
 /// `released_cents` comes from the caller and the module keeps no state. A caller that understates
 /// it is paid more for the balance (here the full held $7,560 on top of $36,540), but never more
@@ -412,4 +450,85 @@ fn understated_released_overpays_up_to_locked_never_beyond() {
     for released in [0u64, 1, 1_000_000, 1_890_000, 6_300_000, 6_300_001] {
         if let Decision::Release { amount_cents, .. } = decide(&input(released)) { assert!(released + amount_cents <= 6_300_000); }
     }
+}
+
+// ---------- v2: the order account is read from Tidepool, not taken from the caller ----------
+
+fn v2_refusal(host: &MockHost, input: &Value) -> String {
+    let out = run_case(host, input);
+    assert_eq!(out["ok"], false, "{out}");
+    verify(&out);
+    assert!(host.sent.borrow().is_empty(), "a refusal sends nothing");
+    out["reason"].as_str().unwrap().to_string()
+}
+
+#[test]
+fn v2_reads_policy_and_balance_before_paying() {
+    let host = MockHost::accepting();
+    let out = run_case(&host, &case("balance at $1260"));
+    assert_eq!(out["ok"], true, "{out}");
+    let gets = host.gets.borrow();
+    assert!(gets.iter().any(|u| u.ends_with("/policy")) && gets.iter().any(|u| u.ends_with("/balances")), "{gets:?}");
+}
+
+#[test]
+fn v2_understated_released_is_refused() {
+    // The caller says nothing was released; the account holds only $44,100 (the advance left).
+    let host = MockHost::accepting();
+    *host.balances_body.borrow_mut() = Some(balances_answer(4_410_000));
+    let mut input = case("balance at $1260");
+    input["released_cents"] = json!(0);
+    assert_eq!(v2_refusal(&host, &input), "released_not_on_chain");
+}
+
+#[test]
+fn v2_second_advance_is_refused_by_the_balance() {
+    let host = MockHost::accepting();
+    *host.balances_body.borrow_mut() = Some(balances_answer(6_300_000 - 1_890_000));
+    assert_eq!(v2_refusal(&host, &case("advance at $1260")), "released_not_on_chain");
+}
+
+#[test]
+fn v2_recipient_and_commitment_must_match_the_policy() {
+    let host = MockHost::accepting();
+    *host.policy_body.borrow_mut() = Some(policy_answer(6_300_000, "0x1111111111111111111111111111111111111111"));
+    assert_eq!(v2_refusal(&host, &case("advance at $1260")), "recipient_not_on_chain");
+    let host = MockHost::accepting();
+    *host.policy_body.borrow_mut() = Some(policy_answer(9_900_000, "0x2003975a521c6fa45238dbc402c9e4adcb8863e0"));
+    *host.balances_body.borrow_mut() = Some(balances_answer(9_900_000));
+    assert_eq!(v2_refusal(&host, &case("advance at $1260")), "locked_not_on_chain");
+}
+
+#[test]
+fn v2_refuses_an_account_that_is_not_locked_down() {
+    let to = "0x2003975a521c6fa45238dbc402c9e4adcb8863e0";
+    let cases: Vec<(&str, Box<dyn Fn(&mut Value)>)> = vec![
+        ("policy_not_restrictive", Box::new(|p: &mut Value| p["policy"]["destinations"]["mode"] = json!("any"))),
+        ("account_frozen", Box::new(|p: &mut Value| p["policy"]["frozen"] = json!(true))),
+        ("policy_not_applied", Box::new(|p: &mut Value| p["status"] = json!("PENDING"))),
+        ("policy_withdraw_ambiguous", Box::new(|p: &mut Value| p["policy"]["destinations"]["list"].as_array_mut().unwrap().push(json!({"action": "withdraw", "chain": "base", "address": "0x1111111111111111111111111111111111111111"})))),
+        ("policy_no_cap", Box::new(|p: &mut Value| p["policy"]["limits"] = json!({}))),
+    ];
+    for (want, edit) in cases {
+        let host = MockHost::accepting();
+        let mut p = policy_answer(6_300_000, to);
+        edit(&mut p);
+        *host.policy_body.borrow_mut() = Some(p);
+        assert_eq!(v2_refusal(&host, &case("advance at $1260")), want);
+    }
+}
+
+#[test]
+fn v2_advance_percent_is_pinned_in_the_build() {
+    let mut input = case("advance at $1260");
+    input["advance_percent"] = json!(100);
+    let host = MockHost::accepting();
+    assert_eq!(v2_refusal(&host, &input), "percent_not_policy");
+}
+
+#[test]
+fn v2_chain_unreadable_sends_nothing() {
+    let host = MockHost::accepting();
+    *host.balances_body.borrow_mut() = Some(json!({"nope": 1}));
+    assert_eq!(v2_refusal(&host, &case("advance at $1260")), "chain_unreadable");
 }

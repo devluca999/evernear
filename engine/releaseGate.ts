@@ -14,6 +14,8 @@ export const GATE_TIDEPOOL_HOST = "www.usetidepool.tech";
 export const GATE_SIGN_PREFIX = "evernear-release-gate:v1:";
 export const GATE_GRANT_PREFIX = "tidepool-grant:v1:";
 export const GATE_MAX_OUTPUT_BYTES = 900;
+/** The advance share pinned in the gate build (policy/astro.json advance_percent). */
+export const GATE_ADVANCE_PERCENT = 30;
 export const GATE_ADVANCE_SIGNALS = ["bill_of_lading", "export_cleared"] as const;
 export const GATE_BALANCE_SIGNALS = ["import_cleared", "dock_count"] as const;
 
@@ -103,6 +105,8 @@ export function gateDecide(r: GateReleaseInput): GateDecision {
   if (r.stage === "advance") {
     if (released !== 0n) return refuse("already_released");
     if (r.advance_percent === 0 || r.advance_percent > 100) return refuse("bad_percent");
+    // v2: pinned in the build, as worker/release-gate ADVANCE_PERCENT.
+    if (r.advance_percent !== GATE_ADVANCE_PERCENT) return refuse("percent_not_policy");
     const product = locked * BigInt(r.advance_percent);
     if (product > U64_MAX) return refuse("bad_terms");
     if (product % 100n !== 0n) return refuse("inexact_amount");

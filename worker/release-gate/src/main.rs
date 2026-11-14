@@ -53,6 +53,20 @@ impl release_gate::Host for Outlayer {
         let body = response.body().map_err(|e| e.to_string())?;
         Ok(release_gate::HttpResponse { status, body })
     }
+
+    fn get(&self, request: &release_gate::HttpRequest) -> Result<release_gate::HttpResponse, String> {
+        release_gate::check_url(&request.url)?;
+        let mut builder = wasi_http_client::Client::new()
+            .get(&request.url)
+            .connect_timeout(std::time::Duration::from_secs(20));
+        for (k, v) in &request.headers {
+            builder = builder.header(k.as_str(), v.as_bytes().to_vec());
+        }
+        let response = builder.send().map_err(|e| e.to_string())?;
+        let status = response.status();
+        let body = response.body().map_err(|e| e.to_string())?;
+        Ok(release_gate::HttpResponse { status, body })
+    }
 }
 
 #[cfg(target_arch = "wasm32")]

@@ -26,10 +26,21 @@ Amounts are integer cents. The module refuses rather than rounds (`inexact_amoun
 - **One payment per stage.** The module sends its own `idempotency-key`, `rg1-<stage>-` + the first 32 hex of sha256(`evernear-release-gate:v1:idem:<agent_id>:<po>:<stage>`). Tidepool replays a repeated key with the same body and refuses it with another body (`idempotency_conflict`). The input's `idempotency_key` is accepted and ignored. Test: `idempotency_vectors`.
 - **The API key comes only from the env** (`AGENT_API_KEY`, an OutLayer secret), never from the input. Test: `api_key_comes_only_from_env`.
 
+## v2 (built Nov 14, not yet uploaded): it reads the order account instead of trusting the caller
+
+The deployed build (`04f6d241…`, Nov 6) takes the committed total, the amount already released and the recipient from its caller. v2 (sha256 `1293789df3cfa5ff9780a542f8f0608a3b02e4e86a806b52221876cb0a418423` with rustc 1.99.1; rebuild to confirm) reads them from Tidepool before it pays:
+
+- `GET /v1/agents/{id}/policy`: the account must be `APPLIED`, not frozen, `destinations.mode: "only"` with exactly one `withdraw` address on Base, and a per-transaction cap. The cap is the committed total (the owner set it to the PO amount at open); the withdraw address is the only recipient.
+- `GET /v1/agents/{id}/balances`: what the account still holds; released = committed minus held.
+- The caller's `locked_cents`, `to` and `released_cents` must equal those, or the run is refused and signed (`locked_not_on_chain`, `recipient_not_on_chain`, `released_not_on_chain`, `policy_not_restrictive`, `account_frozen`, `policy_withdraw_ambiguous`, `policy_no_cap`, `chain_unreadable`, `chain_unavailable`), and nothing is sent.
+- `advance_percent` is pinned in the build (`ADVANCE_PERCENT = 30`, from `policy/astro.json`); any other value is refused (`percent_not_policy`).
+
+Effect: a compromised backend can no longer make the gate overpay by understating what was released, pay a second advance, or pay an address the account's policy does not name. It still supplies the evidence and the dock count. Tests: the `v2_` tests in [`src/tests.rs`](src/tests.rs). Deploying v2 is a new wasm, so a new grant key and result key: upload, set the secret on the new hash, set `RELEASE_GATE_WASM_URL`, `RELEASE_GATE_WASM_SHA256` and `RELEASE_GATE_PUBLIC_KEY` (from a probe enroll), and new orders enroll with it.
+
 ## What it does not guarantee
 
 - It proves that this exact code ran on the input it was given. The evidence for the signals is supplied by the caller, and in the demo it is simulated. The attestation commits to the input hash, so anyone can see what evidence the release was decided on (`evidence_sha256` in the output), but not that the evidence is true.
-- `released_cents` is supplied by the caller. A direct wasm run has no project, so the module keeps no state of its own. Two things bound a caller who lies: the order's account holds only the locked total, and the per-stage idempotency key makes a second advance or a second balance a replay or a conflict, not a new payment (as long as Tidepool keeps the key; its retention window is not documented).
+- (v1, the deployed build) `released_cents` is supplied by the caller; v2 checks it against the account's balance. A direct wasm run has no project, so the module keeps no state of its own. Two things bound a caller who lies: the order's account holds only the locked total, and the per-stage idempotency key makes a second advance or a second balance a replay or a conflict, not a new payment (as long as Tidepool keeps the key; its retention window is not documented).
 - Astro, as owner, can still change the policy, revoke the grant, or issue a grant to someone else. The destinations allowlist (Haoyun and Astro's treasury) is Tidepool policy, not this module.
 - The output of an on-chain run is public. That is why only the hash of the token is ever output.
 - Tidepool answers a withdraw with 202 and a `correlation_id`; the output's `tx` carries that and any hashes already known. The final status is polled by the caller (`GET /v1/status?correlation_id=...`).

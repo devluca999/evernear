@@ -29,6 +29,10 @@ pub const API_KEY_ENV: &str = "AGENT_API_KEY";
 /// An on-chain run's output must fit in this many bytes.
 pub const MAX_OUTPUT_BYTES: usize = 900;
 
+/// The advance share the buyer's rules set (policy/astro.json `advance_percent`). Pinned in the
+/// build, so a caller cannot ask for a bigger advance; a rule change is a new build and a new grant.
+pub const ADVANCE_PERCENT: u64 = 30;
+
 pub const ADVANCE_SIGNALS: [&str; 2] = ["bill_of_lading", "export_cleared"];
 pub const BALANCE_SIGNALS: [&str; 2] = ["import_cleared", "dock_count"];
 
@@ -44,6 +48,8 @@ pub trait Host {
     fn env(&self, name: &str) -> Option<String>;
     /// Send a POST. Called only with a request `check_url` accepted.
     fn post(&self, request: &HttpRequest) -> Result<HttpResponse, String>;
+    /// Send a GET (the order account's policy and balances). Called only with a request `check_url` accepted.
+    fn get(&self, request: &HttpRequest) -> Result<HttpResponse, String>;
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -187,6 +193,9 @@ pub fn decide(r: &ReleaseInput) -> Decision {
             }
             if r.advance_percent == 0 || r.advance_percent > 100 {
                 return refuse("bad_percent");
+            }
+            if r.advance_percent != ADVANCE_PERCENT {
+                return refuse("percent_not_policy");
             }
             let Some(product) = r.locked_cents.checked_mul(r.advance_percent) else {
                 return refuse("bad_terms");
@@ -411,6 +420,102 @@ pub fn tx_fields(status: u16, body: &[u8]) -> Value {
     Value::Object(tx)
 }
 
+// ---------- the order account, read from Tidepool ----------
+
+/// What the order account itself says, so the module does not take it from the caller: the
+/// committed total (the per-transaction cap the owner set at open), the one withdraw address its
+/// policy allows, and what it still holds. `released` is derived: committed minus held.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ChainState {
+    pub locked_cents: u64,
+    pub held_cents: u64,
+    pub withdraw_to: String,
+}
+
+impl ChainState {
+    pub fn released_cents(&self) -> u64 {
+        self.locked_cents - self.held_cents
+    }
+}
+
+pub fn agent_url(agent_id: &str, sub: &str) -> String {
+    format!("https://{TIDEPOOL_HOST}/v1/agents/{agent_id}/{sub}")
+}
+
+fn get_request(agent_id: &str, sub: &str, api_key: &str) -> Result<HttpRequest, String> {
+    let url = agent_url(agent_id, sub);
+    check_url(&url)?;
+    Ok(HttpRequest { url, headers: vec![("x-api-key".into(), api_key.into()), ("accept".into(), "application/json".into())], body: vec![] })
+}
+
+/// Base units (6 decimals, 1:1,000) back to story cents; refuses anything not a whole cent.
+pub fn base_units_to_cents(units: &str) -> Option<u64> {
+    let u: u128 = units.parse().ok()?;
+    if u % 10 != 0 {
+        return None;
+    }
+    u64::try_from(u / 10).ok()
+}
+
+/// Reads the policy and balances answers. Refuses an account that is frozen, not applied, does
+/// not restrict destinations to an allowlist, or allows more or fewer than one withdraw address.
+pub fn parse_chain_state(policy: &[u8], balances: &[u8]) -> Result<ChainState, &'static str> {
+    let p: Value = serde_json::from_slice(policy).map_err(|_| "chain_unreadable")?;
+    if let Some(st) = p.get("status").and_then(Value::as_str) {
+        if st != "APPLIED" {
+            return Err("policy_not_applied");
+        }
+    }
+    let pol = p.get("policy").ok_or("chain_unreadable")?;
+    if pol.get("frozen").and_then(Value::as_bool) == Some(true) {
+        return Err("account_frozen");
+    }
+    let dest = pol.get("destinations").ok_or("policy_not_restrictive")?;
+    if dest.get("mode").and_then(Value::as_str) != Some("only") {
+        return Err("policy_not_restrictive");
+    }
+    let withdraws: Vec<&Value> = dest.get("list").and_then(Value::as_array).map(|l| l.iter().filter(|d| d.get("action").and_then(Value::as_str) == Some("withdraw")).collect()).unwrap_or_default();
+    if withdraws.len() != 1 || withdraws[0].get("chain").and_then(Value::as_str) != Some(CHAIN) {
+        return Err("policy_withdraw_ambiguous");
+    }
+    let withdraw_to = withdraws[0].get("address").and_then(Value::as_str).filter(|a| valid_evm_address(a)).ok_or("policy_withdraw_ambiguous")?.to_ascii_lowercase();
+    let cap = pol.get("limits").and_then(|l| l.get("per_transaction")).and_then(|c| c.get(ASSET)).and_then(Value::as_str).ok_or("policy_no_cap")?;
+    let locked_cents = base_units_to_cents(cap).ok_or("policy_no_cap")?;
+    let b: Value = serde_json::from_slice(balances).map_err(|_| "chain_unreadable")?;
+    let held_units = b.get("balances").and_then(Value::as_array).ok_or("chain_unreadable")?
+        .iter().find(|x| x.get("asset_id").and_then(Value::as_str) == Some(ASSET))
+        .and_then(|x| x.get("balance_raw").and_then(Value::as_str)).unwrap_or("0");
+    let held_cents = base_units_to_cents(held_units).ok_or("balance_not_whole_cents")?;
+    if held_cents > locked_cents {
+        return Err("balance_above_commitment");
+    }
+    Ok(ChainState { locked_cents, held_cents, withdraw_to })
+}
+
+fn read_chain_state(host: &dyn Host, agent_id: &str, api_key: &str) -> Result<ChainState, &'static str> {
+    let policy = host.get(&get_request(agent_id, "policy", api_key).map_err(|_| "host_not_allowed")?).map_err(|_| "chain_unavailable")?;
+    let balances = host.get(&get_request(agent_id, "balances", api_key).map_err(|_| "host_not_allowed")?).map_err(|_| "chain_unavailable")?;
+    if !(200..300).contains(&policy.status) || !(200..300).contains(&balances.status) {
+        return Err("chain_unavailable");
+    }
+    parse_chain_state(&policy.body, &balances.body)
+}
+
+/// The caller's numbers must agree with the account: the same commitment, the same recipient,
+/// and the same amount already released. A disagreement is refused, never trusted.
+pub fn check_against_chain(r: &ReleaseInput, c: &ChainState) -> Result<(), &'static str> {
+    if r.locked_cents != c.locked_cents {
+        return Err("locked_not_on_chain");
+    }
+    if r.to.to_ascii_lowercase() != c.withdraw_to {
+        return Err("recipient_not_on_chain");
+    }
+    if r.released_cents != c.released_cents() {
+        return Err("released_not_on_chain");
+    }
+    Ok(())
+}
+
 // ---------- the run ----------
 
 fn sign_result(host: &dyn Host, mut result: Map<String, Value>) -> String {
@@ -487,6 +592,16 @@ pub fn release(host: &dyn Host, r: &ReleaseInput) -> String {
     let Some(api_key) = host.env(API_KEY_ENV).filter(|k| !k.is_empty()) else {
         return sign_result(host, refusal(r, "api_key_missing", vec![], None));
     };
+    // v2: the commitment, the recipient and what was already released come from the order
+    // account on Tidepool, not from the caller. The decision above ran on the caller's numbers;
+    // they must match the account's or nothing is sent.
+    let chain = match read_chain_state(host, &r.agent_id, &api_key) {
+        Ok(c) => c,
+        Err(reason) => return sign_result(host, refusal(r, reason, vec![], None)),
+    };
+    if let Err(reason) = check_against_chain(r, &chain) {
+        return sign_result(host, refusal(r, reason, vec![], Some(("chain", json!({"locked_cents": chain.locked_cents, "held_cents": chain.held_cents, "to": chain.withdraw_to})))));
+    }
     let token = match derive_token(host, &r.agent_id) {
         Ok(t) => t,
         Err(_) => return sign_result(host, refusal(r, "mac_unavailable", vec![], None)),

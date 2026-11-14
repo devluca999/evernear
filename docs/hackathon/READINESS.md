@@ -19,6 +19,7 @@ Updated 2026-11-14 ~03:30 UTC. Development ends **2026-11-14 23:59 UTC** ([COMPE
 | 9 | Reference engine matches demo values | Done | engine + gate vectors, escrow tests |
 | 10 | README matches implementation | Updated on this branch (approvals, destination vs grant, gate limits, disclosures) | README |
 | 11 | Tests and build pass | see Tests run below; `next build` passes; demo check fixed (it looked for the wrong page title) | this file |
+| 12a | Gate v4 ready for a paying run | Server-composed inputs pass the Rust gate (cross-language test); production build refused test-key approvals at full input size on chain; transient OutLayer worker failures retried | `tests/gateInputE2E.test.ts`, `fixtures/recorded/gate-v4-testkeys-probe.json` |
 | 12 | Recorded demo replays reliably | Unchanged; replay tests pass | short/scenario tests |
 | 13 | Live demo's supported path works | Approval-gated code ran on real Tidepool testnet in process (refusals; agent count unchanged). Hosted deployment needs keys + deploy; full funded run needs a treasury top-up | AFK Needs you 2-3, 6 |
 | 14 | Security refusals reproducible | Done: `npm run attack` (49 cases) | |
@@ -75,7 +76,7 @@ Astro, its customers and suppliers; supplier replies; shipment signals; the dock
 
 ## Tests run (this branch)
 
-- `npx vitest run`: 474 passed, 4 skipped (the opt-in testnet tests); `cargo test`: 38 passed
+- `npx vitest run`: 477 passed, 4 skipped (the opt-in testnet tests); `cargo test`: 39 passed, including `v4_accepts_the_servers_own_inputs` (the server's own release inputs through the Rust gate)
 - Real testnet (opt-in): `TESTNET_PREFLIGHT=1` (read only), `LIVE_TESTNET=refusals` (approval refusals, no wallet opened), `TESTNET_KEYCHECK=1` (NEAR RPC key check): all passed Nov 14 (was 408 before this branch).
 - `cargo test` in worker/release-gate: 25 passed.
 - `npx tsc --noEmit`, `npx eslint convex engine tests scripts`, `npm run check:ip`: clean.

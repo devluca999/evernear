@@ -46,7 +46,7 @@ What EverNEAR guarantees, who enforces each guarantee, and what it cannot guaran
 
 ## Evidence received is not a fact established
 
-The release gate can show *which* evidence a payment was decided on and that the rules were applied to it exactly. It cannot show the evidence is true. Today the carrier, customs and dock-count signals are simulated and every proof row says so. The smallest real improvement is a signed dock-count attestation from a named receiving device whose public key Astro pins, checked by the gate; it is designed, not built (READINESS backlog).
+The release gate can show *which* evidence a payment was decided on and that the rules were applied to it exactly. It cannot show the evidence is true. Today the carrier, customs and dock-count signals are simulated and every proof row says so. Built on this branch: a signed dock-count attestation ([engine/attestation.ts](../../engine/attestation.ts)). A receiving device whose key Astro pins (`DOCK_DEVICE_KEYS`) signs {po, count, time, device}; when devices are pinned, the server refuses a balance on an unsigned, forged, stale, other-PO or altered count, and every dock-count proof row says "received, signed by device X; not a physical fact" or "received, unsigned". It shows who reported the count, not that it is true, and the deployed gate does not check it yet (needs a new wasm build). The demo runs without pinned devices, so its counts are labelled unsigned.
 
 ## Trusted parties, in order of what they could do if dishonest
 

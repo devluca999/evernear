@@ -6,6 +6,7 @@ import { fakeTidepool, FAKE_BASE } from "./fakeTidepool";
 import { sinkRecorder } from "./mockFetch";
 import { API_KEY, testOwner } from "./agentFixtures";
 import { evidence } from "./evidence";
+import { signDockCount } from "@/engine/attestation";
 
 const HAOYUN = "0x2003975a521c6fa45238dbc402c9e4adcb8863e0";
 const OFF_LIST = "0x000000000000000000000000000000000000dead";
@@ -321,5 +322,46 @@ describe("failure injection: a lost answer is not a refusal", () => {
     s.tp.credit(acct.agentId, BASE_USDC, -1n);
     expect(await stageOf(s, { escrow: a.escrow, agentId: acct.agentId, stage: "balance", nowMs: 2 })).toEqual({ ok: false, reason: "state_mismatch" });
     expect(s.tp.payouts).toHaveLength(1);
+  });
+});
+
+describe("signed dock count (engine/attestation.ts)", () => {
+  const DEVICE_SK = new Uint8Array(32).fill(5);
+  const devices = () => { const a = signDockCount({ po: "1042", count: 44, at: "1970-01-01T00:00:00Z", device: "dock-3-scanner", secretKey: DEVICE_SK }); return [{ device: "dock-3-scanner", publicKey: a.publicKey }]; };
+  async function withDevices() {
+    const tp = fakeTidepool();
+    const { owner } = testOwner();
+    const { proofs, sink } = sinkRecorder();
+    const boot = new EscrowAdapter({ fetch: tp.fetch, apiKey: API_KEY, baseUrl: FAKE_BASE, owner, sink: () => {}, treasuryId: "pending" });
+    const treasuryId = await boot.createTreasury();
+    const esc = new EscrowAdapter({ fetch: tp.fetch, apiKey: API_KEY, baseUrl: FAKE_BASE, owner, sink, treasuryId, dockDevices: devices() });
+    const s = { tp, esc, proofs, treasuryId, treasuryAccount: await esc.treasuryAccount() };
+    const { acct, escrow } = await openAndLock(s);
+    const a = await stageOf(s, { escrow, agentId: acct.agentId, stage: "advance" });
+    if (!a.ok) throw new Error(a.reason);
+    return { s, acct, escrow: a.escrow };
+  }
+  const withAtt = (count: number, att?: object) => { const ev = evidence("balance", [], count); ev.dock_count = { ...ev.dock_count!, ...(att ? { attestation: att } : {}) }; return ev; };
+  const signed = (o: { count?: number; po?: string; key?: Uint8Array } = {}) => signDockCount({ po: o.po ?? "1042", count: o.count ?? 44, at: "1970-01-01T00:00:00Z", device: "dock-3-scanner", secretKey: o.key ?? DEVICE_SK });
+
+  it("pays the balance on a count signed by the pinned dock device, and labels it evidence, not fact", async () => {
+    const { s, acct, escrow } = await withDevices();
+    expect(await stageOf(s, { escrow, agentId: acct.agentId, stage: "balance", ev: withAtt(44, signed()), nowMs: 2 })).toMatchObject({ ok: true, amountCents: BALANCE });
+    const resp = s.proofs.map((p) => p.response as { event?: string; evidence_status?: string } | undefined).find((r) => r?.event === "dock_count");
+    expect(resp?.evidence_status).toBe("received, signed by device dock-3-scanner; not a physical fact");
+  });
+  it("refuses an unsigned count, a forged one, one for another PO, and a signed 44 presented as 50", async () => {
+    const { s, acct, escrow } = await withDevices();
+    const bal = (ev: SignalEvidence) => stageOf(s, { escrow, agentId: acct.agentId, stage: "balance", ev, nowMs: 2 });
+    expect(await bal(withAtt(44))).toEqual({ ok: false, reason: "dock_unsigned" });
+    expect(await bal(withAtt(44, { ...signed(), publicKey: signed({ key: new Uint8Array(32).fill(6) }).publicKey }))).toEqual({ ok: false, reason: "dock_key_mismatch" });
+    expect(await bal(withAtt(50, { ...signed(), count: 50 }))).toEqual({ ok: false, reason: "dock_bad_signature" });
+    expect(await bal(withAtt(44, signed({ po: "1043" })))).toEqual({ ok: false, reason: "dock_wrong_po" });
+    expect(await bal(withAtt(50, signed()))).toEqual({ ok: false, reason: "dock_count_mismatch" });
+    expect(s.tp.payouts).toHaveLength(1); // only the advance
+  });
+  it("refuses a stale count", async () => {
+    const { s, acct, escrow } = await withDevices();
+    expect(await stageOf(s, { escrow, agentId: acct.agentId, stage: "balance", ev: withAtt(44, signed()), nowMs: 8 * 86_400_000 })).toEqual({ ok: false, reason: "dock_stale" });
   });
 });

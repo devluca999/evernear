@@ -27,6 +27,7 @@ import { checkEnroll, verifyGateRelease, type ReleaseGate } from "./releaseGate"
 import { closeWallet, reclaimHeld, refundOnDeadline, releaseStage, RELEASE_RULES, type Escrow, type SignalId, type Stage } from "../../engine/escrow";
 import { evidenceId, verifyGateSignature, type Evidence, type GateReleaseInput, type GateReleaseOutput } from "../../engine/releaseGate";
 import { formatUsd, scaleTestnet, TESTNET_SCALE } from "../../engine/money";
+import { verifyDockCount, type DockAttestation, type DockDevice } from "../../engine/attestation";
 
 const PATH = "convex/near/escrow.ts";
 /** One faucet drip is 100 test NEAR USDC; the swap into Base USDC keeps a little back for its fee. */
@@ -100,7 +101,7 @@ export class AccountsFull extends Error {
 export class EscrowAdapter {
   private client: AgentApiClient;
   private treasuryAcct?: string;
-  constructor(private o: { fetch: Fetch; apiKey?: string; baseUrl: string; owner?: Owner; sink: ProofSink; treasuryId?: string; idem?: () => string; gate?: ReleaseGate | null; gatePublicKey?: string }) {
+  constructor(private o: { fetch: Fetch; apiKey?: string; baseUrl: string; owner?: Owner; sink: ProofSink; treasuryId?: string; idem?: () => string; gate?: ReleaseGate | null; gatePublicKey?: string; dockDevices?: DockDevice[] }) {
     this.client = new AgentApiClient({ fetch: o.fetch, apiKey: o.apiKey, baseUrl: o.baseUrl, owner: o.owner, sink: o.sink, idem: o.idem });
   }
 
@@ -248,7 +249,8 @@ export class EscrowAdapter {
         kind: "signal", label: `Signal: ${SIGNAL_LABEL[s]} for PO ${po}${simulated ? " (simulated feed)" : ""}`,
         call: s === "dock_count" ? "dock check count" : `tracking.events (${simulated ? "simulated carrier and customs feed" : e.source ?? "tracking feed"})`,
         codePath: "scenarios/tracking.ts#signal", network: "offchain", hash: e.id,
-        response: { event: s, po, source: e.source ?? null, id: e.id, at: e.at, ...(e.ref ? { ref: e.ref } : {}), ...(e.count !== undefined ? { count: e.count } : {}) },
+        response: { event: s, po, source: e.source ?? null, id: e.id, at: e.at, ...(e.ref ? { ref: e.ref } : {}), ...(e.count !== undefined ? { count: e.count } : {}),
+          evidence_status: e.attestation ? `received, signed by device ${(e.attestation as { device?: string }).device}; not a physical fact` : "received, unsigned; not a physical fact" },
         replay: false, synthetic: false,
       });
     }
@@ -262,6 +264,22 @@ export class EscrowAdapter {
    */
   async releaseStage(i: { escrow: Escrow; agentId: string; stage: Stage; to: string; evidence: SignalEvidence; unitCents: number; po: string; ref: string; nowMs: number; path?: ReleasePath; gatePublicKey?: string; payee?: string }): Promise<StageMoved> {
     const path = i.path ?? "server";
+    // Evidence received is not a fact established. When Astro has pinned receiving devices, the
+    // balance needs a dock count signed by one of them, for this PO, fresh, and equal to the count
+    // the amount is computed from; otherwise nothing is sent. Without pinned devices the count is
+    // used unsigned and its proof row says so.
+    if (i.stage === "balance" && this.o.dockDevices?.length) {
+      const dc = i.evidence.dock_count;
+      const v = verifyDockCount(dc?.attestation as Partial<DockAttestation> | undefined, { po: i.po, devices: this.o.dockDevices, nowMs: i.nowMs });
+      const reason = !v.ok ? v.reason : v.count !== dc?.count ? "count_mismatch" : null;
+      if (reason) {
+        await this.o.sink({
+          kind: "refusal", label: `Balance refused before any call: the dock count is not signed by a pinned receiving device (${reason})`, call: "engine/attestation.ts verifyDockCount", codePath: `${PATH}#dockCount`,
+          network: "offchain", hash: "none", response: { stage: i.stage, status: "refused", reason: `dock_${reason}`, count: dc?.count ?? null }, replay: false, synthetic: false,
+        });
+        return { ok: false, reason: `dock_${reason}` };
+      }
+    }
     const signals = (Object.keys(i.evidence) as SignalId[]).filter((s) => evidenceId(i.evidence[s]));
     const counted = i.evidence.dock_count?.count;
     const receivedQty = typeof counted === "number" ? counted : undefined;

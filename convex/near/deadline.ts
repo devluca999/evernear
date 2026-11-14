@@ -30,6 +30,7 @@ import type { Doc, Id } from "../_generated/dataModel";
 import { v } from "convex/values";
 import { AccountsFull, EscrowAdapter, type PoAccount, type ReleasePath, type SignalEvidence } from "./escrow";
 import { releaseGateFromEnv } from "./releaseGate";
+import { parseDockDevices } from "../../engine/attestation";
 import { dockEvidence, evidenceFrom, simulatedTracking, type TrackingAdapter } from "../../scenarios/tracking";
 import {
   agentApiBase,
@@ -67,6 +68,7 @@ function adapter(sink: (p: ProofInput) => void) {
   return new EscrowAdapter({
     fetch: fetcher, apiKey: env.AGENT_API_KEY, baseUrl: agentApiBase(env.AGENT_API_BASE_URL), owner, sink, treasuryId: env.AGENT_TREASURY_ID,
     gate: releaseGateFromEnv(env, fetcher), gatePublicKey: env.RELEASE_GATE_PUBLIC_KEY?.trim() || undefined,
+    dockDevices: parseDockDevices(env.DOCK_DEVICE_KEYS),
   });
 }
 

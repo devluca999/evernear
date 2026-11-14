@@ -38,7 +38,7 @@ Updated 2026-11-14 ~03:30 UTC. Development ends **2026-11-14 23:59 UTC** ([COMPE
 | P0 | Remote repo stale (Nov 10) | **Needs you**: push |
 | P0 | Live mode on the hosted deployment will refuse commits until `APPROVER_KEYS` is set and functions deployed | **Needs you** |
 | P1 | Gate trusts caller `released_cents`, `advance_percent`, `to`, evidence | Documented and pinned by tests; fix needs a new wasm build (new key, new upload): parked |
-| P1 | Evidence not source-signed; dock count is a constant in live runs | Open: signed dock-count attestation is the next build item |
+| P1 | Evidence not source-signed; dock count is a constant in live runs | **Partly fixed**: signed dock-count attestation enforced by the server when `DOCK_DEVICE_KEYS` is set; not in the deployed gate; carrier/customs signals still simulated |
 | P1 | Tidepool is a community testnet; rivals show mainnet | Needs Luca's explicit yes for any mainnet call (CLAUDE.md rule 7) |
 | P1 | `security` track not on the submission | Needs you (request-changes) |
 | P2 | Live UI: a refused commit stops live mode for the run with `commit: <reason>`; no in-app approve page (approvers use `scripts/approve.mts`) | Open |

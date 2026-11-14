@@ -20,6 +20,7 @@ import { ed25519 } from "@noble/curves/ed25519.js";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { canonical } from "./releaseGate";
 import { TESTNET_SCALE } from "./money";
+import { base64 } from "@scure/base";
 
 export const APPROVAL_PREFIX = "evernear-approval:v1:";
 export const REVOKE_PREFIX = "evernear-approval-revoke:v1:";
@@ -49,7 +50,8 @@ export interface CommitTerms {
   approvalsRequired: number;
 }
 
-export interface Approver { name: string; publicKey: string; revoked?: boolean }
+/** A pinned approver. With `accountId`, the approver is a NEAR account: it must sign with NEP-413 using that account's key. */
+export interface Approver { name: string; publicKey: string; accountId?: string; revoked?: boolean }
 
 export interface SignedApproval {
   approver: string;
@@ -59,6 +61,9 @@ export interface SignedApproval {
   issuedAt: number;
   expiresAt: number;
   signature: string;
+  /** NEP-413 approvals from a NEAR account: the account, and `scheme: "nep413"`. */
+  accountId?: string;
+  scheme?: "ed25519" | "nep413";
 }
 
 export type ApprovalRefusal =
@@ -84,9 +89,23 @@ export const settlementUnits = (totalCents: number) => (BigInt(Math.round(totalC
 export const termsDigest = (t: CommitTerms) => sha256Hex(canonical(t));
 
 /** The exact bytes an approver signs. */
-export function approvalMessage(a: Pick<SignedApproval, "approver" | "publicKey" | "digest" | "nonce" | "issuedAt" | "expiresAt">): string {
-  return APPROVAL_PREFIX + canonical({ approver: a.approver, digest: a.digest, expiresAt: a.expiresAt, issuedAt: a.issuedAt, nonce: a.nonce, publicKey: a.publicKey });
+export function approvalMessage(a: Pick<SignedApproval, "approver" | "publicKey" | "digest" | "nonce" | "issuedAt" | "expiresAt" | "accountId">): string {
+  return APPROVAL_PREFIX + canonical({ accountId: a.accountId, approver: a.approver, digest: a.digest, expiresAt: a.expiresAt, issuedAt: a.issuedAt, nonce: a.nonce, publicKey: a.publicKey });
 }
+
+/** NEP-413 recipient for every EverNEAR approval, so a signature for another app never counts here. */
+export const NEP413_RECIPIENT = "evernear";
+const u32 = (n: number) => { const b = new Uint8Array(4); new DataView(b.buffer).setUint32(0, n, true); return b; };
+const cat = (...a: Uint8Array[]) => { const o = new Uint8Array(a.reduce((n, x) => n + x.length, 0)); let i = 0; for (const x of a) { o.set(x, i); i += x.length; } return o; };
+const bstr = (x: string) => { const b = enc(x); return cat(u32(b.length), b); };
+/** The 32-byte NEP-413 nonce for an approval: sha256 of its nonce string. */
+export const nep413Nonce = (nonce: string) => sha256(enc(nonce));
+/** The bytes a NEAR wallet signs for this approval (NEP-413: sha256 of borsh(tag, message, nonce, recipient, no callback)). */
+export function nep413Bytes(a: Parameters<typeof approvalMessage>[0]): Uint8Array {
+  return sha256(cat(u32(2 ** 31 + 413), bstr(approvalMessage(a)), nep413Nonce(a.nonce), bstr(NEP413_RECIPIENT), new Uint8Array([0])));
+}
+/** The NEP-413 payload as a wallet's signMessage takes it. */
+export const nep413Payload = (a: Parameters<typeof approvalMessage>[0]) => ({ message: approvalMessage(a), nonce: base64.encode(nep413Nonce(a.nonce)), recipient: NEP413_RECIPIENT });
 export const revokeMessage = (nonce: string) => REVOKE_PREFIX + nonce;
 
 /** Signs an approval. Runs on the approver's device (scripts/approve.mts or the /approve page) and in tests; never on the server. */
@@ -100,7 +119,15 @@ export const signRevoke = (nonce: string, secretKey: Uint8Array) => hex(ed25519.
 
 export function verifySignature(a: SignedApproval): boolean {
   if (!isHex(a.signature, 128) || !isHex(a.publicKey, 64)) return false;
-  try { return ed25519.verify(fromHex(a.signature), enc(approvalMessage(a)), fromHex(a.publicKey)); } catch { return false; }
+  const bytes = a.scheme === "nep413" ? nep413Bytes(a) : enc(approvalMessage(a));
+  try { return ed25519.verify(fromHex(a.signature), bytes, fromHex(a.publicKey)); } catch { return false; }
+}
+
+/** Signs an approval as a NEAR account would through NEP-413 (scripts/approve.mts with a NEAR credentials file, and tests). */
+export function signApprovalNep413(i: { approver: string; accountId: string; secretKey: Uint8Array; digest: string; nonce: string; issuedAt: number; expiresAt: number }): SignedApproval {
+  const publicKey = hex(ed25519.getPublicKey(i.secretKey));
+  const body = { approver: i.approver, accountId: i.accountId, publicKey, digest: i.digest, nonce: i.nonce, issuedAt: i.issuedAt, expiresAt: i.expiresAt, scheme: "nep413" as const };
+  return { ...body, signature: hex(ed25519.sign(nep413Bytes(body), i.secretKey)) };
 }
 
 export function verifyRevoke(nonce: string, signature: string, publicKey: string): boolean {
@@ -115,7 +142,7 @@ export function parseApprovers(raw: string | undefined): Approver[] {
     const arr = JSON.parse(raw);
     if (!Array.isArray(arr)) return [];
     return arr.filter((a) => a && typeof a.name === "string" && isHex(String(a.publicKey).toLowerCase(), 64))
-      .map((a) => ({ name: a.name, publicKey: String(a.publicKey).toLowerCase(), ...(a.revoked ? { revoked: true } : {}) }));
+      .map((a) => ({ name: a.name, publicKey: String(a.publicKey).toLowerCase(), ...(typeof a.accountId === "string" ? { accountId: a.accountId } : {}), ...(a.revoked ? { revoked: true } : {}) }));
   } catch { return []; }
 }
 
@@ -126,6 +153,8 @@ function checkOne(a: SignedApproval, i: { digest: string; approvers: Approver[];
   if (!reg) return "unknown_approver";
   if (reg.revoked) return "approver_revoked";
   if (reg.publicKey !== a.publicKey) return "key_mismatch";
+  // A NEAR-account approver must sign as that account, through NEP-413.
+  if (reg.accountId && (a.scheme !== "nep413" || a.accountId !== reg.accountId)) return "key_mismatch";
   if (!verifySignature(a)) return "bad_signature";
   if (a.digest !== i.digest) return "terms_mismatch";
   if (a.expiresAt - a.issuedAt > APPROVAL_MAX_TTL_MS) return "ttl_too_long";

@@ -11,7 +11,7 @@ import { API_KEY, testOwner } from "./near/agentFixtures";
 import { EscrowAdapter } from "@/convex/near/escrow";
 import { BASE_USDC } from "@/convex/near/agentapi";
 import { commitTerms, liveTerms, SETTLEMENT_ASSET } from "@/convex/approvalTerms";
-import { signRevoke, termsDigest } from "@/engine/approvals";
+import { signApprovalNep413, signRevoke, termsDigest } from "@/engine/approvals";
 import { APPROVER_KEYS, KEYS, approveLive, authorizedRun, liveDigest, pub, setApprovers, sign } from "./approvalFixtures";
 
 const modules = import.meta.glob("../convex/**/*.ts");
@@ -228,6 +228,26 @@ describe("commit authorization: the money path refuses unapproved or mismatched 
     expect(await w.commit()).toEqual({ ok: false, reason: "step_in_progress" });
     await w.t.run((ctx) => ctx.db.patch(w.runId, { inFlight: "commit", inFlightAt: Date.now() - 12 * 60_000 }));
     expect(await w.commit()).toEqual({ ok: true });
+  });
+
+  it("an approver pinned as a NEAR testnet account signs with NEP-413, and the pinned key is checked on chain", async () => {
+    const w = await world();
+    setApprovers(JSON.stringify([{ name: "Luca", publicKey: pub("Luca") }, { name: "Jordan", publicKey: pub("Jordan"), accountId: "jordan-bennett.testnet" }]));
+    expect(await w.submit(sign("Jordan", liveDigest()))).toEqual({ ok: false, reason: "key_mismatch" });
+    const now = Date.now();
+    const j = signApprovalNep413({ approver: "Jordan", accountId: "jordan-bennett.testnet", secretKey: KEYS.Jordan, digest: liveDigest(), nonce: "jn-1", issuedAt: now, expiresAt: now + 3_600_000 });
+    expect(await w.submit(j)).toEqual({ ok: true });
+    await approveLive(w.t, "happy", ["Luca"]);
+    expect(await w.commit()).toEqual({ ok: true });
+    // The registry check asks NEAR testnet RPC whether the pinned key is a full-access key of the account.
+    vi.stubGlobal("fetch", async (_u: string, init: RequestInit) => {
+      const body = JSON.parse(String(init.body));
+      return new Response(JSON.stringify(body.params.account_id === "jordan-bennett.testnet" ? { result: { permission: "FullAccess", nonce: 1 } } : { error: { cause: { name: "UNKNOWN_ACCESS_KEY" } } }));
+    });
+    expect(await w.t.action(api.approvals.checkApproverKeys, {})).toEqual([
+      { name: "Luca", fullAccess: null, detail: "not a NEAR account approver" },
+      { name: "Jordan", accountId: "jordan-bennett.testnet", fullAccess: true },
+    ]);
   });
 
   it("the alternate path: calling the wallet's lock directly without a claimed, matching authorization", async () => {

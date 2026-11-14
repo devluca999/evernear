@@ -62,3 +62,22 @@ describe("commit approvals (engine/approvals.ts)", () => {
     expect(verify([], { ...terms, approvalsRequired: 0 })).toMatchObject({ ok: true, approvers: [] });
   });
 });
+
+import { nep413Bytes, nep413Payload, signApprovalNep413 } from "../approvals";
+import { nep413Hash } from "../../convex/near/agentapi";
+
+describe("NEAR-account approvers (NEP-413)", () => {
+  const nearApprovers = [approvers[0], { ...approvers[1], accountId: "jordan-bennett.testnet" }];
+  const jordanNear = () => signApprovalNep413({ approver: "Jordan", accountId: "jordan-bennett.testnet", secretKey: K.Jordan, digest: termsDigest(terms), nonce: "j-near", issuedAt: NOW - 1000, expiresAt: NOW + 3_600_000 });
+  it("signs exactly the NEP-413 bytes a NEAR wallet signs (same as the owner-intent signer)", () => {
+    const a = jordanNear();
+    expect(Buffer.from(nep413Bytes(a)).toString("hex")).toBe(Buffer.from(nep413Hash(nep413Payload(a))).toString("hex"));
+  });
+  it("a NEAR-account approver counts only with a NEP-413 signature as that account", () => {
+    const v = (j: ReturnType<typeof sign>) => verifyApprovals({ terms, approvals: [sign("Luca"), j], approvers: nearApprovers, nowMs: NOW, consumed: new Set() });
+    expect(v(jordanNear())).toMatchObject({ ok: true });
+    expect(v(sign("Jordan"))).toMatchObject({ ok: false, reason: "key_mismatch" });
+    expect(v({ ...jordanNear(), accountId: "mallory.testnet" })).toMatchObject({ ok: false, reason: "key_mismatch" });
+    expect(v({ ...jordanNear(), scheme: "ed25519" })).toMatchObject({ ok: false, reason: "key_mismatch" });
+  });
+});

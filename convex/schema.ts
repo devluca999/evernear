@@ -87,6 +87,7 @@ export default defineSchema({
   commitApprovals: defineTable({
     digest: v.string(), po: v.string(), approver: v.string(), publicKey: v.string(), nonce: v.string(),
     issuedAt: v.number(), expiresAt: v.number(), signature: v.string(),
+    accountId: v.optional(v.string()), scheme: v.optional(v.union(v.literal("ed25519"), v.literal("nep413"))),
     status: v.union(v.literal("pending"), v.literal("consumed"), v.literal("revoked")),
     runId: v.optional(v.id("liveRuns")), at: v.number(),
   }).index("by_digest_status", ["digest", "status"]).index("by_nonce", ["nonce"]).index("by_run", ["runId"]),

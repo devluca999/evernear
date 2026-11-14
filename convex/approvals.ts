@@ -6,14 +6,16 @@
 // convex/near/deadline.ts lock checks the claim again right before it opens the order's wallet.
 // Approver public keys are pinned in the APPROVER_KEYS env variable; when it is missing or has too
 // few keys, every commit is refused (`approvals_not_configured`): fail closed.
-import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
+import { action, internalMutation, internalQuery, mutation, query } from "./_generated/server";
+import { base58 } from "@scure/base";
 import { v } from "convex/values";
 import { parseApprovers, termsDigest, verifyApprovals, verifyRevoke, verifySignature, type SignedApproval } from "../engine/approvals";
 import { commitTerms, liveTerms, type Scenario } from "./approvalTerms";
 
 const scenarioArg = v.optional(v.union(v.literal("happy"), v.literal("adjusted")));
 const approvers = () => parseApprovers(process.env.APPROVER_KEYS);
-const approvalArg = v.object({ approver: v.string(), publicKey: v.string(), digest: v.string(), nonce: v.string(), issuedAt: v.number(), expiresAt: v.number(), signature: v.string() });
+const approvalArg = v.object({ approver: v.string(), publicKey: v.string(), digest: v.string(), nonce: v.string(), issuedAt: v.number(), expiresAt: v.number(), signature: v.string(),
+  accountId: v.optional(v.string()), scheme: v.optional(v.union(v.literal("ed25519"), v.literal("nep413"))) });
 
 /** What an approver is asked to sign: the live order's terms and their digest, and who has signed so far. */
 export const terms = query({
@@ -37,6 +39,7 @@ export const submit = mutation({
     if (!reg) return { ok: false, reason: "unknown_approver" };
     if (reg.revoked) return { ok: false, reason: "approver_revoked" };
     if (reg.publicKey !== a.publicKey) return { ok: false, reason: "key_mismatch" };
+    if (reg.accountId && (a.scheme !== "nep413" || a.accountId !== reg.accountId)) return { ok: false, reason: "key_mismatch" };
     if (!verifySignature(a)) return { ok: false, reason: "bad_signature" };
     const live = (["happy", "adjusted"] as const).map((s) => liveTerms(s));
     const t = live.find((x) => termsDigest(x) === a.digest);
@@ -95,7 +98,7 @@ export const claimCommit = internalMutation({
       const spent = await ctx.db.query("commitApprovals").withIndex("by_nonce", (q) => q.eq("nonce", r.nonce)).collect();
       if (spent.some((x) => x.status === "consumed")) consumed.add(r.nonce);
     }
-    const approvals: SignedApproval[] = rows.map(({ approver, publicKey, digest: d, nonce, issuedAt, expiresAt, signature }) => ({ approver, publicKey, digest: d, nonce, issuedAt, expiresAt, signature }));
+    const approvals: SignedApproval[] = rows.map(({ approver, publicKey, digest: d, nonce, issuedAt, expiresAt, signature, accountId, scheme }) => ({ approver, publicKey, digest: d, nonce, issuedAt, expiresAt, signature, ...(accountId ? { accountId } : {}), ...(scheme ? { scheme } : {}) }));
     const res = verifyApprovals({ terms: t, approvals, approvers: approvers(), nowMs: Date.now(), consumed });
     if (!res.ok) {
       await ctx.db.insert("proofs", {
@@ -145,4 +148,29 @@ export const commitAuthorized = internalQuery({
 export const resolveCommit = internalMutation({
   args: { runId: v.id("liveRuns") },
   handler: async (ctx, { runId }) => { if (await ctx.db.get(runId)) await ctx.db.patch(runId, { commitResolved: true }); },
+});
+
+/**
+ * For approvers pinned as NEAR testnet accounts: asks NEAR testnet RPC whether each pinned key is a
+ * full-access key of its account right now. A key the account removed, or never had, shows false;
+ * the operator then revokes it in APPROVER_KEYS. Reads only.
+ */
+export const checkApproverKeys = action({
+  args: {},
+  handler: async (): Promise<{ name: string; accountId?: string; fullAccess: boolean | null; detail?: string }[]> => {
+    const out = [];
+    for (const a of approvers()) {
+      if (!a.accountId) { out.push({ name: a.name, fullAccess: null, detail: "not a NEAR account approver" }); continue; }
+      const key = "ed25519:" + base58.encode(Uint8Array.from(a.publicKey.match(/../g)!.map((h) => parseInt(h, 16))));
+      try {
+        const r = await fetch(process.env.NEAR_TESTNET_RPC ?? "https://rpc.testnet.near.org", { method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "query", params: { request_type: "view_access_key", finality: "final", account_id: a.accountId, public_key: key } }) });
+        const j = await r.json() as { result?: { permission?: unknown }; error?: { cause?: { name?: string } } };
+        out.push({ name: a.name, accountId: a.accountId, fullAccess: j.result?.permission === "FullAccess", ...(j.error ? { detail: j.error.cause?.name ?? "rpc_error" } : {}) });
+      } catch (e) {
+        out.push({ name: a.name, accountId: a.accountId, fullAccess: null, detail: (e as Error).message.slice(0, 80) });
+      }
+    }
+    return out;
+  },
 });

@@ -1,0 +1,13 @@
+{
+  "_note": "Release gate v2 on OutLayer testnet, Nov 14: a release request for the closed, frozen PO 1042 wallet of the Nov 6 run. The gate read the account's policy from Tidepool inside the enclave, found it frozen and returned a signed refusal; nothing was sent. Verify: read the tx's SuccessValue on NEAR testnet RPC and check the ed25519 signature over 'evernear-release-gate:v1:' + canonical JSON without 'signature'.",
+  "network": "NEAR testnet (OutLayer) + Tidepool testnet",
+  "signer": "evernear-luca.testnet",
+  "contract": "outlayer.testnet",
+  "tx": "4qXdn52ZYn6Xwhy5KeXxL3fFqzaaWojp4nyaZcxkp2vH",
+  "explorer": "https://testnet.nearblocks.io/txns/4qXdn52ZYn6Xwhy5KeXxL3fFqzaaWojp4nyaZcxkp2vH",
+  "wasm_url": "https://test.fastfs.io/evernear-luca.testnet/outlayer.testnet/dd90ce689d45c3dcddceb9b92fd42563b0edaad9ab7b974c9a41cd75cbfa8955.wasm",
+  "wasm_sha256": "dd90ce689d45c3dcddceb9b92fd42563b0edaad9ab7b974c9a41cd75cbfa8955",
+  "input": {"mode":"release","stage":"advance","po":"1042","agent_id":"agent_9ab195d10797557d177ca925","to":"0x2003975a521c6fa45238dbc402c9e4adcb8863e0","unit_cents":126000,"ordered_qty":50,"locked_cents":6300000,"released_cents":0,"advance_percent":30,"signals":{"bill_of_lading":{"id":"sim-bol","at":"2026-11-05T13:40:00Z"},"export_cleared":{"id":"sim-export","at":"2026-11-05T20:15:00Z"}}},
+  "output": {"agent_id":"agent_9ab195d10797557d177ca925","evidence_sha256":"89269daf1ccc858b5a85f717be70a6292df8f4af4bf442839334e3e630c9c407","missing":[],"ok":false,"po":"1042","public_key":"96f3d04f661f45db698a3a8d8e4462d2e75ca19ecd8f2e001076d1215de994f2","reason":"account_frozen","signature":"c7528026862071127668af48d4b391e53626bdea2a7c0be9a276e0b4f2b4972497fb9a9faf7fc76d0e5bd948d8e1a7949c20fc8876b4398b6e71fc05333a3107","stage":"advance"},
+  "signature_valid": true
+}

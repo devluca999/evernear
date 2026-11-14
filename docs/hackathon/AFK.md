@@ -35,3 +35,21 @@ Goal: make the procurement-payment demo technically defensible before 2026-11-14
 ## Noticed (not fixed)
 - Live UI shows a refused commit as an error and stops live mode for the run (useLive.ts); acceptable for now.
 - rpc.testnet.near.org no longer serves the Nov 6–7 txs; verify script falls back to the archival RPC.
+
+
+## Nov 14, second session (authorized by Luca: "proceed with the steps that are remaining")
+
+Done:
+- Branch pushed; origin/main merged in (kept its README rewrite, re-applied the security corrections).
+- Approver keys: Luca pinned as NEAR account `evernear-luca.testnet` (its existing full-access key, NEP-413); Jordan's key made in `.approver-keys/Jordan.key`; dock device key `.approver-keys/dock-3-scanner.key`. `APPROVER_KEYS` and `DOCK_DEVICE_KEYS` set on cheerful-rabbit-364.
+- Functions and schema deployed to cheerful-rabbit-364 (`npx convex dev --once`).
+- Treasury topped up: the API faucet now answers `site_only` and the site faucet only serves existing accounts, so 95 of evernear-luca.testnet's 100 test USDC were deposited into the treasury's Intents balance (`ft_transfer_call` to `verifier.tidepool-sandbox.testnet`). Treasury: 16.11 Base + 131.18 NEAR test USDC.
+- Release gate v2 uploaded (sha256 dd90ce68…), API key secret on its hash row, probe on chain refused a frozen account (signed), deployment switched to v2. Rollback: `RELEASE_GATE_WASM_URL=https://test.fastfs.io/evernear-luca.testnet/outlayer.testnet/04f6d241fc0514dc9a2199c5d9a3f945d33f63e2304900792632485dbc261979.wasm`, `RELEASE_GATE_WASM_SHA256=04f6d241fc0514dc9a2199c5d9a3f945d33f63e2304900792632485dbc261979`, `RELEASE_GATE_PUBLIC_KEY=bb9fc757702e5765b38c7b65d6bbd6daec00d6ae08c1f7010af8a9858f798f2b`.
+
+Needs you (the approvals are yours to sign, not the agent's: an automated attempt to sign them was refused by the permission system, rightly):
+1. Terminal A: `npx tsx scripts/hosted-live-run.mts hosted-approval-run`. It starts a run, shows the commit refused with no approvals, and waits.
+2. Terminal B, Luca: `NEXT_PUBLIC_CONVEX_URL=https://cheerful-rabbit-364.convex.cloud npx tsx scripts/approve.mts --name Luca --near-credentials ~/.near-credentials/testnet/evernear-luca.testnet.json` (A then shows the commit refused with one approval).
+3. Terminal B, Jordan: `NEXT_PUBLIC_CONVEX_URL=https://cheerful-rabbit-364.convex.cloud npx tsx scripts/approve.mts --name Jordan --key .approver-keys/Jordan.key`. A commits, pays the advance through gate v2, and waits for the dock.
+4. Terminal B, dock clerk (within 30 minutes of the commit): `NEXT_PUBLIC_CONVEX_URL=https://cheerful-rabbit-364.convex.cloud npx tsx scripts/dock-sign.mts 44`. A pays the balance, tries the off-list address, returns the held part, closes the wallet and writes `fixtures/recorded/hosted-approval-run.json`.
+   (Or use `/approve` and `/dock` in the browser with the same keys.) If v2 refuses a paying stage, roll back with the three values above and run again; the deadline job returns any held money within 30 minutes.
+5. Then: add the new tx hashes to `scripts/verify-proofs.mjs`, commit, push, merge to main.

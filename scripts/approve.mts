@@ -15,7 +15,9 @@ const name = arg("name"), nearFile = arg("near-credentials"), keyFile = arg("key
 const url = process.env.NEXT_PUBLIC_CONVEX_URL ?? process.env.CONVEX_URL;
 if (!name || !keyFile || !url) { console.error("usage: NEXT_PUBLIC_CONVEX_URL=... npx tsx scripts/approve.mts --name <Name> --key <file> [--scenario happy|adjusted]"); process.exit(1); }
 // A NEAR credentials file holds {account_id, private_key: "ed25519:<base58 of seed + public key>"}.
-const near = nearFile ? JSON.parse(readFileSync(nearFile, "utf8")) as { account_id: string; private_key: string } : null;
+const nearJson = nearFile ? JSON.parse(readFileSync(nearFile, "utf8")) as { account_id?: string; private_key: string } : null;
+// Older near-cli files omit account_id: the file is named <account>.json.
+const near = nearJson ? { ...nearJson, account_id: nearJson.account_id ?? nearFile!.split("/").pop()!.replace(/\.json$/, "") } : null;
 const sk = near ? base58.decode(near.private_key.replace(/^ed25519:/, "")).slice(0, 32)
   : Uint8Array.from(readFileSync(keyFile, "utf8").trim().match(/../g)!.map((h) => parseInt(h, 16)));
 const client = new ConvexHttpClient(url);

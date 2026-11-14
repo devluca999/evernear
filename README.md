@@ -211,6 +211,10 @@ All of Evernear's code was written within the hackathon period (Nov 1 to Nov 14,
 - A challenge window and an independent inspector for disputed holds.
 - Real carrier and customs feeds behind the tracking adapter.
 
+## Other entry
+
+Our other, independent NEAR Hackathon entry is **Pixlz** ([github.com/devluca999/pixlz-near](https://github.com/devluca999/pixlz-near)): a desktop pet for macOS that checks NEAR AI Cloud's TEE attestation before sending your text, and pays for each request from its own NEAR testnet account. The two projects share no code.
+
 ## Credits
 
 Map outlines from [Natural Earth](https://www.naturalearthdata.com/) 1:50m via [world-atlas](https://github.com/topojson/world-atlas) (public domain), projected with [d3-geo](https://github.com/d3/d3-geo) at build time by [scripts/build-map.mjs](scripts/build-map.mjs) ([test](components/__tests__/map.test.ts)).

@@ -71,6 +71,8 @@ Approvers sign the exact terms (PO, version, supplier and payout address, quanti
 ## Run it
 
 Do this, see that (no keys needed):
+- Open `/audit` (also on the hosted demo): PO 1042 from request to reconciliation in 15 events, each with actor, enforcement layer, evidence, how it is known (on chain, recorded, computed, simulated) and its transaction.
+- `npm run reconcile`: the engine's settlement for the order next to the amounts read from chain; fails if they differ.
 - `npm run attack`: 49 attacks on the money path, each refused at its named layer ([ENFORCEMENT-MATRIX.md](docs/hackathon/ENFORCEMENT-MATRIX.md)).
 - `npm run verify:proofs`: reads every recorded testnet transaction back from public NEAR testnet and Base Sepolia RPCs, decodes each release-gate result from chain and checks its signature, and checks 18.90 + 36.54 + 7.56 = 63.00 ([PAYMENT-PROOFS.md](docs/hackathon/PAYMENT-PROOFS.md)); exits non-zero on any mismatch.
 - `DEMO_MODE=1 node scripts/demo.mjs --check`: builds and serves the replay demo from a clean clone and checks the page answers.

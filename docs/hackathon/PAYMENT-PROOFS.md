@@ -114,3 +114,15 @@ node scripts/verify-proofs.mjs
 ```
 
 Node 22 or later, no install, no keys. The script reads public endpoints only: `https://sepolia.base.org` (fallback `https://base-sepolia-rpc.publicnode.com`) for Base Sepolia; `https://rpc.testnet.near.org`, then the archival nodes `https://archival-rpc.testnet.near.org` and `https://archival-rpc.testnet.fastnear.com` for NEAR testnet (the regular node no longer keeps these transactions and answers `UNKNOWN_TRANSACTION`; the script records that and moves on); and `https://api-testnet.nearblocks.io` to find the signer of a NEAR tx when the record does not name it. Each request times out after 15 seconds; a failure is written into that row's `verification.details` and the run continues. It rewrites `docs/hackathon/payment-proofs.json`.
+
+
+## Gate results, read from chain
+
+Each payout's OutLayer `request_execution` transaction returns the release gate's signed result as its `SuccessValue`. `scripts/verify-proofs.mjs` decodes it and checks the ed25519 signature over the gate's canonical bytes (`evernear-release-gate:v1:` + sorted JSON), the amount and the recipient:
+
+| Payout | Gate amount | Recipient | Gate key | Signature |
+|---|---|---|---|---|
+| Advance | 1,890,000 cents ($18,900; 18.90 test USDC) | `0x2003975a521c6fa45238dbc402c9e4adcb8863e0` | `bb9fc757…8f2b` | valid |
+| Balance | 3,654,000 cents ($36,540; 36.54 test USDC) | same | same | valid |
+
+This shows the same gate key signed exactly the amounts that reached Haoyun on Base Sepolia. It does not verify the TEE attestation that binds that key to the wasm (see TRUST-MODEL.md).

@@ -73,8 +73,11 @@ export default defineSchema({
     done: v.array(liveStep),
     // The money step running now, claimed in a mutation before any call, so two concurrent requests cannot both run it.
     inFlight: v.optional(liveStep),
+    inFlightAt: v.optional(v.number()),
     // The commit's authorization, claimed atomically with the approvals it consumed (convex/approvals.ts claimCommit).
-    commit: v.optional(v.object({ digest: v.string(), approvers: v.array(v.string()), nonces: v.array(v.string()), claimedAt: v.number() })),
+    commit: v.optional(v.object({ digest: v.string(), po: v.optional(v.string()), approvers: v.array(v.string()), nonces: v.array(v.string()), claimedAt: v.number() })),
+    // An operator marked a claimed commit as checked by hand (e.g. it failed before any money moved), so it no longer blocks the PO.
+    commitResolved: v.optional(v.boolean()),
   }).index("by_started", ["startedAt"]),
   // Signed commit approvals (engine/approvals.ts): one row per signature, spent once by claimCommit.
   commitApprovals: defineTable({

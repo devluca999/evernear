@@ -211,6 +211,25 @@ describe("commit authorization: the money path refuses unapproved or mismatched 
     expect(w.tp.agents.size).toBe(w.agentsBefore + 1);
   });
 
+  it("a commit that failed after the claim (money may have moved, no escrow row) blocks the PO until an operator resolves it", async () => {
+    const w = await world();
+    const crashed = await w.t.run((ctx) => ctx.db.insert("liveRuns", { startedAt: Date.now() - 60_000, done: [], error: "commit: wallet lookup 503", commit: { digest: liveDigest(), po: "1042", approvers: ["Luca", "Jordan"], nonces: ["x", "y"], claimedAt: Date.now() - 60_000 } }));
+    await approveLive(w.t);
+    expect(await w.commit()).toEqual({ ok: false, reason: "po_commit_unresolved" });
+    w.nothingMoved();
+    await w.t.mutation(internal.approvals.resolveCommit, { runId: crashed });
+    expect(await w.commit()).toEqual({ ok: true });
+  });
+
+  it("a step claim left by a dead action expires; a fresh one does not", async () => {
+    const w = await world();
+    await approveLive(w.t);
+    await w.t.run((ctx) => ctx.db.patch(w.runId, { inFlight: "commit", inFlightAt: Date.now() - 60_000 }));
+    expect(await w.commit()).toEqual({ ok: false, reason: "step_in_progress" });
+    await w.t.run((ctx) => ctx.db.patch(w.runId, { inFlight: "commit", inFlightAt: Date.now() - 12 * 60_000 }));
+    expect(await w.commit()).toEqual({ ok: true });
+  });
+
   it("the alternate path: calling the wallet's lock directly without a claimed, matching authorization", async () => {
     const w = await world();
     const lock = (a: { runId?: typeof w.runId; cents: number; supplier?: string }) => w.t.action(internal.near.deadline.lock, { po: "1042", supplier: a.supplier ?? HAOYUN, cents: a.cents, orderedQty: 50, deadlineMs: T0 + 86_400_000, ...(a.runId ? { runId: a.runId } : {}) });

@@ -15,6 +15,9 @@
 > | Inference attestation | README now says what `bound` checks and that unbound reads are recorded, not refused |
 > | verify-proofs exits 0 on mismatch | Fixed (40fd1a8) |
 > | Gate trusts caller state; treasury policy allows any destination | Open (needs a new wasm build / a live Tidepool owner action) |
+> | Re-review E: commit fails after transfer, no escrow row, PO unblocked | Fixed: the PO is recorded in the commit claim; an unresolved claimed commit blocks the PO (`po_commit_unresolved`) until an operator runs `approvals:resolveCommit` |
+> | Re-review: verify-proofs ignores related legs, RPC errors, gate result | Fixed: all legs checked, `error` fails, gate result decoded and its signature, amount and recipient checked |
+> | Re-review: step claim never expires | Fixed: a claim older than 11 minutes (longer than any Convex action) is stale; the run-state read moved inside the try |
 
 
 Reviewed at `hackathon/p0-hardening` **HEAD 6780d8b** (2026-11-13, local, not pushed). Seven adversarial judges, each trying to break one claim. Every file:line below is at that commit. During the review someone else committed (67df486, 908c5d4, 6780d8b) and left uncommitted edits to `vitest.config.mts`, `tsconfig.json` and `eslint.config.mjs`. Those edits are noted where they matter; nothing in this review depends on them.
@@ -389,6 +392,142 @@ describe("judge probe", () => {
     const r = await t.action(internal.near.deadline.reclaim, { escrowId: run.run.escrowId!, runId: runId! });
     console.log("PROBE D", JSON.stringify(r), tp.payouts.length);
     expect(r.ok).toBe(true);
+  });
+});
+```
+
+---
+
+## Re-review at bc6d10b
+
+The same panel re-checked every finding at **HEAD bc6d10b**, without relying on the resolution table at the top of this file. Each claim below was re-run or re-read at that commit. Where a challenge ran is tagged as before: simulated provider, real testnet, or local.
+
+### Commands re-run
+
+| Command | Result at bc6d10b |
+|---|---|
+| `npm run attack` | 44/44 pass (3 files). |
+| `npx vitest run` | **Exit 0**, 50 files, 459 tests. Run with `content/remotion/node_modules` installed, the case that failed before. Fixed by the `content/**` exclude (`vitest.config.mts:10`). |
+| `DEMO_MODE=1 node scripts/demo.mjs --check` | **Pass**, in a fresh `git clone` at bc6d10b with no `.env.local` (dependencies copied in; Next printed no Environments line). The check now matches the title case-insensitively (`scripts/demo.mjs:26`). |
+| `node scripts/verify-proofs.mjs` | Exit 0, "verify passed"; the reconciliation still sums to 63.00. The script now sets a non-zero exit on a mismatch (`scripts/verify-proofs.mjs:378-381`). The rewritten `payment-proofs.json` was restored. |
+| Probes A–D (Appendix A, unchanged) | **A passes** (still reproduces). **B fails** (fixed). **C fails** (fixed: `withdrawPosts: 1`, the second call gets `step_in_progress`). **D passes** (still reproduces; now documented). |
+| New probes E and F (below) | E reproduces a gap in the B fix; F confirms the commit-step claim. |
+
+### Fixed, verified
+
+- **The demo check (F1)** passes from a clean clone with no keys.
+- **The test suite (F5)** exits 0. READINESS's "459 passed" and "44 cases" match the actual runs.
+- **F2–F4 (trust claims).**
+  - TRUST-MODEL.md item 2 now says the backend "can rewrite a funded order wallet's policy and pay any address" with the owner key, and that the treasury policy allows any destination.
+  - B4 says the server holds the gate signer's NEAR key.
+  - README:3 and the release-gate paragraph no longer say "never holds funds" or "never holds a key that can pay Haoyun".
+  - The new README section "What a compromised backend could do in this demo" matches probe A.
+  - These docs now agree with the code.
+- **Probe C (concurrent money steps).**
+  - `claimStep` (`convex/live.ts:69-80`) sets `inFlight` in a mutation before any call, and `mark` no longer appends duplicates.
+  - Two concurrent `advance` calls now send one withdraw. Two concurrent `commit` calls open one wallet (probe F: `b: step_in_progress`, `newAgents: 1`).
+  - The run no longer gets stuck in `out_of_order`.
+- **Probe B (plain case).** A second commit of PO 1042 while the first wallet is open is refused with `po_already_committed` (`convex/approvals.ts:77-80`).
+- **Stale or narrowed claims.**
+  - The dock-check acceptance row now says "adapter only… nothing in the money path calls it".
+  - The inference row says the hardware quote is not verified and an unbound read is recorded, not refused.
+  - "the rest visibly locked" became "visibly committed (Astro can still reclaim it)".
+  - READINESS:44 mentions `/approve`, and the `approve.mjs` references are fixed.
+- **Engine quantities.** A fractional, negative, NaN or over-ordered `receivedQty` is now refused with `bad_quantity` (`engine/escrow.ts:77-79`), with 2,000 seeded random sequences in `engine/__tests__/escrowInvariants.test.ts`.
+
+### Still open, as the docs now say
+
+These are no longer misrepresented. They are still the main weaknesses.
+
+- **The backend can pay anyone.** It holds Astro's owner key and a treasury grant whose policy allows any destination. Probe A still pays `0x…dead` (simulated provider).
+- **The gate trusts its caller.** It takes `released_cents`, `advance_percent`, `to` and the evidence from the caller, and the server holds the gate signer's key. Fixing this needs a new wasm build.
+- **No TEE attestation is verified anywhere.** Not OutLayer's for the gate, not NEAR AI's quote. `RELEASE_GATE_PUBLIC_KEY` is still optional.
+- **Evidence is simulated.** The signed dock count has no producer. The engine lets the owner reclaim the held part before arrival (probe D).
+- **The only real recorded run (Nov 6) predates the approval check.** README:5 now says so. The approval boundary has still not run against Tidepool.
+
+### Still wrong, or newly wrong
+
+1. **The "Probe B: Fixed" row in the resolution table holds only for the clean case.**
+
+   The new check infers "PO already committed" from the `escrows` table. That row is written only *after* the money has moved: `lock` transfers, then calls `treasuryAccount()` (`deadline.ts:143`), then `escrowState.locked` (`deadline.ts:144`).
+
+   If anything fails between the transfer and the row, the run is marked failed with the money already in the PO wallet. That wallet has no escrow row, so no deadline refund is scheduled and nothing reconciles it. `live.start` then allows a new run, and `claimCommit` finds no open escrow, so PO 1042 is committed into a second wallet.
+
+   **Probe E** (simulated provider: a 503 on the server's own treasury-wallet GET right after the transfer) printed:
+   ```
+   {c1: {ok:false, reason:"HTTP 503"}, escrowRowsAfterRun1: 0, r2: "started", c2: {ok:false, reason:"HTTP 503"}, transfers: 2, newAgents: 2, escrowRows: 0}
+   ```
+   That is two funded PO 1042 wallets, neither tracked.
+
+   This takes an infrastructure fault, not an attacker, and Astro's owner key can recover the funds by hand. But the claim "one open commitment per PO" is not enforced by an atomic record.
+
+   **Fix**, under 1 hour, needs a Convex deploy:
+   - Write a `poCommitments` row inside `claimCommit`, in the same transaction that spends the approvals, and check it there.
+   - Write the escrow row (or a "pending" row carrying the agent id) *before* the transfer.
+
+2. **README:21 says `verify:proofs` "exits non-zero on any mismatch". It does not check every leg** (from reading the code; not executed).
+   - The new failure check only looks at each entry's own status, and only for `mismatch` or `failed-on-chain` (`verify-proofs.mjs:378`).
+   - It ignores the `related` legs: each payout's NEAR `ft_withdraw` leg and the OutLayer gate transaction.
+   - It ignores `error` (no RPC answered) and `indexer-only` statuses.
+   - It still never checks the gate transaction's wasm hash, recipient or amount, only that it succeeded.
+
+   So a failed gate call or a mismatched NEAR leg would still print "verify passed". The resolution table's "Fixed (40fd1a8)" is accurate only for the main entries.
+
+   **Fix**, about 30 minutes, no deploy: include `related[*].verification.status` and `error` in the failure check, and assert the gate args' wasm hash `04f6d241…`.
+
+3. **A step that dies outside the try/catch leaves `inFlight` set forever** (minor, from reading the code).
+   - In `runStep`, the `liveState.run` query runs after the claim but outside the `try` (`live.ts:107`).
+   - A platform timeout of the action also skips the `catch`.
+   - Either way, `inFlight` stays set and every later step returns `step_in_progress`. There is no lease or expiry.
+   - The deadline refund still returns the held funds, so this is a liveness problem, not a money one.
+   - **Fix:** move the query inside the `try`, and store a claim timestamp that expires after N minutes.
+
+Nothing else re-checked is contradicted by code or execution at bc6d10b.
+
+### Revised scores
+
+| Track | Was | Now | Why |
+|---|---|---|---|
+| Autonomous Business | 5.7 | **6.5** | The commit and every money step are now atomic and approval-gated, and the demo runs from a clean clone. Still one hard-coded PO, and the backend holds the owner key. |
+| Real-World Money | 4.8 | **5.5** | On-chain amounts reconcile and the verifier now fails loudly on its main entries. Still a community testnet with simulated evidence, a supplier who can be clawed back, no accounting export, and the only real run predates the approval check. |
+| AI Security & Defense | 5.2 | **6.5** | The trust documents are now honest and match the code. 44 reproducible refusals, and the concurrency hole is closed. Still: the deployment's keys can pay anyone, the gate trusts its caller, nothing verifies an attestation, and PO uniqueness is inferred from a row written after the money moves (probe E). |
+| Agent Economy | 5.5 | **5.5** | Unchanged. Negotiation and supplier replies are still simulated, and approvals are off-chain ed25519 rather than NEAR-account signatures. The fixes don't touch this track. |
+
+### Re-review probes E and F
+
+To reproduce, append these two tests to the Appendix A file (`tests/zz_judgeProbe.test.ts`) and run it the same way.
+
+```ts
+describe("re-review probes", () => {
+  it("E. a commit that moves money but fails before its escrow row is written lets the same PO be committed again", async () => {
+    const { tp, t } = await world();
+    const realFetch = tp.fetch;
+    let transfers = 0, failWallet = false;
+    vi.stubGlobal("fetch", async (url: string, init?: RequestInit) => {
+      const p = new URL(String(url)).pathname;
+      if (init?.method === "POST" && /\/transfer$/.test(p)) { transfers++; const r = await realFetch(url as never, init as never); failWallet = true; return r; }
+      if (failWallet && (init?.method ?? "GET") === "GET" && /\/wallet$/.test(p)) { failWallet = false; return new Response(JSON.stringify({ errors: [{ code: "upstream" }] }), { status: 503, headers: { "content-type": "application/json" } }); }
+      return realFetch(url as never, init as never);
+    });
+    const before = tp.agents.size;
+    const r1 = await t.mutation(api.live.start, {});
+    await approveLive(t);
+    const c1 = await t.action(api.live.runStep, { runId: r1.runId!, step: "commit" });
+    const escrows1 = await t.run((ctx) => ctx.db.query("escrows").collect());
+    const r2 = await t.mutation(api.live.start, {});
+    await approveLive(t);
+    const c2 = r2.runId ? await t.action(api.live.runStep, { runId: r2.runId!, step: "commit" }) : null;
+    const escrows2 = await t.run((ctx) => ctx.db.query("escrows").collect());
+    console.log("PROBE E", JSON.stringify({ c1, escrowRowsAfterRun1: escrows1.length, r2: r2.refused ?? "started", c2, transfers, newAgents: tp.agents.size - before, escrowRows: escrows2.length }));
+  });
+
+  it("F. a duplicate commit request returns without a second wallet", async () => {
+    const { tp, t } = await world();
+    const before = tp.agents.size;
+    const { runId } = await t.mutation(api.live.start, {});
+    await approveLive(t);
+    const [a, b] = await Promise.all([t.action(api.live.runStep, { runId: runId!, step: "commit" }), t.action(api.live.runStep, { runId: runId!, step: "commit" })]);
+    console.log("PROBE F", JSON.stringify({ a, b, newAgents: tp.agents.size - before }));
   });
 });
 ```

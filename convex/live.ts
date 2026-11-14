@@ -16,6 +16,8 @@ import { UNIT_CENTS } from "./approvalTerms";
 
 export const LIVE_DEADLINE_MS = 30 * 60_000;
 export const LIVE_RUNS_PER_HOUR = 6;
+/** Convex actions stop after 10 minutes; a step claim older than this is from an action that died. */
+export const STALE_CLAIM_MS = 11 * 60_000;
 const HAOYUN = suppliers.find((s) => s.id === "haoyun")!.receiveAddress;
 const OFF_LIST = "0x000000000000000000000000000000000000dead";
 /** The story's order: the balance is paid at the dock (chapter 7), the wrong-address attempt comes in Paid (chapter 8). */
@@ -73,9 +75,10 @@ export const claimStep = internalMutation({
     if (!r) return { ok: false, reason: "no_run" };
     if (r.error) return { ok: false, reason: "run_failed" };
     if (r.done.includes(st)) return { ok: false, reason: "already_done", done: true };
-    if (r.inFlight) return { ok: false, reason: "step_in_progress" };
+    // A claim older than the longest an action can run (10 minutes on Convex) belongs to a dead action.
+    if (r.inFlight && Date.now() - (r.inFlightAt ?? 0) < STALE_CLAIM_MS) return { ok: false, reason: "step_in_progress" };
     if (r.done.length !== ORDER.indexOf(st)) return { ok: false, reason: "out_of_order" };
-    await ctx.db.patch(runId, { inFlight: st });
+    await ctx.db.patch(runId, { inFlight: st, inFlightAt: Date.now() });
     return { ok: true };
   },
 });
@@ -104,8 +107,8 @@ export const runStep = action({
   handler: async (ctx, { runId, step: st, scenario }): Promise<{ ok: boolean; reason?: string }> => {
     const claimed = await ctx.runMutation(internal.live.claimStep, { runId, step: st });
     if (!claimed.ok) return claimed.done ? { ok: true } : { ok: false, reason: claimed.reason };
-    const data = (await ctx.runQuery(internal.liveState.run, { runId }))!;
     try {
+      const data = (await ctx.runQuery(internal.liveState.run, { runId }))!;
       if (st === "commit") {
         // Two signed approvals for exactly these terms, spent here, or no call at all. A refusal
         // leaves the run open so the approvers can sign and the commit be tried again.

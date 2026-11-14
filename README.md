@@ -18,7 +18,7 @@ Checks: `npm run typecheck && npm run lint && npm test && npm run check:ip`.
 
 Do this, see that (no keys needed):
 - `npm run attack`: 44 attacks on the money path (missing, forged, replayed or mismatched approvals; wrong recipient with a valid grant; double payout; frozen wallet...) each refused at its named layer ([ENFORCEMENT-MATRIX.md](docs/hackathon/ENFORCEMENT-MATRIX.md)).
-- `npm run verify:proofs`: reads every recorded testnet transaction back from public NEAR testnet and Base Sepolia RPCs and checks 18.90 + 36.54 + 7.56 = 63.00 ([PAYMENT-PROOFS.md](docs/hackathon/PAYMENT-PROOFS.md)); exits non-zero on any mismatch.
+- `npm run verify:proofs`: reads every recorded testnet transaction back from public NEAR testnet and Base Sepolia RPCs and checks 18.90 + 36.54 + 7.56 = 63.00; decodes each OutLayer gate call's on-chain result and checks its ed25519 signature, amount and recipient against the Base Sepolia payout ([PAYMENT-PROOFS.md](docs/hackathon/PAYMENT-PROOFS.md)). Exits non-zero if any checked leg mismatches, failed on chain or could not be read, or a gate result does not match.
 - `DEMO_MODE=1 node scripts/demo.mjs --check`: builds and serves the replay demo from a clean clone and checks the page answers.
 
 ## Commit approvals

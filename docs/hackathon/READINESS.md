@@ -73,7 +73,7 @@ Astro, its customers and suppliers; supplier replies; shipment signals; the dock
 
 ## Tests run (this branch)
 
-- `npx vitest run`: 459 passed (was 408 before this branch).
+- `npx vitest run`: 461 passed (was 408 before this branch).
 - `cargo test` in worker/release-gate: 25 passed.
 - `npx tsc --noEmit`, `npx eslint convex engine tests scripts`, `npm run check:ip`: clean.
 - `DEMO_MODE=1 node scripts/demo.mjs --check` from a fresh clone with no `.env.local`: passed.

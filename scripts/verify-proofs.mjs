@@ -14,6 +14,7 @@
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { ed25519 } from "@noble/curves/ed25519.js";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const FIXTURE = resolve(ROOT, "fixtures/recorded/live-run.json");
@@ -374,12 +375,56 @@ async function main() {
   await writeFile(OUT, JSON.stringify(out, null, 2) + "\n");
   console.log(`\nreconciliation: ${JSON.stringify(reconciliation)}`);
   console.log(`wrote ${OUT}`);
-  // Fail loudly: any recorded tx that read back different from the record, or money that does not reconcile.
-  const bad = entries.filter((e) => ["mismatch", "failed-on-chain"].includes(e.verification?.status));
-  if (bad.length || reconciliation.reconciles !== true) {
-    console.error(`VERIFY FAILED: ${bad.length} mismatched entries; reconciles=${reconciliation.reconciles}`);
+  // Fail loudly: any checked tx (main entry or related leg) that read back different from the record,
+  // failed on chain, or could not be read at all; a gate result that does not match its payout; or
+  // money that does not reconcile. indexer-only (no RPC, nearblocks answered) is reported, not failed.
+  const legs = entries.flatMap((e) => [{ label: e.label, v: e.verification }, ...(e.related ?? []).map((r) => ({ label: `${e.label} / ${r.role}`, v: r.verification }))]);
+  const BAD = ["mismatch", "failed-on-chain", "error"];
+  const bad = legs.filter((l) => BAD.includes(l.v?.status));
+  const weak = legs.filter((l) => l.v?.status === "indexer-only");
+  const gateProblems = checkGateResults(entries, supplier);
+  await writeFile(OUT, JSON.stringify(out, null, 2) + "\n"); // again, with the decoded gate results
+  for (const l of bad) console.error(`  FAILED ${l.v.status}: ${l.label}`);
+  for (const l of weak) console.warn(`  weak (indexer only): ${l.label}`);
+  for (const g of gateProblems) console.error(`  GATE: ${g}`);
+  if (bad.length || gateProblems.length || reconciliation.reconciles !== true) {
+    console.error(`VERIFY FAILED: ${bad.length} failed legs, ${gateProblems.length} gate problems; reconciles=${reconciliation.reconciles}`);
     process.exitCode = 1;
-  } else console.log("verify passed: every checkable tx matches its record and the money reconciles");
+  } else console.log(`verify passed: ${legs.filter((l) => l.v?.status === "verified").length} legs verified, each gate result signed and matching its payout, money reconciles`);
+}
+
+/**
+ * Each payout's OutLayer gate call returns the gate's signed result as the tx SuccessValue. Decode it
+ * and check: ok, amount_cents equals the payout, to is the supplier, and the ed25519 signature by its
+ * public_key covers the result (the same bytes worker/release-gate signs). All gate results must share
+ * one public key.
+ */
+function checkGateResults(entries, supplier) {
+  const problems = [], keys = new Set();
+  for (const e of entries) for (const r of e.related ?? []) {
+    if (!/OutLayer/.test(r.role)) continue;
+    const sv = r.verification?.details?.status?.SuccessValue;
+    if (!sv) { problems.push(`${e.label}: no gate result on chain`); continue; }
+    let out;
+    try { out = JSON.parse(Buffer.from(sv, "base64").toString("utf8")); } catch { problems.push(`${e.label}: gate result not JSON`); continue; }
+    if (out.ok !== true) problems.push(`${e.label}: gate result not ok`);
+    if (out.amount_cents !== e.commercialCents) problems.push(`${e.label}: gate amount ${out.amount_cents} != payout ${e.commercialCents}`);
+    if (String(out.to).toLowerCase() !== supplier.toLowerCase()) problems.push(`${e.label}: gate paid ${out.to}`);
+    const { signature, ...rest } = out;
+    const msg = new TextEncoder().encode("evernear-release-gate:v1:" + canonical(rest));
+    let sigOk = false;
+    try { sigOk = ed25519.verify(Buffer.from(signature, "hex"), msg, Buffer.from(out.public_key, "hex")); } catch { sigOk = false; }
+    if (!sigOk) problems.push(`${e.label}: gate signature does not verify`);
+    keys.add(out.public_key);
+    r.verification.gateResult = { amount_cents: out.amount_cents, to: out.to, public_key: out.public_key, signature_valid: sigOk };
+  }
+  if (keys.size > 1) problems.push(`gate results signed by ${keys.size} different keys`);
+  return problems;
+}
+function canonical(v) {
+  if (Array.isArray(v)) return `[${v.map(canonical).join(",")}]`;
+  if (v && typeof v === "object") return `{${Object.keys(v).filter((k) => v[k] !== undefined).sort().map((k) => `${JSON.stringify(k)}:${canonical(v[k])}`).join(",")}}`;
+  return JSON.stringify(v);
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });

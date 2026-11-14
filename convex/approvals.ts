@@ -78,6 +78,17 @@ export const claimCommit = internalMutation({
     const open = (await ctx.db.query("escrows").withIndex("by_po", (q) => q.eq("po", t.po)).collect())
       .find((e) => !e.closed && e.lifecycle !== "closed" && e.lifecycle !== "settled" && e.lockedCents - e.releasedCents - e.reclaimedCents > 0);
     if (open) return { ok: false, reason: "po_already_committed" };
+    // Also any other run that claimed a commit for this PO and has not provably finished: its money
+    // may have moved even if no escrow row was written (a failure between the transfer and the row).
+    const recent = await ctx.db.query("liveRuns").withIndex("by_started").order("desc").take(200);
+    const pending = [];
+    for (const r of recent) {
+      if (r._id === runId || !r.commit || r.commitResolved || (r.commit.po ?? t.po) !== t.po || r.done.includes("reclaim")) continue;
+      const e = r.escrowId ? await ctx.db.get(r.escrowId) : null;
+      if (e && (e.closed || e.lifecycle === "closed" || e.lifecycle === "settled")) continue;
+      pending.push(r._id);
+    }
+    if (pending.length) return { ok: false, reason: "po_commit_unresolved" };
     const rows = await ctx.db.query("commitApprovals").withIndex("by_digest_status", (q) => q.eq("digest", digest).eq("status", "pending")).take(50);
     const consumed = new Set<string>();
     for (const r of rows) {
@@ -96,7 +107,7 @@ export const claimCommit = internalMutation({
       return { ok: false, reason: res.reason };
     }
     for (const r of rows) if (res.nonces.includes(r.nonce)) await ctx.db.patch(r._id, { status: "consumed", runId });
-    await ctx.db.patch(runId, { commit: { digest, approvers: res.approvers, nonces: res.nonces, claimedAt: Date.now() } });
+    await ctx.db.patch(runId, { commit: { digest, po: t.po, approvers: res.approvers, nonces: res.nonces, claimedAt: Date.now() } });
     await ctx.db.insert("proofs", {
       runId, scene: 6, kind: "approval", label: `Commit authorized: ${res.approvers.join(" and ")} signed these exact terms (${t.quantity} x ${t.unitCents / 100} USD to ${t.supplierAddress})`,
       call: "engine/approvals.ts verifyApprovals", codePath: "convex/approvals.ts#claimCommit", network: "offchain", hash: digest,
@@ -125,4 +136,13 @@ export const commitAuthorized = internalQuery({
     if (new Set(ok.map((u) => u.approver)).size < t.approvalsRequired) return { ok: false, reason: "not_enough_approvals" };
     return { ok: true, digest };
   },
+});
+
+/**
+ * Operator only (internal, run from the dashboard or CLI): after checking the order account by hand,
+ * mark a claimed commit that never produced an escrow row as resolved, so it stops blocking its PO.
+ */
+export const resolveCommit = internalMutation({
+  args: { runId: v.id("liveRuns") },
+  handler: async (ctx, { runId }) => { if (await ctx.db.get(runId)) await ctx.db.patch(runId, { commitResolved: true }); },
 });

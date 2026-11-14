@@ -383,3 +383,33 @@ fn signature_vector() {
     assert_eq!(out["signature"], sc["signature_hex"]);
     assert_eq!(out["public_key"], sc["public_key_hex"]);
 }
+
+/// Pins the honest bound on caller-supplied state (README, "What it does not guarantee"):
+/// `released_cents` comes from the caller and the module keeps no state. A caller that understates
+/// it is paid more for the balance (here the full held $7,560 on top of $36,540), but never more
+/// than `locked_cents` in total, never to an address the module did not sign, and only with the
+/// balance's signals. The order account's balance and Tidepool's per-stage idempotency key are
+/// what stop a second payment; this module alone does not.
+#[test]
+fn understated_released_overpays_up_to_locked_never_beyond() {
+    let input = |released: u64| -> ReleaseInput {
+        serde_json::from_value(json!({
+            "mode": "release", "stage": "balance", "po": "1042", "agent_id": "agent_fe8606f9c6dc60f3f1768ed9",
+            "to": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0", "unit_cents": 126000, "ordered_qty": 50,
+            "locked_cents": 6300000, "released_cents": released, "advance_percent": 30, "received_qty": 44,
+            "signals": {"import_cleared": {"id": "imp-US-1042", "at": "2026-11-20T15:00:00Z"},
+                        "dock_count": {"id": "dock-1042", "at": "2026-11-21T10:00:00Z", "count": 44}}
+        })).unwrap()
+    };
+    // Truthful: $36,540, $7,560 held.
+    match decide(&input(1_890_000)) { Decision::Release { amount_cents, held_cents, .. } => assert_eq!((amount_cents, held_cents), (3_654_000, 756_000)), d => panic!("{d:?}") }
+    // Understated to $11,340: due is 44 x 1,260 - 11,340 = $44,100, exactly what the account holds after the real advance.
+    match decide(&input(1_134_000)) { Decision::Release { amount_cents, .. } => assert_eq!(amount_cents, 4_410_000), d => panic!("{d:?}") }
+    // Understated to zero: due $55,440. The module allows it (it is below locked); only the account's
+    // real balance ($44,100 after the advance) refuses it at Tidepool.
+    match decide(&input(0)) { Decision::Release { amount_cents, .. } => assert_eq!(amount_cents, 5_544_000), d => panic!("{d:?}") }
+    // Never above locked, whatever the caller says.
+    for released in [0u64, 1, 1_000_000, 1_890_000, 6_300_000, 6_300_001] {
+        if let Decision::Release { amount_cents, .. } = decide(&input(released)) { assert!(released + amount_cents <= 6_300_000); }
+    }
+}

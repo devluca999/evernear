@@ -300,3 +300,26 @@ describe("EscrowAdapter on the Agent API", () => {
     expect(s.tp.sent.some((x) => /\/(deposit|swap)$/.test(x.path))).toBe(false);
   });
 });
+
+describe("failure injection: a lost answer is not a refusal", () => {
+  it("an advance that went through but was never recorded (stale escrow row) blocks the next release instead of paying again", async () => {
+    const s = await setup();
+    const { acct, escrow } = await openAndLock(s);
+    const a = await stageOf(s, { escrow, agentId: acct.agentId, stage: "advance" });
+    expect(a.ok).toBe(true);
+    // The server lost the answer and still holds the funded row: a retry under a new ref must not pay twice.
+    const retry = await s.esc.releaseStage({ escrow, agentId: acct.agentId, stage: "advance", to: HAOYUN, evidence: evidence("advance"), unitCents: UNIT, po: "1042", ref: "run1-retry", nowMs: 1 });
+    expect(retry).toEqual({ ok: false, reason: "state_mismatch" });
+    expect(s.tp.payouts).toHaveLength(1);
+    expect(s.proofs.at(-1)).toMatchObject({ kind: "refusal", response: { reason: "state_mismatch", on_chain_units: "44100000", expected_units: "63000000" } });
+  });
+  it("money that left the account outside the escrow's record also blocks the balance", async () => {
+    const s = await setup();
+    const { acct, escrow } = await openAndLock(s);
+    const a = await stageOf(s, { escrow, agentId: acct.agentId, stage: "advance" });
+    if (!a.ok) throw new Error(a.reason);
+    s.tp.credit(acct.agentId, BASE_USDC, -1n);
+    expect(await stageOf(s, { escrow: a.escrow, agentId: acct.agentId, stage: "balance", nowMs: 2 })).toEqual({ ok: false, reason: "state_mismatch" });
+    expect(s.tp.payouts).toHaveLength(1);
+  });
+});

@@ -276,6 +276,19 @@ export class EscrowAdapter {
       });
       return { ok: false, reason: rule.reason, ...(rule.missing ? { missing: rule.missing } : {}) };
     }
+    // Reconcile before money moves: the order account must hold exactly what the escrow row says is
+    // left. A mismatch means an earlier call may have gone through after all (a timeout is not a
+    // refusal), or the row is wrong; either way nothing is sent until someone looks.
+    const expected = testnetUnits(i.escrow.lockedCents) - testnetUnits(i.escrow.releasedCents) - testnetUnits(i.escrow.reclaimedCents);
+    const onChain = await this.client.balance(i.agentId, BASE_USDC);
+    if (onChain !== expected) {
+      await this.o.sink({
+        kind: "refusal", label: `${STAGE_LABEL[i.stage]} not sent: the order account holds ${onChain} units, the escrow record says ${expected}; reconcile first`,
+        call: "GET /v1/agents/{id}/balance", codePath: `${PATH}#reconcile`, network: "testnet", hash: "none",
+        response: { stage: i.stage, status: "refused", reason: "state_mismatch", on_chain_units: String(onChain), expected_units: String(expected) }, replay: false, synthetic: false,
+      });
+      return { ok: false, reason: "state_mismatch" };
+    }
     const amount = testnetUnits(rule.escrow.releasedCents) - testnetUnits(i.escrow.releasedCents);
     const request = { asset: BASE_USDC, amount: String(amount), chain: "base", recipient: i.to };
     const meta: ProofMeta = {

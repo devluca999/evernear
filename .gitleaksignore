@@ -1,2 +1,18 @@
 # Verified false positive: an import line naming two functions (agentApiBase, ownerFromPkcs8), no secret.
 d35fc0fb5352e1586822ac2509d2ce6d0e079415:convex/near/deadline.ts:generic-api-key:22
+# Verified false positives (Nov 14): the Base Sepolia USDC token contract address (public), grant_issue "credential" fields (sha256 commitments of grant tokens, not tokens), the release gate's published test vectors (a token made of bytes 0..31 and idempotency keys), and an import line.
+5bcee72526561d7b43939c432572dcef6d4f6304:scripts/raise-treasury-cap.mts:generic-api-key:8
+757eb10947acd6494f625f0dea3d32467c6c8d26:worker/release-gate/vectors.json:generic-api-key:869
+757eb10947acd6494f625f0dea3d32467c6c8d26:worker/release-gate/vectors.json:generic-api-key:959
+757eb10947acd6494f625f0dea3d32467c6c8d26:worker/release-gate/vectors.json:generic-api-key:965
+98e2d92fd3607ac46b8a6d9f9818de09f00602e2:fixtures/recorded/live-run.json:generic-api-key:562
+98e2d92fd3607ac46b8a6d9f9818de09f00602e2:fixtures/recorded/live-run.json:generic-api-key:569
+98e2d92fd3607ac46b8a6d9f9818de09f00602e2:fixtures/recorded/live-run.json:generic-api-key:72
+98e2d92fd3607ac46b8a6d9f9818de09f00602e2:fixtures/recorded/live-run.json:generic-api-key:79
+cd7092ac0f97d48cce6a850fabec5ebe07e819e9:docs/hackathon/payment-proofs.json:generic-api-key:1360
+cd7092ac0f97d48cce6a850fabec5ebe07e819e9:docs/hackathon/payment-proofs.json:generic-api-key:1373
+cd7092ac0f97d48cce6a850fabec5ebe07e819e9:docs/hackathon/payment-proofs.json:generic-api-key:411
+cd7092ac0f97d48cce6a850fabec5ebe07e819e9:docs/hackathon/payment-proofs.json:generic-api-key:424
+cd7092ac0f97d48cce6a850fabec5ebe07e819e9:docs/hackathon/payment-proofs.json:generic-api-key:789
+cd7092ac0f97d48cce6a850fabec5ebe07e819e9:docs/hackathon/payment-proofs.json:generic-api-key:802
+cd7092ac0f97d48cce6a850fabec5ebe07e819e9:scripts/verify-proofs.mjs:generic-api-key:243

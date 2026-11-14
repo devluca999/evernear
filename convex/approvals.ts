@@ -1,5 +1,5 @@
 // Commit approvals on the server. Approvers sign the exact terms on their own devices
-// (scripts/approve.mjs, engine/approvals.ts signApproval) and submit the signature here; the server
+// (scripts/approve.mts or the /approve page, engine/approvals.ts signApproval) and submit the signature here; the server
 // never holds an approver's key. claimCommit is the authorization boundary: in one transaction it
 // recomputes the terms from what is about to be committed, verifies two distinct pinned approvers
 // over that digest, spends their nonces and claims the run's commit, before any call moves money.
@@ -74,6 +74,10 @@ export const claimCommit = internalMutation({
     if (run.commit) return { ok: false, reason: "commit_already_claimed" };
     const t = liveTerms(scenario as Scenario | undefined);
     const digest = termsDigest(t);
+    // One open commitment per PO: a PO already funded in a wallet that is not settled cannot be committed again.
+    const open = (await ctx.db.query("escrows").withIndex("by_po", (q) => q.eq("po", t.po)).collect())
+      .find((e) => !e.closed && e.lifecycle !== "closed" && e.lifecycle !== "settled" && e.lockedCents - e.releasedCents - e.reclaimedCents > 0);
+    if (open) return { ok: false, reason: "po_already_committed" };
     const rows = await ctx.db.query("commitApprovals").withIndex("by_digest_status", (q) => q.eq("digest", digest).eq("status", "pending")).take(50);
     const consumed = new Set<string>();
     for (const r of rows) {

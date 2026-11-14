@@ -71,6 +71,8 @@ export default defineSchema({
   liveRuns: defineTable({
     startedAt: v.number(), escrowId: v.optional(v.id("escrows")), error: v.optional(v.string()),
     done: v.array(liveStep),
+    // The money step running now, claimed in a mutation before any call, so two concurrent requests cannot both run it.
+    inFlight: v.optional(liveStep),
     // The commit's authorization, claimed atomically with the approvals it consumed (convex/approvals.ts claimCommit).
     commit: v.optional(v.object({ digest: v.string(), approvers: v.array(v.string()), nonces: v.array(v.string()), claimedAt: v.number() })),
   }).index("by_started", ["startedAt"]),

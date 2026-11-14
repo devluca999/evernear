@@ -58,8 +58,32 @@ export const mark = internalMutation({
   handler: async (ctx, { runId, step: st, escrowId, error }) => {
     const r = await ctx.db.get(runId);
     if (!r) return;
-    await ctx.db.patch(runId, { ...(st ? { done: [...r.done, st] } : {}), ...(escrowId ? { escrowId } : {}), ...(error ? { error } : {}) });
+    await ctx.db.patch(runId, { ...(st && !r.done.includes(st) ? { done: [...r.done, st] } : {}), ...(escrowId ? { escrowId } : {}), ...(error ? { error } : {}), inFlight: undefined });
   },
+});
+
+/**
+ * Claims one money step before any call: the run is open, the step is next in story order, not done,
+ * and no step is in flight. Atomic, so two concurrent requests for the same step cannot both run it.
+ */
+export const claimStep = internalMutation({
+  args: { runId: v.id("liveRuns"), step: liveStep },
+  handler: async (ctx, { runId, step: st }): Promise<{ ok: true } | { ok: false; reason: string; done?: true }> => {
+    const r = await ctx.db.get(runId);
+    if (!r) return { ok: false, reason: "no_run" };
+    if (r.error) return { ok: false, reason: "run_failed" };
+    if (r.done.includes(st)) return { ok: false, reason: "already_done", done: true };
+    if (r.inFlight) return { ok: false, reason: "step_in_progress" };
+    if (r.done.length !== ORDER.indexOf(st)) return { ok: false, reason: "out_of_order" };
+    await ctx.db.patch(runId, { inFlight: st });
+    return { ok: true };
+  },
+});
+
+/** Releases a claim without marking the step done or failed (a commit refused for missing approvals can be tried again). */
+export const unclaim = internalMutation({
+  args: { runId: v.id("liveRuns") },
+  handler: async (ctx, { runId }) => { if (await ctx.db.get(runId)) await ctx.db.patch(runId, { inFlight: undefined }); },
 });
 
 /** The run, its proofs, and which path its releases take ("gate" or "server"), so the page can say which one paid. */
@@ -78,17 +102,15 @@ export const getRun = query({
 export const runStep = action({
   args: { runId: v.id("liveRuns"), step: liveStep, scenario: v.optional(v.union(v.literal("happy"), v.literal("adjusted"))) },
   handler: async (ctx, { runId, step: st, scenario }): Promise<{ ok: boolean; reason?: string }> => {
-    const data = await ctx.runQuery(internal.liveState.run, { runId });
-    if (!data) return { ok: false, reason: "no_run" };
-    if (data.error) return { ok: false, reason: "run_failed" };
-    if (data.done.includes(st)) return { ok: true };
-    if (data.done.length !== ORDER.indexOf(st)) return { ok: false, reason: "out_of_order" };
+    const claimed = await ctx.runMutation(internal.live.claimStep, { runId, step: st });
+    if (!claimed.ok) return claimed.done ? { ok: true } : { ok: false, reason: claimed.reason };
+    const data = (await ctx.runQuery(internal.liveState.run, { runId }))!;
     try {
       if (st === "commit") {
         // Two signed approvals for exactly these terms, spent here, or no call at all. A refusal
         // leaves the run open so the approvers can sign and the commit be tried again.
         const claim = await ctx.runMutation(internal.approvals.claimCommit, { runId, scenario });
-        if (!claim.ok) return { ok: false, reason: claim.reason };
+        if (!claim.ok) { await ctx.runMutation(internal.live.unclaim, { runId }); return { ok: false, reason: claim.reason }; }
         const unit = UNIT_CENTS[scenario ?? "happy"];
         const r = await ctx.runAction(internal.near.deadline.lock, { runId, po: PO.number, supplier: HAOYUN, cents: unit * PO.quantity, orderedQty: PO.quantity, deadlineMs: Date.now() + LIVE_DEADLINE_MS });
         if (r.status !== "success" || !r.escrowId) throw new Error(r.reason ?? r.status);

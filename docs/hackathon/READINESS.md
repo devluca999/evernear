@@ -18,7 +18,7 @@ Updated 2026-11-14 ~03:30 UTC. Development ends **2026-11-14 23:59 UTC** ([COMPE
 | 8 | Simulation labelled | Done in app and docs (signals, dock check, pre-money steps) | README "What is simulated" |
 | 9 | Reference engine matches demo values | Done | engine + gate vectors, escrow tests |
 | 10 | README matches implementation | Updated on this branch (approvals, destination vs grant, gate limits, disclosures) | README |
-| 11 | Tests and build pass | 452 vitest + 25 cargo tests pass; typecheck, lint, check:ip clean. `next build` not re-run since UI was untouched | this file |
+| 11 | Tests and build pass | see Tests run below; `next build` passes; demo check fixed (it looked for the wrong page title) | this file |
 | 12 | Recorded demo replays reliably | Unchanged; replay tests pass | short/scenario tests |
 | 13 | Live demo's supported path works | **Blocked**: live commit now needs approvals (fail closed until keys are set and the backend redeployed) | Needs you 2-3 |
 | 14 | Security refusals reproducible | Done: `npm run attack` (42 cases) | |
@@ -41,7 +41,9 @@ Updated 2026-11-14 ~03:30 UTC. Development ends **2026-11-14 23:59 UTC** ([COMPE
 | P1 | Evidence not source-signed; dock count is a constant in live runs | **Partly fixed**: signed dock-count attestation enforced by the server when `DOCK_DEVICE_KEYS` is set; not in the deployed gate; carrier/customs signals still simulated |
 | P1 | Tidepool is a community testnet; rivals show mainnet | Needs Luca's explicit yes for any mainnet call (CLAUDE.md rule 7) |
 | P1 | `security` track not on the submission | Needs you (request-changes) |
-| P2 | Live UI: a refused commit stops live mode for the run with `commit: <reason>`; no in-app approve page (approvers use `scripts/approve.mts`) | Open |
+| P2 | Live UI: a refused commit stops live mode for the run with `commit: <reason>` (toggle Live to retry). Approvers sign at `/approve` or with `scripts/approve.mts` | Open |
+| P0 | Judge panel (JUDGE-REVIEW.md): trust docs overstated what a compromised backend cannot do; concurrent advance sent two withdraws; same PO could be committed twice; demo check always failed | **Fixed**: docs name the three backend keys; money steps claimed atomically; one open commitment per PO; demo check matches the title |
+| P1 | Backend holds owner key + treasury grant (any destination) in this demo | Open: production design moves them to Astro's wallet; treasury policy could be narrowed with a live Tidepool owner action (needs you) |
 | P2 | Grant expiry not modelled in the fake provider | Open |
 
 ## Agent autonomy, step by step (directive section 9)
@@ -71,7 +73,7 @@ Astro, its customers and suppliers; supplier replies; shipment signals; the dock
 
 ## Tests run (this branch)
 
-- `npx vitest run`: 452 passed (was 408).
+- `npx vitest run`: 457 passed (was 408 before this branch).
 - `cargo test` in worker/release-gate: 25 passed.
 - `npx tsc --noEmit`, `npx eslint convex engine tests scripts`, `npm run check:ip`: clean.
 - `npm run attack`: 42 passed. `npm run verify:proofs`: every recorded tx verified on public RPCs.

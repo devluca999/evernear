@@ -89,7 +89,7 @@ export function approvalMessage(a: Pick<SignedApproval, "approver" | "publicKey"
 }
 export const revokeMessage = (nonce: string) => REVOKE_PREFIX + nonce;
 
-/** Signs an approval. Runs on the approver's device (scripts/approve.mjs) and in tests; never on the server. */
+/** Signs an approval. Runs on the approver's device (scripts/approve.mts or the /approve page) and in tests; never on the server. */
 export function signApproval(i: { approver: string; secretKey: Uint8Array; digest: string; nonce: string; issuedAt: number; expiresAt: number }): SignedApproval {
   const publicKey = hex(ed25519.getPublicKey(i.secretKey));
   const body = { approver: i.approver, publicKey, digest: i.digest, nonce: i.nonce, issuedAt: i.issuedAt, expiresAt: i.expiresAt };

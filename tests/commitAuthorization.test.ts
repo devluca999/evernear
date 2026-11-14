@@ -180,7 +180,34 @@ describe("commit authorization: the money path refuses unapproved or mismatched 
     const [a, b] = await Promise.all([w.commit(), w.commit()]);
     const results = [a, b];
     expect(results.filter((x) => x.ok)).toHaveLength(1);
-    expect(results.find((x) => !x.ok)).toEqual({ ok: false, reason: "commit_already_claimed" });
+    expect(results.find((x) => !x.ok)).toEqual({ ok: false, reason: "step_in_progress" });
+    expect(w.tp.agents.size).toBe(w.agentsBefore + 1);
+  });
+
+  it("two concurrent advance requests send one withdraw, and the run can still go on", async () => {
+    const w = await world();
+    await approveLive(w.t);
+    expect(await w.commit()).toEqual({ ok: true });
+    const adv = () => w.t.action(api.live.runStep, { runId: w.runId, step: "advance" });
+    const results = await Promise.all([adv(), adv()]);
+    expect(results.filter((x) => x.ok)).toHaveLength(1);
+    expect(results.find((x) => !x.ok)).toEqual({ ok: false, reason: "step_in_progress" });
+    expect(w.tp.sent.filter((s) => s.method === "POST" && s.path.endsWith("/withdraw"))).toHaveLength(1);
+    const r = (await w.t.query(api.live.getRun, { runId: w.runId }))!;
+    expect(r.run.done).toEqual(["commit", "advance"]);
+    expect(r.proofs.filter((p) => p.kind === "payout")).toHaveLength(1);
+    expect(await w.t.action(api.live.runStep, { runId: w.runId, step: "pay" })).toEqual({ ok: true });
+  });
+
+  it("a PO already funded in an open wallet cannot be committed again, even with fresh approvals", async () => {
+    const w = await world();
+    await approveLive(w.t);
+    expect(await w.commit()).toEqual({ ok: true });
+    // A second run for the same PO while the first wallet still holds the money.
+    vi.setSystemTime(T0 + 31 * 60_000);
+    const second = (await w.t.mutation(api.live.start, {})).runId!;
+    await approveLive(w.t);
+    expect(await w.t.action(api.live.runStep, { runId: second, step: "commit" })).toEqual({ ok: false, reason: "po_already_committed" });
     expect(w.tp.agents.size).toBe(w.agentsBefore + 1);
   });
 

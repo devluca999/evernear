@@ -21,9 +21,9 @@ Updated 2026-11-14 ~03:30 UTC. Development ends **2026-11-14 23:59 UTC** ([COMPE
 | 11 | Tests and build pass | see Tests run below; `next build` passes; demo check fixed (it looked for the wrong page title) | this file |
 | 12 | Recorded demo replays reliably | Unchanged; replay tests pass | short/scenario tests |
 | 13 | Live demo's supported path works | **Blocked**: live commit now needs approvals (fail closed until keys are set and the backend redeployed) | Needs you 2-3 |
-| 14 | Security refusals reproducible | Done: `npm run attack` (42 cases) | |
+| 14 | Security refusals reproducible | Done: `npm run attack` (44 cases) | |
 | 15 | Business story understandable | Existing UI and Short mode | |
-| 16 | Judge video shows real proof | In progress (Remotion package, data from payment-proofs.json) | content/remotion |
+| 16 | Judge video shows real proof | Rendered: JudgeCut (89 s), ShortShipment, ApprovalGate; hashes from payment-proofs.json | content/remotion |
 | 17 | Official submission complete | Submitted Nov 10; push + post update needed | Needs you 1, 4 |
 | 18 | No security regression for demo looks | Holds: replay mode untouched; live fails closed | |
 

@@ -191,7 +191,7 @@ export const WalletScene: React.FC<S & { withReceipt?: boolean; caption?: string
     <SceneFrame
       eyebrow="Step 3 · Money is committed, not paid"
       headline={`${formatUsd(s.settlement.orderTotalCents)} moves into a wallet for this one order.`}
-      caption={caption ?? "Tidepool's server enforces the account policy, not the agent."}
+      caption={caption ?? "Recorded Nov 6, before the signature check existed."}
     >
       {withReceipt && layout === "wide" ? (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 36 * u, alignItems: "start" }}>

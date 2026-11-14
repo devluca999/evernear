@@ -11,14 +11,16 @@ Goal: make the procurement-payment demo technically defensible before 2026-11-14
 - [x] README corrections, disclosures; TRUST-MODEL, ENFORCEMENT-MATRIX, READINESS, COMPETITION, CONTENT-OPPORTUNITIES
 - [x] Signed dock-count attestation (server side, when DOCK_DEVICE_KEYS is set)
 - [x] /approve page for approvers
-- [ ] Remotion package (background agent)
+- [x] Remotion package: JudgeCut, ShortShipment, ApprovalGate rendered (mp4 in content/remotion/out, not committed)
+- [x] Judge panel review and fixes
 
 ## Needs you
 1. Push the branch: `git push -u origin hackathon/p0-hardening`, then merge to main (the judged repo was last pushed Nov 10).
 2. Approver keys, on each approver's own machine: `npx tsx scripts/approver-keygen.mts Luca` (and Jordan), then `npx convex env set APPROVER_KEYS '[{"name":"Luca","publicKey":"…"},{"name":"Jordan","publicKey":"…"}]'` on the deployment.
 3. Deploy functions + schema: `npx convex deploy` (or `npx convex dev --once` for cheerful-rabbit-364). Until 2 and 3 are done, live commits are refused (`approvals_not_configured`); replay mode is unaffected.
 4. Live approval demo: each approver opens `/approve` on their own device (paste the key from `.approver-keys/<Name>.key`; it stays in the tab) or runs `NEXT_PUBLIC_CONVEX_URL=… npx tsx scripts/approve.mts --name Luca --key .approver-keys/Luca.key`; then turn Live on and play to the commit. For the refusal shot: turn Live on with only one signature; the commit shows `commit: not_enough_approvals`; sign the second, toggle Live off/on, play again.
-5. Optional: request-changes to add the `security` track; reply to the Nov 10 X post with the new video.
+5. After deploying, do one full rehearsal live run before recording. Three checks were only tested against the local fake Tidepool: (a) the strict balance check before a release: if Tidepool's balance read lags behind a withdraw, the pay step refuses with `state_mismatch`; (b) `po_already_committed`: any PO 1042 order wallet on the deployment that still holds money blocks every new commit until it is reclaimed or refunded; (c) leave `DOCK_DEVICE_KEYS` unset for the demo (no signed counts are produced live).
+6. Optional: request-changes to add the `security` track; reply to the Nov 10 X post with the new video.
 
 ## Decisions
 - Approver keys are generated and held by approvers, never by the server or me — server-held keys would be theatre; reverse by adding a server signer (not recommended).

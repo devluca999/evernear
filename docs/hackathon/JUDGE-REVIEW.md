@@ -1,5 +1,22 @@
 # Judge panel review: EverNEAR
 
+> **Resolution (after this review, same day).** This review was written at commit 6780d8b. Status of each finding at the branch head:
+>
+> | Finding | Status |
+> |---|---|
+> | Test suite exits 1 (content/remotion picked up) | Fixed (3d46159): root tooling excludes `content/` |
+> | Demo check always fails (title) | Fixed (3d46159); passes from a clean clone with no `.env.local` |
+> | F2/F3: backend "cannot pay outside the allowlist" | Fixed in docs (3ab18e3): README and TRUST-MODEL name the owner key, treasury grant and gate signer and what each allows. The limit itself remains (demo holds the owner key) |
+> | F4: "server never holds a key that can pay Haoyun" | Fixed in docs (3ab18e3) |
+> | Probe B: same PO committed twice | Fixed (3ab18e3): `po_already_committed` |
+> | Probe C: concurrent advance sends two withdraws | Fixed (3ab18e3): each money step claimed atomically; test added |
+> | Probe D / "visibly locked" | Docs fixed: held part is committed, Astro can reclaim it |
+> | Dock-check claim | Narrowed to what the adapter does |
+> | Inference attestation | README now says what `bound` checks and that unbound reads are recorded, not refused |
+> | verify-proofs exits 0 on mismatch | Fixed (40fd1a8) |
+> | Gate trusts caller state; treasury policy allows any destination | Open (needs a new wasm build / a live Tidepool owner action) |
+
+
 Reviewed at `hackathon/p0-hardening` **HEAD 6780d8b** (2026-11-13, local, not pushed). Seven adversarial judges, each trying to break one claim. Every file:line below is at that commit. During the review someone else committed (67df486, 908c5d4, 6780d8b) and left uncommitted edits to `vitest.config.mts`, `tsconfig.json` and `eslint.config.mjs`. Those edits are noted where they matter; nothing in this review depends on them.
 
 Each challenge says where it ran:

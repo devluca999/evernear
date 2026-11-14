@@ -227,7 +227,7 @@ describe("rehearsal", () => {
     expect(tp.payouts.map((p) => [p.chain, p.recipient, p.amount])).toEqual([["base", haoyun, 18_900_000n], ["base", haoyun, 36_540_000n]]);
     expect(tp.sent.filter((x) => x.path.endsWith("/transfer")).at(-1)!.body).toMatchObject({ amount: "7560000" });
     expect(JSON.parse(readFileSync(join(dir, "advance_payout.json"), "utf8"))).toMatchObject({ kind: "payout", response: { stage: "advance", released_by: "server", request: { amount: "18900000" } }, synthetic: false });
-    expect(JSON.parse(readFileSync(join(dir, "intents_payout.json"), "utf8")).label).toContain("Sent by Evernear's server; the release gate is not deployed");
+    expect(JSON.parse(readFileSync(join(dir, "intents_payout.json"), "utf8")).label).toContain("Sent by Evernear's server; this order was not set up for the release gate");
     expect(JSON.parse(readFileSync(join(dir, "signal_import_cleared.json"), "utf8"))).toMatchObject({ kind: "signal", label: "Signal: import customs cleared for PO 1042 (simulated feed)", response: { source: "simulated" } });
     expect(JSON.parse(readFileSync(join(dir, "refused_release.json"), "utf8"))).toMatchObject({ kind: "refusal", response: { code: "policy_destination_denied", layer: "policy" } });
     expect(JSON.parse(readFileSync(join(dir, "wallet_closed.json"), "utf8"))).toMatchObject({ kind: "wallet", codePath: "convex/near/escrow.ts#close", response: { frozen: true, grant: "revoked", lifecycle: "closed", reused: false }, replay: true, synthetic: false });

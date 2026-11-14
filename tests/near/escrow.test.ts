@@ -101,8 +101,8 @@ describe("EscrowAdapter on the Agent API", () => {
     expect(s.tp.payouts.map((p) => [p.chain, p.recipient, p.asset, p.amount])).toEqual([["base", HAOYUN, BASE_USDC, 18_900_000n], ["base", HAOYUN, BASE_USDC, 36_540_000n]]);
     const pays = s.proofs.filter((p) => p.kind === "payout");
     expect(pays.map((p) => p.label)).toEqual([
-      "Advance paid to Haoyun on Base Sepolia for PO 1042: $18.90 (1:1,000 of $18,900.00). Sent by Evernear's server; the release gate is not deployed",
-      "Balance paid to Haoyun on Base Sepolia for PO 1042: $36.54 (1:1,000 of $36,540.00). Sent by Evernear's server; the release gate is not deployed",
+      "Advance paid to Haoyun on Base Sepolia for PO 1042: $18.90 (1:1,000 of $18,900.00). Sent by Evernear's server; this order was not set up for the release gate",
+      "Balance paid to Haoyun on Base Sepolia for PO 1042: $36.54 (1:1,000 of $36,540.00). Sent by Evernear's server; this order was not set up for the release gate",
     ]);
     expect(pays[0]).toMatchObject({ codePath: "convex/near/escrow.ts#release", response: { stage: "advance", released_by: "server", signals: ["bill_of_lading", "export_cleared"] } });
     expect(pays[1]).toMatchObject({ response: { stage: "balance", released_by: "server", held_cents: HELD } });

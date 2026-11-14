@@ -56,7 +56,7 @@ describe("live mode", () => {
     // No release proof claims the enclave when the server sent it.
     const pays = r.proofs.filter((p) => p.kind === "payout");
     expect(pays.map((p) => p.response.stage)).toEqual(["advance", "balance"]);
-    expect(pays.every((p) => p.label.endsWith("Sent by Evernear's server; the release gate is not deployed") && p.response.released_by === "server")).toBe(true);
+    expect(pays.every((p) => p.label.endsWith("Sent by Evernear's server; this order was not set up for the release gate") && p.response.released_by === "server")).toBe(true);
     expect(JSON.stringify(r.proofs)).not.toMatch(/enclave/);
     // A repeated step is a no-op, not a second payment.
     expect(await t.action(api.live.runStep, { runId: runId!, step: "pay" })).toEqual({ ok: true });

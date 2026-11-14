@@ -41,7 +41,7 @@ const shown = (storyCents: number) => `${formatUsd(scaleTestnet(storyCents))} (1
 export type ReleasePath = "gate" | "server";
 export const SENT_BY: Record<ReleasePath, string> = {
   gate: "Sent by the release gate in OutLayer's enclave; Evernear's server holds no grant that can pay",
-  server: "Sent by Evernear's server; the release gate is not deployed",
+  server: "Sent by Evernear's server; this order was not set up for the release gate",
 };
 
 /** The evidence a stage was decided on, keyed by signal. The dock count's evidence carries `count`. */

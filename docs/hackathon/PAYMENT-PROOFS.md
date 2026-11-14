@@ -126,3 +126,10 @@ Each payout's OutLayer `request_execution` transaction returns the release gate'
 | Balance | 3,654,000 cents ($36,540; 36.54 test USDC) | same | same | valid |
 
 This shows the same gate key signed exactly the amounts that reached Haoyun on Base Sepolia. It does not verify the TEE attestation that binds that key to the wasm (see TRUST-MODEL.md).
+
+
+## Approval-gated live path on real testnet (Nov 14)
+
+[`fixtures/recorded/approval-gated-run.json`](../../fixtures/recorded/approval-gated-run.json), from `LIVE_TESTNET=refusals npx vitest run tests/testnetRehearsal.test.ts`: the live run code (`api.live.runStep`) in process, with the real Tidepool testnet key. A commit with no approvals and with one approval were both refused (`not_enough_approvals`) before any call, and the key's agent count read from Tidepool's `/v1/quotas` stayed at 5 before and after: no order wallet was opened. Approvals were signed by two in-memory rehearsal keys, not by people, and not on the hosted deployment. Classification: real-testnet check of a refusal (no tx by design).
+
+The full approval-gated run (`LIVE_TESTNET=full`: two approvals, commit, advance, refused off-list withdraw with a valid grant on the server path, balance, reclaim) was not run: Astro's treasury holds 16.11 Base + 36.18 NEAR test USDC, short of the 63.00 commit, and topping it up uses the treasury's daily faucet claim.

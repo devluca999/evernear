@@ -165,8 +165,9 @@ export const checkApproverKeys = action({
       try {
         const r = await fetch(process.env.NEAR_TESTNET_RPC ?? "https://rpc.testnet.near.org", { method: "POST", headers: { "content-type": "application/json" },
           body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "query", params: { request_type: "view_access_key", finality: "final", account_id: a.accountId, public_key: key } }) });
-        const j = await r.json() as { result?: { permission?: unknown }; error?: { cause?: { name?: string } } };
-        out.push({ name: a.name, accountId: a.accountId, fullAccess: j.result?.permission === "FullAccess", ...(j.error ? { detail: j.error.cause?.name ?? "rpc_error" } : {}) });
+        const j = await r.json() as { result?: { permission?: unknown; error?: string }; error?: { cause?: { name?: string } } };
+        const detail = j.error ? (j.error.cause?.name ?? "rpc_error") : j.result?.error ? "access_key_not_found" : j.result?.permission !== "FullAccess" ? "not_full_access" : undefined;
+        out.push({ name: a.name, accountId: a.accountId, fullAccess: j.result?.permission === "FullAccess", ...(detail ? { detail } : {}) });
       } catch (e) {
         out.push({ name: a.name, accountId: a.accountId, fullAccess: null, detail: (e as Error).message.slice(0, 80) });
       }

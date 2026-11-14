@@ -1,0 +1,72 @@
+{
+  "_note": "A real Tidepool testnet run through the approval-gated live path, in process (tests/testnetRehearsal.test.ts). Approvals were signed by two in-memory rehearsal keys, not by people, and not on the hosted deployment.",
+  "mode": "refusals",
+  "at": "2026-11-14T05:03:26.008Z",
+  "host": "www.usetidepool.tech",
+  "approvers": "two in-memory rehearsal keys, not people",
+  "zeroApprovals": {
+    "ok": false,
+    "reason": "not_enough_approvals"
+  },
+  "oneApproval": {
+    "ok": false,
+    "reason": "not_enough_approvals"
+  },
+  "agentsUsedBefore": 5,
+  "agentsUsedAfter": 5,
+  "quotaUnchanged": true,
+  "rows": [
+    {
+      "at": 1794632606254,
+      "call": "engine/approvals.ts verifyApprovals",
+      "codePath": "convex/approvals.ts#claimCommit",
+      "hash": "none",
+      "kind": "refusal",
+      "label": "Commit refused before any call: 0 of 2 valid approvals for these exact terms (not_enough_approvals)",
+      "network": "offchain",
+      "replay": false,
+      "response": {
+        "digest": "3eaa72556bacf09e355c34c0c0758e9979a3df8c9acf89874702915eb8dc2702",
+        "po": "1042",
+        "reason": "not_enough_approvals",
+        "required": 2,
+        "status": "refused",
+        "supplier": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+        "total_cents": 6300000,
+        "valid": 0,
+        "verdicts": []
+      },
+      "scene": 6,
+      "synthetic": false
+    },
+    {
+      "at": 1794632606265,
+      "call": "engine/approvals.ts verifyApprovals",
+      "codePath": "convex/approvals.ts#claimCommit",
+      "hash": "none",
+      "kind": "refusal",
+      "label": "Commit refused before any call: 1 of 2 valid approvals for these exact terms (not_enough_approvals)",
+      "network": "offchain",
+      "replay": false,
+      "response": {
+        "digest": "3eaa72556bacf09e355c34c0c0758e9979a3df8c9acf89874702915eb8dc2702",
+        "po": "1042",
+        "reason": "not_enough_approvals",
+        "required": 2,
+        "status": "refused",
+        "supplier": "0x2003975a521c6fa45238dbc402c9e4adcb8863e0",
+        "total_cents": 6300000,
+        "valid": 1,
+        "verdicts": [
+          {
+            "approver": "rehearsal-approver-1",
+            "nonce": "c43fcc96-db02-4a9c-8ce4-844f3e46ab41",
+            "ok": true
+          }
+        ]
+      },
+      "scene": 6,
+      "synthetic": false
+    }
+  ]
+}

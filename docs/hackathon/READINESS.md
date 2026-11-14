@@ -20,7 +20,7 @@ Updated 2026-11-14 ~03:30 UTC. Development ends **2026-11-14 23:59 UTC** ([COMPE
 | 10 | README matches implementation | Updated on this branch (approvals, destination vs grant, gate limits, disclosures) | README |
 | 11 | Tests and build pass | see Tests run below; `next build` passes; demo check fixed (it looked for the wrong page title) | this file |
 | 12 | Recorded demo replays reliably | Unchanged; replay tests pass | short/scenario tests |
-| 13 | Live demo's supported path works | **Blocked**: live commit now needs approvals (fail closed until keys are set and the backend redeployed) | Needs you 2-3 |
+| 13 | Live demo's supported path works | Approval-gated code ran on real Tidepool testnet in process (refusals; agent count unchanged). Hosted deployment needs keys + deploy; full funded run needs a treasury top-up | AFK Needs you 2-3, 6 |
 | 14 | Security refusals reproducible | Done: `npm run attack` (44 cases) | |
 | 15 | Business story understandable | Existing UI and Short mode | |
 | 16 | Judge video shows real proof | Rendered: JudgeCut (89 s), ShortShipment, ApprovalGate; hashes from payment-proofs.json | content/remotion |
@@ -45,6 +45,8 @@ Updated 2026-11-14 ~03:30 UTC. Development ends **2026-11-14 23:59 UTC** ([COMPE
 | P0 | Judge panel (JUDGE-REVIEW.md): trust docs overstated what a compromised backend cannot do; concurrent advance sent two withdraws; same PO could be committed twice; demo check always failed | **Fixed**: docs name the three backend keys; money steps claimed atomically; one open commitment per PO; demo check matches the title |
 | P1 | Backend holds owner key + treasury grant (any destination) in this demo | Open: production design moves them to Astro's wallet; treasury policy could be narrowed with a live Tidepool owner action (needs you) |
 | P2 | Grant expiry not modelled in the fake provider | Open |
+| P1 | Approvers were off-chain keys only | **Fixed**: an approver can be a NEAR testnet account signing NEP-413; pinned key checked on NEAR RPC |
+| P1 | Carrier and customs signals simulated | Open: needs a real carrier/customs data source (no free one integrated); dock count is now signable |
 
 ## Agent autonomy, step by step (directive section 9)
 
@@ -73,7 +75,8 @@ Astro, its customers and suppliers; supplier replies; shipment signals; the dock
 
 ## Tests run (this branch)
 
-- `npx vitest run`: 465 passed; `cargo test`: 32 passed (was 408 before this branch).
+- `npx vitest run`: 470 passed, 3 skipped (the opt-in testnet tests); `cargo test`: 33 passed
+- Real testnet (opt-in): `TESTNET_PREFLIGHT=1` (read only), `LIVE_TESTNET=refusals` (approval refusals, no wallet opened), `TESTNET_KEYCHECK=1` (NEAR RPC key check): all passed Nov 14 (was 408 before this branch).
 - `cargo test` in worker/release-gate: 25 passed.
 - `npx tsc --noEmit`, `npx eslint convex engine tests scripts`, `npm run check:ip`: clean.
 - `DEMO_MODE=1 node scripts/demo.mjs --check` from a fresh clone with no `.env.local`: passed.

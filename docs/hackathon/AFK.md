@@ -9,14 +9,15 @@ Goal: make the procurement-payment demo technically defensible before 2026-11-14
 - [x] Release enforcement matrix (17 cases) + `npm run attack`
 - [x] Gate caller-state bound pinned in Rust
 - [x] README corrections, disclosures; TRUST-MODEL, ENFORCEMENT-MATRIX, READINESS, COMPETITION, CONTENT-OPPORTUNITIES
-- [ ] Signed dock-count attestation (server side)
+- [x] Signed dock-count attestation (server side, when DOCK_DEVICE_KEYS is set)
+- [x] /approve page for approvers
 - [ ] Remotion package (background agent)
 
 ## Needs you
 1. Push the branch: `git push -u origin hackathon/p0-hardening`, then merge to main (the judged repo was last pushed Nov 10).
 2. Approver keys, on each approver's own machine: `npx tsx scripts/approver-keygen.mts Luca` (and Jordan), then `npx convex env set APPROVER_KEYS '[{"name":"Luca","publicKey":"…"},{"name":"Jordan","publicKey":"…"}]'` on the deployment.
 3. Deploy functions + schema: `npx convex deploy` (or `npx convex dev --once` for cheerful-rabbit-364). Until 2 and 3 are done, live commits are refused (`approvals_not_configured`); replay mode is unaffected.
-4. Live approval demo: start a live run, then `NEXT_PUBLIC_CONVEX_URL=… npx tsx scripts/approve.mts --name Luca --key .approver-keys/Luca.key` (and Jordan) before pressing commit.
+4. Live approval demo: each approver opens `/approve` on their own device (paste the key from `.approver-keys/<Name>.key`; it stays in the tab) or runs `NEXT_PUBLIC_CONVEX_URL=… npx tsx scripts/approve.mts --name Luca --key .approver-keys/Luca.key`; then turn Live on and play to the commit. For the refusal shot: turn Live on with only one signature; the commit shows `commit: not_enough_approvals`; sign the second, toggle Live off/on, play again.
 5. Optional: request-changes to add the `security` track; reply to the Nov 10 X post with the new video.
 
 ## Decisions

@@ -383,6 +383,23 @@ async function main() {
   const bad = legs.filter((l) => BAD.includes(l.v?.status));
   const weak = legs.filter((l) => l.v?.status === "indexer-only");
   const gateProblems = checkGateResults(entries, supplier);
+  // The release-gate probes (v2, v3, v4 refusals on chain): read each tx's result and compare it with the fixture.
+  out.gateProbes = [];
+  for (const f of ["gate-v2-frozen-probe.json", "gate-v3-unsigned-dock-probe.json", "gate-v4-exploit-probe.json"]) {
+    const fx = JSON.parse(await readFile(resolve(ROOT, "fixtures/recorded", f), "utf8"));
+    let onChain = null, err = null;
+    try {
+      const r = await fetch("https://archival-rpc.testnet.near.org", { method: "POST", headers: { "content-type": "application/json" }, signal: AbortSignal.timeout(30_000),
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tx", params: { tx_hash: fx.tx, sender_account_id: fx.signer, wait_until: "FINAL" } }) }).then((x) => x.json());
+      onChain = JSON.parse(Buffer.from(r.result.status.SuccessValue, "base64").toString("utf8"));
+    } catch (e) { err = String(e).slice(0, 120); }
+    const same = onChain && canonical(onChain) === canonical(fx.output);
+    let sigOk = false;
+    if (onChain) { const { signature, ...rest } = onChain; try { sigOk = ed25519.verify(Buffer.from(signature, "hex"), new TextEncoder().encode("evernear-release-gate:v1:" + canonical(rest)), Buffer.from(onChain.public_key, "hex")); } catch { sigOk = false; } }
+    out.gateProbes.push({ file: f, tx: fx.tx, wasm_sha256: fx.wasm_sha256, reason: onChain?.reason ?? null, matchesFixture: !!same, signatureValid: sigOk, error: err });
+    if (!same || !sigOk) gateProblems.push(`${f}: ${err ?? (!same ? "on-chain result differs from the fixture" : "signature invalid")}`);
+    else console.log(`gate probe ${f}: ${onChain.reason}, signed, matches the fixture`);
+  }
   await writeFile(OUT, JSON.stringify(out, null, 2) + "\n"); // again, with the decoded gate results
   for (const l of bad) console.error(`  FAILED ${l.v.status}: ${l.label}`);
   for (const l of weak) console.warn(`  weak (indexer only): ${l.label}`);

@@ -1,6 +1,6 @@
 # EverNEAR hackathon readiness
 
-Updated 2026-11-14 ~03:30 UTC. Development ends **2026-11-14 23:59 UTC** ([COMPETITION.md](COMPETITION.md)). Branch: `hackathon/p0-hardening` (local, not pushed).
+Updated 2026-11-14 ~03:30 UTC. Development ends **2026-11-14 23:59 UTC** ([COMPETITION.md](COMPETITION.md)). Branch: `hackathon/p0-hardening`, pushed and merged to `main` (Nov 14).
 
 **Submission state.** EverNEAR is already submitted (directory entry "everNEAR", tracks privacy, business, agents, realworld, open; demo post on X Nov 10). Do not submit again (409). The public repo was last pushed Nov 10: judges and the AI screen see that state until this branch is pushed. Track changes (adding `security`) go through https://nearhackathon.com/request-changes.
 
@@ -21,7 +21,7 @@ Updated 2026-11-14 ~03:30 UTC. Development ends **2026-11-14 23:59 UTC** ([COMPE
 | 11 | Tests and build pass | see Tests run below; `next build` passes; demo check fixed (it looked for the wrong page title) | this file |
 | 12 | Recorded demo replays reliably | Unchanged; replay tests pass | short/scenario tests |
 | 13 | Live demo's supported path works | Approval-gated code ran on real Tidepool testnet in process (refusals; agent count unchanged). Hosted deployment needs keys + deploy; full funded run needs a treasury top-up | AFK Needs you 2-3, 6 |
-| 14 | Security refusals reproducible | Done: `npm run attack` (44 cases) | |
+| 14 | Security refusals reproducible | Done: `npm run attack` (49 cases) | |
 | 15 | Business story understandable | Existing UI and Short mode | |
 | 16 | Judge video shows real proof | Rendered: JudgeCut (89 s), ShortShipment, ApprovalGate; hashes from payment-proofs.json | content/remotion |
 | 17 | Official submission complete | Submitted Nov 10; push + post update needed | Needs you 1, 4 |
@@ -37,7 +37,7 @@ Updated 2026-11-14 ~03:30 UTC. Development ends **2026-11-14 23:59 UTC** ([COMPE
 | P0 | Lost answer / stale escrow row could double-pay on retry | **Fixed**: on-chain balance reconcile before every release (`state_mismatch`) |
 | P0 | Remote repo stale (Nov 10) | **Needs you**: push |
 | P0 | Live mode on the hosted deployment will refuse commits until `APPROVER_KEYS` is set and functions deployed | **Needs you** |
-| P1 | Gate trusts caller `released_cents`, `advance_percent`, `to`, evidence | **Gate v2 live** (uploaded, deployment switched; on-chain probe refused a frozen account, signed). Evidence still from the caller |
+| P1 | Gate trusts caller `released_cents`, `advance_percent`, `to`, evidence | **Gate v4 live** (reads the wallet, checks the approvers' signatures over the exact terms and a wallet-bound signed dock count). Earlier: **Gate v2 live** (uploaded, deployment switched; on-chain probe refused a frozen account, signed). Evidence still from the caller |
 | P1 | Evidence not source-signed; dock count is a constant in live runs | **Fixed for the dock count** (live balance pays on a count signed at `/dock` when devices are pinned); carrier/customs signals still simulated. Earlier note: signed dock-count attestation enforced by the server when `DOCK_DEVICE_KEYS` is set; not in the deployed gate; carrier/customs signals still simulated |
 | P1 | Tidepool is a community testnet; rivals show mainnet | Needs Luca's explicit yes for any mainnet call (CLAUDE.md rule 7) |
 | P1 | `security` track not on the submission | Needs you (request-changes) |
@@ -62,7 +62,7 @@ Updated 2026-11-14 ~03:30 UTC. Development ends **2026-11-14 23:59 UTC** ([COMPE
 | Approvals | **Human-controlled action**: ed25519 signatures from approver devices (live); simulated taps in replay | [engine/approvals.ts](../../engine/approvals.ts) |
 | Commitment | Actual external integration (Tidepool testnet) | [deadline.ts](../../convex/near/deadline.ts) |
 | Milestone monitoring | **Mocked third-party response** (simulated carrier/customs feed) | [scenarios/tracking.ts](../../scenarios/tracking.ts) |
-| Dock count | **Fixed demonstration data** (44) | `convex/live.ts` |
+| Dock count | Signed by a pinned dock device for the order's wallet when `DOCK_DEVICE_KEYS` is set (it is on the deployment); the recorded Nov 6 run used fixed demo data (44) | `convex/dock.ts`, `convex/live.ts` |
 | Release decision and amount | Deterministic, in engine and in the OutLayer gate | engine, worker |
 | Release execution | Actual external integration (OutLayer testnet enclave, Tidepool, Base Sepolia) | escrow.ts |
 | Refund / reclaim | Actual external integration, triggered by Evernear | escrow.ts |
@@ -75,12 +75,12 @@ Astro, its customers and suppliers; supplier replies; shipment signals; the dock
 
 ## Tests run (this branch)
 
-- `npx vitest run`: 470 passed, 3 skipped (the opt-in testnet tests); `cargo test`: 33 passed
+- `npx vitest run`: 474 passed, 4 skipped (the opt-in testnet tests); `cargo test`: 38 passed
 - Real testnet (opt-in): `TESTNET_PREFLIGHT=1` (read only), `LIVE_TESTNET=refusals` (approval refusals, no wallet opened), `TESTNET_KEYCHECK=1` (NEAR RPC key check): all passed Nov 14 (was 408 before this branch).
 - `cargo test` in worker/release-gate: 25 passed.
 - `npx tsc --noEmit`, `npx eslint convex engine tests scripts`, `npm run check:ip`: clean.
 - `DEMO_MODE=1 node scripts/demo.mjs --check` from a fresh clone with no `.env.local`: passed.
-- `npm run attack`: 44 passed. `npm run verify:proofs`: every recorded tx verified on public RPCs.
+- `npm run attack`: 49 passed. `npm run verify:proofs`: every recorded tx verified on public RPCs.
 
 ## Content readiness
 

@@ -1,5 +1,8 @@
 # Judge panel 2: adversarial review of EverNEAR
 
+> **Resolution (same day, later).** The gate exploit (F1) and the dock replay (F2) are fixed in gate v4, live on the deployment: it pays only on terms two pinned approvers signed, checked inside the enclave, and on a dock count bound to the order's wallet (Rust `v4_*` tests; on-chain refusal of the exploit input, tx `DSpQkJxt…`, verified by `npm run verify:proofs`). F3, F6, F7, the gate-version and count staleness, and the "which gate paid" wording are corrected; the three gate probes are now under `verify:proofs`. Video caption fixes (F4, F5) were sent to the content agent. Still open: the commercial terms (Incoterm, refundable advance, backorder) and one paying run through v4 with real approvers.
+
+
 Reviewed 2026-11-14 (UTC), branch `hackathon/p0-hardening`. The tests ran at `38c2af5`/`e3d4ad3`. HEAD moved to `b8ebea7` during the review; that range changes only docs and two UI test timeouts. Eight judges, each told to break claims rather than trust the docs.
 
 The panel did not read `.env.local` or `.approver-keys`, call mainnet, create Tidepool agents, sign anything, spend funds, commit or push.

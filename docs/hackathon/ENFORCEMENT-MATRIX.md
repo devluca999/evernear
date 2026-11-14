@@ -70,7 +70,7 @@ Layer key: **E** reference engine (server, before any call) · **B** application
 | 3 | Valid grant, prohibited destination | P (allowlist) + E | matrix 8 | Nov 5 probe: `policy_destination_denied`, same grant then paid Haoyun (tx `0x34da8955…`) |
 | 4 | Excessive withdrawal | P (per-tx cap) + E (`over_balance`, `bad_quantity`) + G (`over_locked`, `received_over_ordered`) | matrix 9 | — |
 | 5 | Wrong purchase-order identity | B (server check of the gate's signed answer) + G v2 (account read by agent id) | matrix 4 | — |
-| 6 | Incorrect payout amount | B (`amount_mismatch`) + G v3 (`released_not_on_chain`, `locked_not_on_chain`) | matrix 5, Rust `v2_*` | — **Bound:** v3 does not bind unit price and quantity to the approved terms (Rust `v3_bound_unit_price_not_bound_to_approved_terms`) |
+| 6 | Incorrect payout amount | B (`amount_mismatch`) + G v3 (`released_not_on_chain`, `locked_not_on_chain`) | matrix 5, Rust `v2_*` | v3 did not bind unit price and quantity to the approved terms; **v4 does** (`terms_mismatch`, `approvals_insufficient`; Rust `v4_the_unit_price_exploit_is_refused`; on chain `DSpQkJxt…`) |
 | 7 | Missing milestone evidence | E + G | matrix 10 | — |
 | 8 | Tampered or replayed evidence | G (`count_mismatch`; v3: `dock_unsigned`, `dock_bad_signature`, `dock_wrong_po`), B (signed dock count: `replayed`, stale) | matrix 11, dockLive.test | — |
 | 9 | Duplicate release attempt | E (`already_released`), B (step claim, reconcile), P (idempotency key) | matrix 7, 12, 15; commitAuthorization "concurrent advance" | — |
@@ -79,6 +79,7 @@ Layer key: **E** reference engine (server, before any call) · **B** application
 | 12 | Expired approval or deadline | B (`expired`), E (`past_deadline`) | commitAuthorization "expired", matrix 16 | — |
 | 13 | Valid authorized release | (pays) | matrix 14 | $18.90 and $36.54 to Haoyun, gate signatures decoded from chain |
 | 14 | Valid return of remaining funds | P (owner-only policy) + E (`reclaimHeld`) | escrow.test "reclaims" | $7.56 back to Astro, verified |
+| + | Restated price, no approved terms (gate v4) | G v4 | Rust `v4_*` | **Nov 14 on chain**: signed refusal `terms_missing`, tx `DSpQkJxt…` |
 | + | Unsigned dock count (gate v3) | G v3 | Rust `v3_balance_needs_a_pinned_dock_signature` | **Nov 14 on chain**: signed refusal `dock_unsigned`, tx `8S4uYwhT…` |
 | + | Frozen account (gate v2) | G v2 reads the account: `account_frozen` | Rust `v2_refuses_an_account_that_is_not_locked_down` | **Nov 14 on chain**: signed refusal, tx `4qXdn52Z…` |
 | + | Commit with 0 or 1 approval | B (`claimCommit`) | commitAuthorization | **Nov 14 real Tidepool**: refused, agent count unchanged |

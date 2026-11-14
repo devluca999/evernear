@@ -58,3 +58,26 @@ Not yet run against the live deployment: approver keys must be provisioned first
 4. **Engine and run state** (`already_released`, `runStep` step order): correct only while the backend is honest.
 
 The gate itself is stateless and cannot guarantee idempotency on its own.
+
+## The 14 release cases, mapped (Nov 14 brief)
+
+Layer key: **E** reference engine (server, before any call) · **B** application backend (Convex state, claims, reconcile) · **G** TEE release gate (OutLayer, wasm-bound) · **P** NEAR Intents Agent API account policy on Tidepool (provider-enforced) · **N** settlement network (NEAR testnet / Base Sepolia). A backend or engine refusal is not presented as a blockchain restriction.
+
+| # | Case | Refused by | Test | Real testnet evidence |
+|---|---|---|---|---|
+| 1 | Missing authorization | P (grant layer) | matrix 1 | Nov 6 run: server withdraw `grant_invalid` |
+| 2 | Invalid release grant | P | matrix 2 | same |
+| 3 | Valid grant, prohibited destination | P (allowlist) + E | matrix 8 | Nov 5 probe: `policy_destination_denied`, same grant then paid Haoyun (tx `0x34da8955…`) |
+| 4 | Excessive withdrawal | P (per-tx cap) + E (`over_balance`, `bad_quantity`) + G (`over_locked`, `received_over_ordered`) | matrix 9 | — |
+| 5 | Wrong purchase-order identity | B (server check of the gate's signed answer) + G v2 (account read by agent id) | matrix 4 | — |
+| 6 | Incorrect payout amount | B (`amount_mismatch`) + G v2 (`released_not_on_chain`, `locked_not_on_chain`) | matrix 5, Rust `v2_*` | — |
+| 7 | Missing milestone evidence | E + G | matrix 10 | — |
+| 8 | Tampered or replayed evidence | G (`count_mismatch`), B (signed dock count: `dock_bad_signature`, `replayed`, stale) | matrix 11, dockLive.test | — |
+| 9 | Duplicate release attempt | E (`already_released`), B (step claim, reconcile), P (idempotency key) | matrix 7, 12, 15; commitAuthorization "concurrent advance" | — |
+| 10 | Out-of-order settlement | B (`out_of_order`) + E (missing signals) | live.test | — |
+| 11 | Revoked grant | P | matrix 3 | grants revoked at close (intent ids) |
+| 12 | Expired approval or deadline | B (`expired`), E (`past_deadline`) | commitAuthorization "expired", matrix 16 | — |
+| 13 | Valid authorized release | (pays) | matrix 14 | $18.90 and $36.54 to Haoyun, gate signatures decoded from chain |
+| 14 | Valid return of remaining funds | P (owner-only policy) + E (`reclaimHeld`) | escrow.test "reclaims" | $7.56 back to Astro, verified |
+| + | Frozen account (gate v2) | G v2 reads the account: `account_frozen` | Rust `v2_refuses_an_account_that_is_not_locked_down` | **Nov 14 on chain**: signed refusal, tx `4qXdn52Z…` |
+| + | Commit with 0 or 1 approval | B (`claimCommit`) | commitAuthorization | **Nov 14 real Tidepool**: refused, agent count unchanged |

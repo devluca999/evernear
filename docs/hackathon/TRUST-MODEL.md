@@ -55,3 +55,20 @@ The release gate can show *which* evidence a payment was decided on and that the
 3. **Tidepool** (community-run testnet, not NEAR infrastructure): enforces grants, policy and idempotency on its server.
 4. **OutLayer TEE**: keeps the gate's grant and signing key bound to the wasm hash.
 5. **Evidence sources**: simulated.
+
+## Custody: why a policy-controlled Agent API account, and what a contract escrow would change
+
+EverNEAR's money sits in a NEAR Intents Agent API account per order (on Tidepool, a community testnet of that API), controlled by policy, not in a smart-contract escrow. That is a choice with real trade-offs.
+
+What the account model gives that a minimal escrow contract does not, as used here:
+- **Destination allowlist per order**: withdraw only to the supplier's Base Sepolia address or transfer back to the buyer (`poPolicy`), with a per-transaction cap equal to the commitment.
+- **Cross-chain settlement**: the supplier is paid in USDC on Base Sepolia from a NEAR Intents balance; a NEAR escrow contract alone would need its own bridge path.
+- **Separation of authorities**: the owner key (buyer) sets policy; a grant (the release gate's, derived only inside OutLayer's enclave from its wasm hash) can spend within it; Evernear's server holds no grant on the order wallet.
+- **Per-order segregation**: one account per order, frozen and kept as the receipt when settled.
+- **Revocable, time-bounded grants** and a kill switch (`agent_freeze`).
+
+What it does not give, honestly:
+- The policy is enforced by the provider's server, not by NEAR consensus. Astro, as owner, can change it or unfreeze at any time; in this demo Evernear's backend holds that testnet owner key.
+- The supplier cannot enforce payment: the held part is committed, not locked.
+
+Would a NEAR escrow contract help? A small contract holding the PO funds, releasing only to the supplier on a signature from the release gate's key and refunding the buyer after the deadline, would make the destination and amount bound by chain code rather than by a provider. We did not build it in this sprint: it would be a second custody path (funding, bridging to Base, refund timing) that cannot be finished, tested and reproducibly deployed before the deadline without weakening the working one. It is the first roadmap item; the release gate's signed results are already in the shape such a contract would verify.

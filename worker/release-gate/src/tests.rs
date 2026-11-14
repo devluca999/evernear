@@ -532,3 +532,14 @@ fn v2_chain_unreadable_sends_nothing() {
     *host.balances_body.borrow_mut() = Some(json!({"nope": 1}));
     assert_eq!(v2_refusal(&host, &case("advance at $1260")), "chain_unreadable");
 }
+
+#[test]
+fn v2_dust_from_outside_does_not_block_a_release() {
+    // Someone sends 0.000001 test USDC (and then a whole cent) into the order account.
+    for extra in ["63000001", "63000010"] {
+        let host = MockHost::accepting();
+        *host.balances_body.borrow_mut() = Some(json!({"balances": [{"asset_id": ASSET, "balance_raw": extra}]}));
+        let out = run_case(&host, &case("advance at $1260"));
+        assert_eq!(out["ok"], true, "{extra}: {out}");
+    }
+}

@@ -433,8 +433,10 @@ pub struct ChainState {
 }
 
 impl ChainState {
+    /// What has left the account, at least: committed minus held, never below zero (a deposit
+    /// from outside can make the account hold more than the commitment).
     pub fn released_cents(&self) -> u64 {
-        self.locked_cents - self.held_cents
+        self.locked_cents.saturating_sub(self.held_cents)
     }
 }
 
@@ -454,6 +456,12 @@ pub fn base_units_to_cents(units: &str) -> Option<u64> {
     if u % 10 != 0 {
         return None;
     }
+    u64::try_from(u / 10).ok()
+}
+
+/// A balance in base units to whole cents, rounded down: dust sent in from outside never blocks a release.
+pub fn base_units_to_cents_floor(units: &str) -> Option<u64> {
+    let u: u128 = units.parse().ok()?;
     u64::try_from(u / 10).ok()
 }
 
@@ -485,10 +493,7 @@ pub fn parse_chain_state(policy: &[u8], balances: &[u8]) -> Result<ChainState, &
     let held_units = b.get("balances").and_then(Value::as_array).ok_or("chain_unreadable")?
         .iter().find(|x| x.get("asset_id").and_then(Value::as_str) == Some(ASSET))
         .and_then(|x| x.get("balance_raw").and_then(Value::as_str)).unwrap_or("0");
-    let held_cents = base_units_to_cents(held_units).ok_or("balance_not_whole_cents")?;
-    if held_cents > locked_cents {
-        return Err("balance_above_commitment");
-    }
+    let held_cents = base_units_to_cents_floor(held_units).ok_or("chain_unreadable")?;
     Ok(ChainState { locked_cents, held_cents, withdraw_to })
 }
 
@@ -510,7 +515,9 @@ pub fn check_against_chain(r: &ReleaseInput, c: &ChainState) -> Result<(), &'sta
     if r.to.to_ascii_lowercase() != c.withdraw_to {
         return Err("recipient_not_on_chain");
     }
-    if r.released_cents != c.released_cents() {
+    // Refused when more has left the account than the caller says (an understated release would
+    // be paid again). Overstating only lowers what this stage pays, so it is not refused here.
+    if c.released_cents() > r.released_cents {
         return Err("released_not_on_chain");
     }
     Ok(())

@@ -101,7 +101,7 @@ export class AccountsFull extends Error {
 export class EscrowAdapter {
   private client: AgentApiClient;
   private treasuryAcct?: string;
-  constructor(private o: { fetch: Fetch; apiKey?: string; baseUrl: string; owner?: Owner; sink: ProofSink; treasuryId?: string; idem?: () => string; gate?: ReleaseGate | null; gatePublicKey?: string; dockDevices?: DockDevice[] }) {
+  constructor(private o: { fetch: Fetch; apiKey?: string; baseUrl: string; owner?: Owner; sink: ProofSink; treasuryId?: string; idem?: () => string; gate?: ReleaseGate | null; gatePublicKey?: string; dockDevices?: DockDevice[]; sleep?: (ms: number) => Promise<void> }) {
     this.client = new AgentApiClient({ fetch: o.fetch, apiKey: o.apiKey, baseUrl: o.baseUrl, owner: o.owner, sink: o.sink, idem: o.idem });
   }
 
@@ -297,9 +297,17 @@ export class EscrowAdapter {
     // Reconcile before money moves: the order account must hold exactly what the escrow row says is
     // left. A mismatch means an earlier call may have gone through after all (a timeout is not a
     // refusal), or the row is wrong; either way nothing is sent until someone looks.
+    // Less than the record means money may already have left: refuse. A read can lag a fresh
+    // transfer, so it is retried a few times first. More than the record (a deposit from outside)
+    // is noted on the payout proof and does not block.
     const expected = testnetUnits(i.escrow.lockedCents) - testnetUnits(i.escrow.releasedCents) - testnetUnits(i.escrow.reclaimedCents);
-    const onChain = await this.client.balance(i.agentId, BASE_USDC);
-    if (onChain !== expected) {
+    let onChain = await this.client.balance(i.agentId, BASE_USDC);
+    const sleep = this.o.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+    for (let tries = 0; onChain < expected && tries < 4; tries++) {
+      await sleep(3_000);
+      onChain = await this.client.balance(i.agentId, BASE_USDC);
+    }
+    if (onChain < expected) {
       await this.o.sink({
         kind: "refusal", label: `${STAGE_LABEL[i.stage]} not sent: the order account holds ${onChain} units, the escrow record says ${expected}; reconcile first`,
         call: "GET /v1/agents/{id}/balance", codePath: `${PATH}#reconcile`, network: "testnet", hash: "none",

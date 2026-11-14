@@ -22,7 +22,7 @@ async function setup(tp = fakeTidepool()) {
   // Astro's treasury agent, as scripts made it: transfer and swap, any destination.
   const boot = new EscrowAdapter({ fetch: tp.fetch, apiKey: API_KEY, baseUrl: FAKE_BASE, owner, sink: () => {}, treasuryId: "pending" });
   const treasuryId = await boot.createTreasury();
-  const esc = new EscrowAdapter({ fetch: tp.fetch, apiKey: API_KEY, baseUrl: FAKE_BASE, owner, sink, treasuryId });
+  const esc = new EscrowAdapter({ fetch: tp.fetch, apiKey: API_KEY, baseUrl: FAKE_BASE, owner, sink, treasuryId, sleep: async () => {} });
   const treasuryAccount = await esc.treasuryAccount();
   return { tp, esc, proofs, treasuryId, treasuryAccount };
 }
@@ -313,6 +313,12 @@ describe("failure injection: a lost answer is not a refusal", () => {
     expect(retry).toEqual({ ok: false, reason: "state_mismatch" });
     expect(s.tp.payouts).toHaveLength(1);
     expect(s.proofs.at(-1)).toMatchObject({ kind: "refusal", response: { reason: "state_mismatch", on_chain_units: "44100000", expected_units: "63000000" } });
+  });
+  it("a deposit from outside (more than the record) does not block a release", async () => {
+    const s = await setup();
+    const { acct, escrow } = await openAndLock(s);
+    s.tp.credit(acct.agentId, BASE_USDC, 1n);
+    expect(await stageOf(s, { escrow, agentId: acct.agentId, stage: "advance" })).toMatchObject({ ok: true });
   });
   it("money that left the account outside the escrow's record also blocks the balance", async () => {
     const s = await setup();

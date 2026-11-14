@@ -73,4 +73,14 @@ describe("live balance on a signed dock count", () => {
     await w.step("commit"); await w.step("advance");
     expect(await w.step("pay")).toEqual({ ok: false, reason: "awaiting_dock_count" });
   });
+  it("a signed count is accepted once, and a count signed before the run started is never used for it", async () => {
+    const w = await world();
+    await w.step("commit"); await w.step("advance");
+    vi.setSystemTime(T0 + 60_000);
+    // Signed an hour before this run (a previous run's count), submitted during this one.
+    const old = signDockCount({ po: "1042", count: 50, at: new Date(T0 - 3_600_000).toISOString(), device: "dock-3-scanner", secretKey: DEVICE });
+    expect(await w.t.mutation(api.dock.submit, { attestation: old })).toEqual({ ok: true });
+    expect(await w.t.mutation(api.dock.submit, { attestation: old })).toEqual({ ok: false, reason: "replayed" });
+    expect(await w.step("pay")).toEqual({ ok: false, reason: "awaiting_dock_count" });
+  });
 });

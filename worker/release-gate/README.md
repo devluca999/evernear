@@ -28,11 +28,11 @@ Amounts are integer cents. The module refuses rather than rounds (`inexact_amoun
 
 ## v2 (built Nov 14, not yet uploaded): it reads the order account instead of trusting the caller
 
-The deployed build (`04f6d241…`, Nov 6) takes the committed total, the amount already released and the recipient from its caller. v2 (sha256 `1293789df3cfa5ff9780a542f8f0608a3b02e4e86a806b52221876cb0a418423` with rustc 1.99.1; rebuild to confirm) reads them from Tidepool before it pays:
+The deployed build (`04f6d241…`, Nov 6) takes the committed total, the amount already released and the recipient from its caller. v2 (sha256 `dd90ce689d45c3dcddceb9b92fd42563b0edaad9ab7b974c9a41cd75cbfa8955` with rustc 1.99.1; rebuild to confirm) reads them from Tidepool before it pays:
 
 - `GET /v1/agents/{id}/policy`: the account must be `APPLIED`, not frozen, `destinations.mode: "only"` with exactly one `withdraw` address on Base, and a per-transaction cap. The cap is the committed total (the owner set it to the PO amount at open); the withdraw address is the only recipient.
 - `GET /v1/agents/{id}/balances`: what the account still holds; released = committed minus held.
-- The caller's `locked_cents`, `to` and `released_cents` must equal those, or the run is refused and signed (`locked_not_on_chain`, `recipient_not_on_chain`, `released_not_on_chain`, `policy_not_restrictive`, `account_frozen`, `policy_withdraw_ambiguous`, `policy_no_cap`, `chain_unreadable`, `chain_unavailable`), and nothing is sent.
+- The caller's `locked_cents` and `to` must equal those, and its `released_cents` may not be less than what has left the account (balances are floored to whole cents, so dust sent in from outside never blocks a release), or the run is refused and signed (`locked_not_on_chain`, `recipient_not_on_chain`, `released_not_on_chain`, `policy_not_restrictive`, `account_frozen`, `policy_withdraw_ambiguous`, `policy_no_cap`, `chain_unreadable`, `chain_unavailable`), and nothing is sent.
 - `advance_percent` is pinned in the build (`ADVANCE_PERCENT = 30`, from `policy/astro.json`); any other value is refused (`percent_not_policy`).
 
 Effect: a compromised backend can no longer make the gate overpay by understating what was released, pay a second advance, or pay an address the account's policy does not name. It still supplies the evidence and the dock count. Tests: the `v2_` tests in [`src/tests.rs`](src/tests.rs). Deploying v2 is a new wasm, so a new grant key and result key: upload, set the secret on the new hash, set `RELEASE_GATE_WASM_URL`, `RELEASE_GATE_WASM_SHA256` and `RELEASE_GATE_PUBLIC_KEY` (from a probe enroll), and new orders enroll with it.

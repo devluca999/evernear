@@ -145,6 +145,8 @@ Astro Robotics, a robot maker in Chicago, has 500 orders for its 10MA robot, all
 
 ## Two-stage settlement
 
+**Trade terms** (in [policy/astro.json](policy/astro.json) `commercial_terms`, so they are part of the rules hash the approvers sign): DAP Chicago, so the supplier carries transit risk until the dock; units not delivered are cancelled, not backordered (a backorder is a new PO with new approvals); an advance larger than what is later delivered is a claim against the supplier, settled off-chain, since a payout cannot be clawed back.
+
 The order wallet releases in two stages, each waiting for two signals that code checks and records as proofs ([policy/astro.json](policy/astro.json), [escrow.ts](engine/escrow.ts) `releaseStage`): the advance (30%) once the bill of lading AND export clearance are in, the balance once import customs AND the dock count agree (the recorded run used the simulated count of 44; since Nov 14 a count signed by a pinned dock device can be required), computed as received times unit price minus what was already released. A release with a missing signal is refused, and the refusal is a proof. The wallet never pays out more than it holds. After the balance, the Money card shows what this protected, against the two usual ways to pay an overseas supplier (typical figures, labelled so):
 
 | | Prepaid wire (typical) | Letter of credit (typical) | Evernear two-stage settlement |

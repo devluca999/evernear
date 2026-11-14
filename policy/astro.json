@@ -7,8 +7,26 @@
   "escrow": {
     "advance_percent": 30,
     "releases": {
-      "advance": { "requires": ["bill_of_lading", "export_cleared"] },
-      "balance": { "requires": ["import_cleared", "dock_count"] }
+      "advance": {
+        "requires": [
+          "bill_of_lading",
+          "export_cleared"
+        ]
+      },
+      "balance": {
+        "requires": [
+          "import_cleared",
+          "dock_count"
+        ]
+      }
     }
+  },
+  "commercial_terms": {
+    "_note": "The trade terms the 50/44 settlement assumes. Part of the rules hash every approver signs (convex/approvalTerms.ts RULES_HASH).",
+    "incoterm": "DAP Chicago (supplier carries transit risk until delivery at Astro's dock)",
+    "advance": "30% on bill of lading and export clearance; an advance larger than the value later delivered is a claim against the supplier, settled off-chain (the order wallet cannot claw back a payout)",
+    "balance": "received units x unit price, minus the advance, on import clearance and a dock count signed by Astro's dock device",
+    "short_shipment": "units not delivered are cancelled, not backordered; their share returns to Astro; a backorder is a new PO with new approvals",
+    "deadline": "anything still held at the deadline returns to Astro"
   }
 }

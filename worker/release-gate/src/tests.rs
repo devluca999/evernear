@@ -650,3 +650,22 @@ fn v4_needs_two_distinct_pinned_approvers_over_the_digest() {
     assert_eq!(reason(&|i| i["to"] = json!("0x1111111111111111111111111111111111111111")), "terms_mismatch");
     assert_eq!(reason(&|i| i["terms"]["approvalsRequired"] = json!(0)), "approvals_insufficient"); // digest changes; and 2 are always required
 }
+
+/// The cross-language check: the exact release inputs the server composed (tests/gateInputE2E.test.ts,
+/// through approvals.forRun, deadline.releaseStage and escrow.releaseByGate) pass the v4 gate: the
+/// terms digest recomputes, both approvals verify (Luca NEP-413, Jordan ed25519), and the balance's
+/// dock count verifies for this wallet. Then each is paid exactly what the server's rules computed.
+#[test]
+fn v4_accepts_the_servers_own_inputs() {
+    let f: Value = serde_json::from_str(include_str!("../server-inputs.json")).unwrap();
+    for (stage, want) in [("advance", 1_890_000u64), ("balance", 3_654_000)] {
+        let raw = f[stage].as_str().unwrap();
+        let r: ReleaseInput = serde_json::from_str::<Value>(raw).ok().and_then(|v| serde_json::from_value(v).ok()).unwrap();
+        assert_eq!(check_approved_terms(&r), Ok(()), "{stage}");
+        if stage == "balance" { assert_eq!(check_dock_attestation(&r), Ok(()), "{stage}"); }
+        let host = MockHost::accepting();
+        let out: Value = serde_json::from_str(&host.run(raw)).unwrap();
+        assert_eq!(out["ok"], true, "{stage}: {out}");
+        assert_eq!(out["amount_cents"], json!(want), "{stage}");
+    }
+}

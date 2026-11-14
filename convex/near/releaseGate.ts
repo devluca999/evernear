@@ -65,7 +65,11 @@ export class OutlayerReleaseGate implements ReleaseGate {
   get wasmUrl() { return this.o.wasmUrl; }
   get wasmSha256() { return this.o.wasmSha256; }
 
-  private async run(input: Record<string, unknown>): Promise<{ output: Record<string, unknown>; run: GateRun }> {
+  private run(input: Record<string, unknown>): Promise<{ output: Record<string, unknown>; run: GateRun }> {
+    return retryTransient(() => this.runOnce(input));
+  }
+
+  private async runOnce(input: Record<string, unknown>): Promise<{ output: Record<string, unknown>; run: GateRun }> {
     const args = {
       source: { WasmUrl: { url: this.o.wasmUrl, hash: this.o.wasmSha256, build_target: "wasm32-wasip2" } },
       input_data: canonical(input),
@@ -100,8 +104,26 @@ const CLI_LIMITS = { max_execution_seconds: 10, max_instructions: 1_000_000_000,
 /** The gate's answer from a run's final return value; a failed execution shows only in the logs. */
 export function answerFromRun(value: string | null, logs: string[]): Record<string, unknown> {
   if (value && value !== "null") return parseRunResult(value);
+  // OutLayer's worker did not complete the run and refunded the deposit: no output from the module.
+  if (logs.some((l) => /Execution promise failed/.test(l))) throw new GateRunTransient();
   const why = logs.map((l) => /Execution failed: (.*)/.exec(l)?.[1]).find(Boolean);
   throw new Error(`release gate run failed${why ? `: ${why.slice(0, 200)}` : ""}`);
+}
+
+/** The worker failed to run the module (seen on testnet, Nov 14); the same run usually completes on retry. */
+export class GateRunTransient extends Error {
+  constructor() { super("release gate run failed: OutLayer worker did not complete the run (deposit refunded)"); }
+}
+
+/**
+ * Runs `once` again, at most `tries` times in all, only while it fails with GateRunTransient. Safe for
+ * releases: the module sends the same per-stage idempotency key every time, so if an earlier attempt
+ * did reach Tidepool, a repeat is a replay of that payment, never a second one.
+ */
+export async function retryTransient<T>(once: () => Promise<T>, tries = 3): Promise<T> {
+  for (let i = 1; ; i++) {
+    try { return await once(); } catch (e) { if (!(e instanceof GateRunTransient) || i >= tries) throw e; }
+  }
 }
 
 /**

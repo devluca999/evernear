@@ -385,7 +385,7 @@ async function main() {
   const gateProblems = checkGateResults(entries, supplier);
   // The release-gate probes (v2, v3, v4 refusals on chain): read each tx's result and compare it with the fixture.
   out.gateProbes = [];
-  for (const f of ["gate-v2-frozen-probe.json", "gate-v3-unsigned-dock-probe.json", "gate-v4-exploit-probe.json"]) {
+  for (const f of ["gate-v2-frozen-probe.json", "gate-v3-unsigned-dock-probe.json", "gate-v4-exploit-probe.json", "gate-v4-testkeys-probe.json"]) {
     const fx = JSON.parse(await readFile(resolve(ROOT, "fixtures/recorded", f), "utf8"));
     let onChain = null, err = null;
     try {

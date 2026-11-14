@@ -111,3 +111,21 @@ describe("the gate run signed with a NEAR key", () => {
     expect(text).toContain('"secrets_ref":{"account_id":"evernear-luca.testnet","profile":"default"}');
   });
 });
+
+import { GateRunTransient, retryTransient } from "@/convex/near/releaseGate";
+
+describe("release gate: a run the OutLayer worker did not complete", () => {
+  it("is recognised from the logs (seen on testnet Nov 14: 'Execution promise failed', deposit refunded)", () => {
+    expect(() => answerFromRun("null", ["[[yNEAR charged: \"1\"]]", "Execution promise failed: Failed. Refunded 1000100000000000000000 yoctoNEAR"])).toThrow(GateRunTransient);
+  });
+  it("is retried, at most 3 times, and only that failure", async () => {
+    let n = 0;
+    expect(await retryTransient(async () => { if (++n < 3) throw new GateRunTransient(); return "ok"; })).toBe("ok");
+    n = 0;
+    await expect(retryTransient(async () => { n++; throw new GateRunTransient(); })).rejects.toBeInstanceOf(GateRunTransient);
+    expect(n).toBe(3);
+    n = 0;
+    await expect(retryTransient(async () => { n++; throw new Error("wasm_url could not be fetched"); })).rejects.toThrow("wasm_url");
+    expect(n).toBe(1);
+  });
+});

@@ -13,6 +13,7 @@ import type * as approvals from "../approvals.js";
 import type * as channels_email from "../channels/email.js";
 import type * as channels_telegram from "../channels/telegram.js";
 import type * as channels_verify from "../channels/verify.js";
+import type * as dock from "../dock.js";
 import type * as http from "../http.js";
 import type * as live from "../live.js";
 import type * as liveState from "../liveState.js";
@@ -44,6 +45,7 @@ declare const fullApi: ApiFromModules<{
   "channels/email": typeof channels_email;
   "channels/telegram": typeof channels_telegram;
   "channels/verify": typeof channels_verify;
+  dock: typeof dock;
   http: typeof http;
   live: typeof live;
   liveState: typeof liveState;

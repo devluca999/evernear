@@ -79,6 +79,10 @@ export default defineSchema({
     // An operator marked a claimed commit as checked by hand (e.g. it failed before any money moved), so it no longer blocks the PO.
     commitResolved: v.optional(v.boolean()),
   }).index("by_started", ["startedAt"]),
+  // Signed dock counts from pinned receiving devices (engine/attestation.ts, convex/dock.ts).
+  dockCounts: defineTable({
+    po: v.string(), count: v.number(), at: v.string(), device: v.string(), publicKey: v.string(), signature: v.string(), receivedAt: v.number(),
+  }).index("by_po", ["po", "receivedAt"]),
   // Signed commit approvals (engine/approvals.ts): one row per signature, spent once by claimCommit.
   commitApprovals: defineTable({
     digest: v.string(), po: v.string(), approver: v.string(), publicKey: v.string(), nonce: v.string(),

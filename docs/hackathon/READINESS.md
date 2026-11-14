@@ -37,8 +37,8 @@ Updated 2026-11-14 ~03:30 UTC. Development ends **2026-11-14 23:59 UTC** ([COMPE
 | P0 | Lost answer / stale escrow row could double-pay on retry | **Fixed**: on-chain balance reconcile before every release (`state_mismatch`) |
 | P0 | Remote repo stale (Nov 10) | **Needs you**: push |
 | P0 | Live mode on the hosted deployment will refuse commits until `APPROVER_KEYS` is set and functions deployed | **Needs you** |
-| P1 | Gate trusts caller `released_cents`, `advance_percent`, `to`, evidence | Documented and pinned by tests; fix needs a new wasm build (new key, new upload): parked |
-| P1 | Evidence not source-signed; dock count is a constant in live runs | **Partly fixed**: signed dock-count attestation enforced by the server when `DOCK_DEVICE_KEYS` is set; not in the deployed gate; carrier/customs signals still simulated |
+| P1 | Gate trusts caller `released_cents`, `advance_percent`, `to`, evidence | **Gate v2 built and tested** (reads the account's policy and balance, pins 30%); upload needs you. Evidence still from the caller |
+| P1 | Evidence not source-signed; dock count is a constant in live runs | **Fixed for the dock count** (live balance pays on a count signed at `/dock` when devices are pinned); carrier/customs signals still simulated. Earlier note: signed dock-count attestation enforced by the server when `DOCK_DEVICE_KEYS` is set; not in the deployed gate; carrier/customs signals still simulated |
 | P1 | Tidepool is a community testnet; rivals show mainnet | Needs Luca's explicit yes for any mainnet call (CLAUDE.md rule 7) |
 | P1 | `security` track not on the submission | Needs you (request-changes) |
 | P2 | Live UI: a refused commit stops live mode for the run with `commit: <reason>` (toggle Live to retry). Approvers sign at `/approve` or with `scripts/approve.mts` | Open |
@@ -73,7 +73,7 @@ Astro, its customers and suppliers; supplier replies; shipment signals; the dock
 
 ## Tests run (this branch)
 
-- `npx vitest run`: 461 passed (was 408 before this branch).
+- `npx vitest run`: 465 passed; `cargo test`: 32 passed (was 408 before this branch).
 - `cargo test` in worker/release-gate: 25 passed.
 - `npx tsc --noEmit`, `npx eslint convex engine tests scripts`, `npm run check:ip`: clean.
 - `DEMO_MODE=1 node scripts/demo.mjs --check` from a fresh clone with no `.env.local`: passed.

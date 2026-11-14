@@ -6,7 +6,7 @@
 // from seed/astro.ts, and the amounts from the engine. One run at a time, a few an hour, and every
 // run closes itself: its deadline is LIVE_DEADLINE_MS out, so an abandoned run is refunded to Astro
 // by the scheduled job.
-import { action, internalMutation, mutation, query } from "./_generated/server";
+import { action, internalMutation, mutation, query, type ActionCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { v } from "convex/values";
@@ -131,12 +131,16 @@ export const runStep = action({
         if (!escrow) throw new Error("no escrow");
         // After the balance, what is left is the held part: the wrong address tries to take that.
         const due = Math.max(1, escrow.lockedCents - escrow.releasedCents - escrow.reclaimedCents);
-        await ctx.runAction(internal.near.deadline.releaseStage, { runId, escrowId, stage: "balance", to: OFF_LIST, dockCount: PO.receivedQty });
+        const dock = await dockFor(ctx, data.startedAt);
+        if (!dock.ok) throw new Error(dock.reason);
+        await ctx.runAction(internal.near.deadline.releaseStage, { runId, escrowId, stage: "balance", to: OFF_LIST, ...dock.args });
         const r = await ctx.runAction(internal.near.deadline.policyRefusal, { runId, escrowId, to: OFF_LIST, cents: due });
         if (!r.refused) throw new Error("the PO account paid an off-list address");
       }
       if (st === "pay") {
-        const r = await ctx.runAction(internal.near.deadline.releaseStage, { runId, escrowId, stage: "balance", to: HAOYUN, dockCount: PO.receivedQty, payee: "Haoyun" });
+        const dock = await dockFor(ctx, data.startedAt);
+        if (!dock.ok) { await ctx.runMutation(internal.live.unclaim, { runId }); return { ok: false, reason: dock.reason }; }
+        const r = await ctx.runAction(internal.near.deadline.releaseStage, { runId, escrowId, stage: "balance", to: HAOYUN, ...dock.args, payee: "Haoyun" });
         if (!r.ok) throw new Error(r.reason ?? "balance failed");
       }
       if (st === "reclaim") {
@@ -152,3 +156,16 @@ export const runStep = action({
     }
   },
 });
+
+/**
+ * The dock count the balance is paid on. With dock devices pinned (DOCK_DEVICE_KEYS), the latest
+ * count signed for this PO since the run started (convex/dock.ts), with its signature, or no
+ * balance at all (`awaiting_dock_count`): the clerk signs it at /dock. Without pinned devices, the
+ * scenario's 44, used unsigned and labelled so on its proof row.
+ */
+async function dockFor(ctx: ActionCtx, since: number): Promise<{ ok: true; args: { dockCount: number; dockAttestation?: { po: string; count: number; at: string; device: string; publicKey: string; signature: string } } } | { ok: false; reason: string }> {
+  if (!process.env.DOCK_DEVICE_KEYS) return { ok: true, args: { dockCount: PO.receivedQty } };
+  const a = await ctx.runQuery(internal.dock.latest, { po: PO.number, since });
+  if (!a) return { ok: false, reason: "awaiting_dock_count" };
+  return { ok: true, args: { dockCount: a.count, dockAttestation: a } };
+}

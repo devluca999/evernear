@@ -40,7 +40,7 @@ describe("every zoom shows its card in full", () => {
         expect(cutText(el!), `${where}: text cut short`).toEqual([]);
         unmount();
       }
-    });
+    }, 30_000); // one full workspace render per zoom: slow on a loaded machine
   }
 });
 

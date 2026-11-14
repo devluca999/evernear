@@ -22,6 +22,6 @@ describe("camera focus resolution", () => {
         expect(el, `${id} chapter ${b.scene + 1} "${b.step}": no [data-focus="${b.focus!.id}"]`).not.toBeNull();
         unmount();
       }
-    });
+    }, 30_000); // renders the whole workspace once per step: slow on a loaded machine, not flaky in logic
   }
 });

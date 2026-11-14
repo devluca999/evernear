@@ -23,7 +23,7 @@ if (!check) {
     try {
       const res = await fetch(url);
       const html = await res.text();
-      ok = res.status === 200 && html.includes("<title>Evernear</title>");
+      ok = res.status === 200 && /<title>[^<]*evernear[^<]*<\/title>/i.test(html);
     } catch {}
   }
   server.kill();

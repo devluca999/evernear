@@ -15,6 +15,8 @@ const eslintConfig = defineConfig([
     "convex/_generated/**",
     ".claude/**",
     "vendor/**",
+    // Self-contained Remotion package with its own package.json and lint setup.
+    "content/**",
   ]),
 ]);
 

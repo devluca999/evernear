@@ -7,7 +7,7 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["**/*.test.ts", "**/*.test.tsx"],
-    exclude: ["node_modules/**", ".next/**", "worker/**/target/**", ".claude/**"],
+    exclude: ["node_modules/**", ".next/**", "worker/**/target/**", ".claude/**", "content/**"],
     server: { deps: { inline: ["convex-test"] } },
   },
 });
